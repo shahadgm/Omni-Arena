@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { dbService, authService } from '../../services/db';
-import { Settings, Plus, Users, Calendar, Keyboard, Edit, Trash2, RotateCcw, Square } from 'lucide-react';
+import { Settings, Plus, Users, Calendar, Keyboard, Edit, Trash2, RotateCcw, Square, MapPin } from 'lucide-react';
 
 const AdminDashboard = () => {
   const [tournaments, setTournaments] = useState([]);
@@ -254,6 +254,7 @@ const AdminDashboard = () => {
       {activeTab === 'typing' && renderTournamentSection('typing', <Keyboard size={24} />, 'Typing Tournaments')}
       {activeTab === 'quiz' && renderTournamentSection('quiz', <Calendar size={24} />, 'Quiz Tournaments')}
       {activeTab === 'logic-puzzle' && renderTournamentSection(['logic-puzzle', 'nonogram', 'shikaku'], <Square size={24} />, 'Logic Puzzle Tournaments')}
+      {activeTab === 'map' && renderTournamentSection('map', <MapPin size={24} />, 'Map Spotting Tournaments')}
 
       {activeTab === 'practice' && (
         <div>
