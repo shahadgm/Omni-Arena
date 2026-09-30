@@ -205,6 +205,7 @@ const CrosswordArena = () => {
     let isCorrect = true;
     let filled = 0;
     let total = 0;
+    let correctCount = 0;
     
     for (let r = 0; r < grid.length; r++) {
       for (let c = 0; c < grid[r].length; c++) {
@@ -213,21 +214,19 @@ const CrosswordArena = () => {
           const expected = grid[r][c].toUpperCase();
           const actual = userInputs[`${r},${c}`];
           if (actual) filled++;
-          if (actual !== expected) {
+          if (actual === expected) {
+            correctCount++;
+          } else {
             isCorrect = false;
           }
         }
       }
     }
     
-    if (filled < total) {
-      alert(`You've only filled ${filled} out of ${total} letters.`);
-      return;
-    }
-    
-    if (!isCorrect) {
-      alert("Some answers are incorrect. Keep trying!");
-      return;
+    if (filled < total || !isCorrect) {
+      if (!window.confirm(`You have filled ${filled} out of ${total} letters. ${!isCorrect ? 'Some answers might be incomplete or incorrect. ' : ''}Are you sure you want to submit?`)) {
+        return;
+      }
     }
     
     const timeElapsed = Math.floor((Date.now() - startTime) / 1000);
@@ -236,12 +235,17 @@ const CrosswordArena = () => {
     
     const studentId = localStorage.getItem('studentId');
     if (studentId && !id.startsWith('practice-')) {
+      const accuracy = Math.round((correctCount / total) * 100);
+      const score = (correctCount * 10000) - timeElapsed;
+      
       await dbService.saveResult(id, {
         studentId,
-        accuracy: 100,
+        accuracy,
         timeElapsed,
-        progress: 100,
-        score: timeElapsed,
+        progress: accuracy,
+        score,
+        correctCount,
+        totalLetters: total,
         timestamp: new Date().toISOString()
       });
     }
