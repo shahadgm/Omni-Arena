@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { dbService, authService } from '../../services/db';
-import { Settings, Plus, Users, Calendar, Keyboard, Edit, Trash2, RotateCcw, Square, MapPin } from 'lucide-react';
+import { Settings, Plus, Users, Calendar, Keyboard, Edit, Trash2, RotateCcw, Square, MapPin, Hash } from 'lucide-react';
 
 const AdminDashboard = () => {
   const [tournaments, setTournaments] = useState([]);
@@ -167,7 +167,8 @@ const AdminDashboard = () => {
     { id: 'practice-nonogram-5x5', name: '5x5 Easy (Nonogram)', desc: 'Random 5x5 generation.' },
     { id: 'practice-nonogram-10x10', name: '10x10 Medium (Nonogram)', desc: 'Random 10x10 generation.' },
     { id: 'practice-shikaku-5x5', name: '5x5 Beginner (Shikaku)', desc: 'Practice Shikaku.' },
-    { id: 'practice-map', name: 'World Geography (Map)', desc: 'Map spotting practice.' }
+    { id: 'practice-map', name: 'World Geography (Map)', desc: 'Map spotting practice.' },
+    { id: 'practice-crossword', name: 'Cryptic Crossword', desc: 'Crossword puzzle practice.' }
   ];
 
   const [activeTab, setActiveTab] = useState('typing');
@@ -177,6 +178,7 @@ const AdminDashboard = () => {
     { id: 'quiz', label: 'Quiz' },
     { id: 'logic-puzzle', label: 'Logic Puzzles' },
     { id: 'map', label: 'Map Spotting' },
+    { id: 'crossword', label: 'Crossword' },
     { id: 'practice', label: 'Practice' }
   ];
 
@@ -255,6 +257,7 @@ const AdminDashboard = () => {
       {activeTab === 'quiz' && renderTournamentSection('quiz', <Calendar size={24} />, 'Quiz Tournaments')}
       {activeTab === 'logic-puzzle' && renderTournamentSection(['logic-puzzle', 'nonogram', 'shikaku'], <Square size={24} />, 'Logic Puzzle Tournaments')}
       {activeTab === 'map' && renderTournamentSection('map', <MapPin size={24} />, 'Map Spotting Tournaments')}
+      {activeTab === 'crossword' && renderTournamentSection('crossword', <Hash size={24} />, 'Crossword Tournaments')}
 
       {activeTab === 'practice' && (
         <div>

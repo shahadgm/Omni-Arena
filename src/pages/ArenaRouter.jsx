@@ -5,6 +5,7 @@ import CompetitionArena from './CompetitionArena';
 import QuizArena from './QuizArena';
 import MultiPuzzleArena from './MultiPuzzleArena';
 import MapArena from './MapArena';
+import CrosswordArena from './CrosswordArena';
 
 const ArenaRouter = () => {
   const { id } = useParams();
@@ -18,6 +19,7 @@ const ArenaRouter = () => {
         else if (id.startsWith('practice-nonogram')) setGameType('nonogram');
         else if (id.startsWith('practice-shikaku')) setGameType('shikaku');
         else if (id.startsWith('practice-map')) setGameType('map');
+        else if (id.startsWith('practice-crossword')) setGameType('crossword');
         else setGameType('typing');
         return;
       }
@@ -47,6 +49,7 @@ const ArenaRouter = () => {
   switch(gameType) {
     case 'quiz': return <QuizArena />;
     case 'map': return <MapArena />;
+    case 'crossword': return <CrosswordArena />;
     case 'logic-puzzle':
     case 'nonogram': 
     case 'shikaku': return <MultiPuzzleArena />;

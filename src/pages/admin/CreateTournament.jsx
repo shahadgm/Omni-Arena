@@ -5,6 +5,7 @@ import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { dbService, authService } from '../../services/db';
 import { Plus, Trash2 } from 'lucide-react';
+import clg from 'crossword-layout-generator';
 
 const CreateTournament = () => {
   const navigate = useNavigate();
@@ -38,6 +39,9 @@ const CreateTournament = () => {
   const [mapLocations, setMapLocations] = useState([
     { prompt: 'Spot India', lat: 20.5937, lng: 78.9629, radiusKm: 500 }
   ]);
+
+  // Crossword options
+  const [crosswordText, setCrosswordText] = useState('angle A shape made by two lines meeting\nbrake Stop a vehicle / sounds like something broken');
 
   useEffect(() => {
     if (!authService.isAdmin()) {
@@ -85,6 +89,9 @@ const CreateTournament = () => {
           }
           if (t.mapLocations) {
             setMapLocations(t.mapLocations);
+          }
+          if (t.crosswordText) {
+            setCrosswordText(t.crosswordText);
           }
         }
       };
@@ -238,6 +245,36 @@ const CreateTournament = () => {
           return;
         }
         tournament.mapLocations = mapLocations;
+      } else if (gameType === 'crossword') {
+        if (!crosswordText.trim()) {
+          alert("Please enter crossword words and clues.");
+          return;
+        }
+        
+        const lines = crosswordText.split('\n').filter(l => l.trim());
+        const inputJson = [];
+        for (let line of lines) {
+          const firstSpaceIndex = line.indexOf(' ');
+          if (firstSpaceIndex === -1) {
+            alert(`Invalid line format: "${line}". Must be "word clue"`);
+            return;
+          }
+          const word = line.substring(0, firstSpaceIndex).trim().toLowerCase();
+          const clue = line.substring(firstSpaceIndex + 1).trim();
+          if (!word || !clue) {
+            alert(`Invalid line format: "${line}". Missing word or clue.`);
+            return;
+          }
+          inputJson.push({ answer: word, clue });
+        }
+        
+        const layout = clg.generateLayout(inputJson);
+        if (layout.table.length === 0) {
+          alert("Could not generate a crossword from these words. Try adding more crossing letters.");
+          return;
+        }
+        tournament.crosswordText = crosswordText;
+        tournament.crosswordLayout = layout;
       }
 
       if (id) {
@@ -311,6 +348,7 @@ const CreateTournament = () => {
               <option value="quiz">Quiz Competition</option>
               <option value="logic-puzzle">Logic Puzzles</option>
               <option value="map">Map Spotting</option>
+              <option value="crossword">Crossword</option>
             </select>
           </div>
 
@@ -733,6 +771,41 @@ const CreateTournament = () => {
                 <Plus size={16} /> Add Location
               </Button>
             </div>
+          </Card>
+        )}
+
+        {gameType === 'crossword' && (
+          <Card style={{ marginBottom: '2rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h2 style={{ fontSize: '1.25rem' }}>Crossword Words & Clues</h2>
+            </div>
+            
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.9rem' }}>
+              Enter the answer, a space, and then the clue. <strong>One word/clue pair per line.</strong><br/>
+              <em>Example:</em><br/>
+              <code>angle A shape made by two lines meeting</code><br/>
+              <code>brake Stop a vehicle / sounds like something broken</code>
+            </p>
+
+            <textarea 
+              value={crosswordText}
+              onChange={(e) => setCrosswordText(e.target.value)}
+              placeholder="angle A shape made by two lines meeting&#10;brake Stop a vehicle..."
+              style={{
+                width: '100%',
+                minHeight: '300px',
+                padding: '1rem',
+                borderRadius: '8px',
+                background: 'rgba(20, 20, 31, 0.5)',
+                border: '1px solid var(--glass-border)',
+                color: 'var(--text-primary)',
+                outline: 'none',
+                resize: 'vertical',
+                fontFamily: 'monospace',
+                lineHeight: '1.5'
+              }}
+              required
+            />
           </Card>
         )}
 
