@@ -276,7 +276,7 @@ const CrosswordArena = () => {
               backgroundColor: '#000'
             }}>
               {grid.map((row, r) => (
-                row.map((cell, c) => {
+                Array.from(row).map((cell, c) => {
                   if (cell === '-') {
                     return <div key={`${r},${c}`} style={{ backgroundColor: '#1a1a2e', width: '40px', height: '40px' }} />;
                   }

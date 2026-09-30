@@ -42,6 +42,7 @@ const CreateTournament = () => {
 
   // Crossword options
   const [crosswordText, setCrosswordText] = useState('angle A shape made by two lines meeting\nbrake Stop a vehicle / sounds like something broken');
+  const [crosswordPreview, setCrosswordPreview] = useState(null);
 
   useEffect(() => {
     if (!authService.isAdmin()) {
@@ -180,6 +181,37 @@ const CreateTournament = () => {
     }
   };
 
+  const handlePreviewCrossword = () => {
+    if (!crosswordText.trim()) return;
+    try {
+      const lines = crosswordText.split('\n').filter(l => l.trim());
+      const inputJson = [];
+      for (let line of lines) {
+        const firstSpaceIndex = line.indexOf(' ');
+        if (firstSpaceIndex === -1) {
+          alert(`Invalid line format: "${line}". Must be "word clue"`);
+          return;
+        }
+        const word = line.substring(0, firstSpaceIndex).trim().toLowerCase();
+        const clue = line.substring(firstSpaceIndex + 1).trim();
+        if (!word || !clue) {
+          alert(`Invalid line format: "${line}". Missing word or clue.`);
+          return;
+        }
+        inputJson.push({ answer: word, clue });
+      }
+      const layout = clg.generateLayout(inputJson);
+      if (layout.table.length === 0) {
+        alert("Could not generate a crossword from these words. Try adding more crossing letters.");
+        setCrosswordPreview(null);
+      } else {
+        setCrosswordPreview(layout.table);
+      }
+    } catch (err) {
+      alert("Error generating preview: " + err.message);
+    }
+  };
+
   const handleCreate = async (e) => {
     e.preventDefault();
     
@@ -273,8 +305,15 @@ const CreateTournament = () => {
           alert("Could not generate a crossword from these words. Try adding more crossing letters.");
           return;
         }
+        
+        // Flatten nested array for Firebase
+        const flatLayout = {
+          ...layout,
+          table: layout.table.map(row => row.join(''))
+        };
+        
         tournament.crosswordText = crosswordText;
-        tournament.crosswordLayout = layout;
+        tournament.crosswordLayout = flatLayout;
       }
 
       if (id) {
@@ -806,6 +845,53 @@ const CreateTournament = () => {
               }}
               required
             />
+            
+            <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <Button type="button" variant="secondary" onClick={handlePreviewCrossword} style={{ alignSelf: 'flex-start' }}>
+                Preview Layout
+              </Button>
+              
+              {crosswordPreview && (
+                <div style={{ 
+                  marginTop: '1rem',
+                  padding: '1rem',
+                  background: 'rgba(0,0,0,0.5)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  overflowX: 'auto'
+                }}>
+                  <div style={{
+                    display: 'grid', 
+                    gridTemplateColumns: `repeat(${crosswordPreview[0].length}, 30px)`, 
+                    gridTemplateRows: `repeat(${crosswordPreview.length}, 30px)`,
+                    gap: '0',
+                    border: '2px solid var(--glass-border)',
+                    backgroundColor: '#000'
+                  }}>
+                    {crosswordPreview.map((row, r) => (
+                      Array.from(row).map((cell, c) => (
+                        <div key={`${r},${c}`} style={{ 
+                          width: '30px', 
+                          height: '30px', 
+                          backgroundColor: cell === '-' ? '#1a1a2e' : '#fff',
+                          border: cell === '-' ? 'none' : '1px solid #333',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: '#000',
+                          fontWeight: 'bold',
+                          textTransform: 'uppercase'
+                        }}>
+                          {cell !== '-' ? cell : ''}
+                        </div>
+                      ))
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </Card>
         )}
 
