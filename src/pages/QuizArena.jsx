@@ -49,6 +49,14 @@ const QuizArena = () => {
       }
 
       if (t && t.quizQuestions && t.quizQuestions.length > 0) {
+        // Shuffle questions
+        const shuffledQuestions = [...t.quizQuestions];
+        for (let i = shuffledQuestions.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffledQuestions[i], shuffledQuestions[j]] = [shuffledQuestions[j], shuffledQuestions[i]];
+        }
+        t.quizQuestions = shuffledQuestions;
+
         setTournament(t);
         setAnswers(Array(t.quizQuestions.length).fill(null));
         setTimeLeft(t.quizQuestions[0].timeLimitSec || 30);
@@ -212,7 +220,14 @@ const QuizArena = () => {
   const currentQ = tournament.quizQuestions[currentQuestionIdx];
 
   return (
-    <div className="container" style={{ maxWidth: '800px', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)' }}>
+    <div 
+      className="container" 
+      style={{ maxWidth: '800px', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)', userSelect: 'none' }}
+      onCopy={e => e.preventDefault()}
+      onCut={e => e.preventDefault()}
+      onPaste={e => e.preventDefault()}
+      onContextMenu={e => e.preventDefault()}
+    >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <h1 style={{ fontSize: '1.75rem' }}>Quiz Arena</h1>
         <div style={{ display: 'flex', gap: '1rem' }}>

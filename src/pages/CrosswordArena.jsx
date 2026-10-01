@@ -254,7 +254,14 @@ const CrosswordArena = () => {
   if (!tournament || grid.length === 0) return <div className="container" style={{ padding: '2rem' }}>Loading...</div>;
 
   return (
-    <div className="container" style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 100px)', paddingBottom: '4rem' }}>
+    <div 
+      className="container" 
+      style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 100px)', paddingBottom: '4rem', userSelect: 'none' }}
+      onCopy={e => e.preventDefault()}
+      onCut={e => e.preventDefault()}
+      onPaste={e => e.preventDefault()}
+      onContextMenu={e => e.preventDefault()}
+    >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
         <h1 style={{ fontSize: '1.75rem' }}>{tournament.name}</h1>
       </div>
