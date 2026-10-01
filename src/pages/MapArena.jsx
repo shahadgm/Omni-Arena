@@ -4,6 +4,7 @@ import { dbService } from '../services/db';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { Trophy, MapPin, Navigation, Clock } from 'lucide-react';
+import { useAntiCheat } from '../hooks/useAntiCheat';
 import { MapContainer, TileLayer, Marker, useMapEvents, Circle } from 'react-leaflet';
 import L from 'leaflet';
 
@@ -134,6 +135,25 @@ const MapArena = () => {
       setFeedback(null);
     }
   };
+
+  useAntiCheat(() => {
+    if (!completed) {
+      setCompleted(true);
+      if (!id.startsWith('practice-')) {
+        dbService.saveResult(id, {
+          studentId,
+          score: results.filter(r => r.isCorrect).length,
+          accuracy: Math.round((results.filter(r => r.isCorrect).length / locations.length) * 100) || 0,
+          timeElapsed,
+          mapDetails: results
+        }).then(() => {
+          navigate(`/leaderboard/${id}`);
+        });
+      } else {
+        navigate(`/leaderboard/${id}`);
+      }
+    }
+  }, id.startsWith('practice-'));
 
   if (completed) {
     const score = results.filter(r => r.isCorrect).length;

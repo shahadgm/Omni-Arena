@@ -4,6 +4,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { dbService } from '../services/db';
 import { Trophy, Clock, Target } from 'lucide-react';
+import { useAntiCheat } from '../hooks/useAntiCheat';
 
 const QuizArena = () => {
   const { id } = useParams();
@@ -159,6 +160,10 @@ const QuizArena = () => {
       quizDetails: details
     });
   };
+
+  useAntiCheat(() => {
+    if (!completed) handleFinish();
+  }, id.startsWith('practice-'));
 
   if (!tournament) return <div className="page-wrapper">Loading...</div>;
 

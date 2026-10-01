@@ -5,6 +5,7 @@ import Button from '../components/ui/Button';
 import { dbService } from '../services/db';
 import { generateCompetitionText } from '../utils/textGenerator';
 import { Trophy, Clock, Target, Zap } from 'lucide-react';
+import { useAntiCheat } from '../hooks/useAntiCheat';
 
 const CompetitionArena = () => {
   const { id } = useParams();
@@ -192,6 +193,18 @@ const CompetitionArena = () => {
       navigate(`/leaderboard/${id}`);
     }, 2000);
   };
+  
+  useAntiCheat(() => {
+    if (!completed) {
+      setCompleted(true);
+      setEndTime(Date.now());
+      if (!id.startsWith('practice-')) {
+        saveResult(Date.now());
+      } else {
+        navigate(`/leaderboard/${id}`);
+      }
+    }
+  }, id.startsWith('practice-'));
   
   if (sections.length === 0) return <div className="page-wrapper">Loading...</div>;
 

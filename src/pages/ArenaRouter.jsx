@@ -25,13 +25,31 @@ const ArenaRouter = () => {
       }
       
       const studentId = localStorage.getItem('studentId');
-      if (studentId) {
+      if (studentId && !id.startsWith('practice-')) {
         const participated = await dbService.hasParticipated(id, studentId);
         if (participated) {
           alert('You have already participated in this tournament! You can only play once.');
           navigate(`/leaderboard/${id}`);
           return;
         }
+        
+        if (localStorage.getItem(`started_${id}`)) {
+          alert('You left the tournament before finishing. Your attempt is void and has been submitted with a score of 0.');
+          // Auto-submit 0 score so hasParticipated becomes true for future
+          await dbService.saveResult(id, {
+            studentId,
+            score: 0,
+            accuracy: 0,
+            progress: 0,
+            abandoned: true,
+            timestamp: new Date().toISOString()
+          });
+          navigate(`/leaderboard/${id}`);
+          return;
+        }
+        
+        // Mark as started
+        localStorage.setItem(`started_${id}`, 'true');
       }
 
       const t = await dbService.getTournament(id);

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { dbService, authService } from '../services/db';
+import { useAntiCheat } from '../hooks/useAntiCheat';
 
 const CrosswordArena = () => {
   const { id } = useParams();
@@ -199,7 +200,7 @@ const CrosswordArena = () => {
     }
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (force = false) => {
     if (!tournament) return;
     
     let isCorrect = true;
@@ -223,7 +224,7 @@ const CrosswordArena = () => {
       }
     }
     
-    if (filled < total || !isCorrect) {
+    if (!force && (filled < total || !isCorrect)) {
       if (!window.confirm(`You have filled ${filled} out of ${total} letters. ${!isCorrect ? 'Some answers might be incomplete or incorrect. ' : ''}Are you sure you want to submit?`)) {
         return;
       }
@@ -250,6 +251,10 @@ const CrosswordArena = () => {
       });
     }
   };
+
+  useAntiCheat(() => {
+    if (!isFinished) handleSubmit(true); // Call with force = true
+  }, id.startsWith('practice-'));
 
   if (!tournament || grid.length === 0) return <div className="container" style={{ padding: '2rem' }}>Loading...</div>;
 

@@ -6,6 +6,7 @@ import NonogramBoard from '../components/puzzles/NonogramBoard';
 import ShikakuBoard from '../components/puzzles/ShikakuBoard';
 import Card from '../components/ui/Card';
 import { Trophy } from 'lucide-react';
+import { useAntiCheat } from '../hooks/useAntiCheat';
 
 const MultiPuzzleArena = () => {
   const { id } = useParams();
@@ -111,6 +112,22 @@ const MultiPuzzleArena = () => {
   const handleSurrender = () => {
     navigate('/dashboard');
   };
+
+  useAntiCheat(() => {
+    if (!completed) {
+      setCompleted(true);
+      dbService.saveResult(id, {
+        studentId,
+        score: 0,
+        accuracy: 0,
+        timeElapsed,
+        progress: Math.round((currentIdx / puzzles.length) * 100),
+        wpm: 0
+      }).then(() => {
+        navigate(`/leaderboard/${id}`);
+      });
+    }
+  }, id.startsWith('practice-'));
 
   if (loading) return <div className="page-wrapper">Loading Puzzles...</div>;
 
