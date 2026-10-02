@@ -11,6 +11,7 @@ const LeaderboardPage = () => {
   const [title, setTitle] = useState('');
   const [gameType, setGameType] = useState('typing');
   const [expandedId, setExpandedId] = useState(null);
+  const [isHidden, setIsHidden] = useState(false);
   
   const isAdmin = authService.isAdmin();
 
@@ -33,6 +34,9 @@ const LeaderboardPage = () => {
         if (t) {
           setTitle(t.name);
           setGameType(t.gameType || 'typing');
+          if (t.hideLeaderboard && !isAdmin) {
+            setIsHidden(true);
+          }
         } else {
           setTitle('Competition');
         }
@@ -41,7 +45,7 @@ const LeaderboardPage = () => {
     };
     
     fetchLeaderboard();
-  }, [id]);
+  }, [id, isAdmin]);
 
   const isPuzzle = gameType === 'nonogram' || gameType === 'shikaku' || gameType === 'logic-puzzle';
   const isCrossword = gameType === 'crossword';
@@ -115,41 +119,49 @@ const LeaderboardPage = () => {
         <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem' }}>{title}</p>
       </div>
 
-      <Card padding="0">
-        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'grid', gridTemplateColumns: gridCols, fontWeight: '600', color: 'var(--text-secondary)' }}>
-          <div>Rank</div>
-          <div>Student</div>
-          {(isPuzzle || isMap) ? (
-            <>
-              <div style={{ textAlign: 'center', color: 'var(--accent-primary)' }}>{isMap ? 'Score' : 'Time Taken'}</div>
-              <div style={{ textAlign: 'center' }}>{isMap ? 'Time Elapsed' : 'Accuracy'}</div>
-              <div style={{ textAlign: 'center' }}>{isMap ? 'Accuracy' : 'Progress'}</div>
-            </>
-          ) : (isQuiz || isCrossword) ? (
-            <>
-              <div style={{ textAlign: 'center', color: 'var(--accent-primary)' }}>Score</div>
-              <div style={{ textAlign: 'center' }}>{isCrossword ? 'Time' : 'Correct'}</div>
-              <div style={{ textAlign: 'center' }}>Accuracy</div>
-              <div style={{ textAlign: 'center' }}>Progress</div>
-            </>
+      {isHidden ? (
+        <Card padding="3rem">
+          <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+            <h2 style={{ marginBottom: '1rem' }}>Leaderboard is Hidden</h2>
+            <p>The results for this tournament are hidden by the administrator.</p>
+          </div>
+        </Card>
+      ) : (
+        <Card padding="0">
+          <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'grid', gridTemplateColumns: gridCols, fontWeight: '600', color: 'var(--text-secondary)' }}>
+            <div>Rank</div>
+            <div>Student</div>
+            {(isPuzzle || isMap) ? (
+              <>
+                <div style={{ textAlign: 'center', color: 'var(--accent-primary)' }}>{isMap ? 'Score' : 'Time Taken'}</div>
+                <div style={{ textAlign: 'center' }}>{isMap ? 'Time Elapsed' : 'Accuracy'}</div>
+                <div style={{ textAlign: 'center' }}>{isMap ? 'Accuracy' : 'Progress'}</div>
+              </>
+            ) : (isQuiz || isCrossword) ? (
+              <>
+                <div style={{ textAlign: 'center', color: 'var(--accent-primary)' }}>Score</div>
+                <div style={{ textAlign: 'center' }}>{isCrossword ? 'Time' : 'Correct'}</div>
+                <div style={{ textAlign: 'center' }}>Accuracy</div>
+                <div style={{ textAlign: 'center' }}>Progress</div>
+              </>
+            ) : (
+              <>
+                <div style={{ textAlign: 'center', color: 'var(--accent-primary)' }}>Score</div>
+                <div style={{ textAlign: 'center' }}>Net Speed</div>
+                <div style={{ textAlign: 'center' }}>Accuracy</div>
+                <div style={{ textAlign: 'center' }}>Chars Typed</div>
+                <div style={{ textAlign: 'center' }}>Progress</div>
+              </>
+            )}
+            <div></div>
+          </div>
+          
+          {loading ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading scores...</div>
+          ) : leaderboard.length === 0 ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No scores yet. Be the first to compete!</div>
           ) : (
-            <>
-              <div style={{ textAlign: 'center', color: 'var(--accent-primary)' }}>Score</div>
-              <div style={{ textAlign: 'center' }}>Net Speed</div>
-              <div style={{ textAlign: 'center' }}>Accuracy</div>
-              <div style={{ textAlign: 'center' }}>Chars Typed</div>
-              <div style={{ textAlign: 'center' }}>Progress</div>
-            </>
-          )}
-          <div></div>
-        </div>
-        
-        {loading ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading scores...</div>
-        ) : leaderboard.length === 0 ? (
-          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No scores yet. Be the first to compete!</div>
-        ) : (
-          <div>
+            <div>
             {leaderboard.map((entry, idx) => (
               <React.Fragment key={entry.id}>
                 <div style={{ 
@@ -330,7 +342,8 @@ const LeaderboardPage = () => {
             ))}
           </div>
         )}
-      </Card>
+        </Card>
+      )}
     </div>
   );
 };

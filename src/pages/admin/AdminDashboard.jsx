@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { dbService, authService } from '../../services/db';
-import { Settings, Plus, Users, Calendar, Keyboard, Edit, Trash2, RotateCcw, Square, MapPin, Hash } from 'lucide-react';
+import { Settings, Plus, Users, Calendar, Keyboard, Edit, Trash2, RotateCcw, Square, MapPin, Hash, Lock } from 'lucide-react';
 
 const AdminDashboard = () => {
   const [tournaments, setTournaments] = useState([]);
@@ -114,7 +114,10 @@ const AdminDashboard = () => {
                     alignItems: 'center',
                   }}>
                     <div>
-                      <div style={{ fontWeight: '600', fontSize: '1.05rem', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>{t.name}</div>
+                      <div style={{ fontWeight: '600', fontSize: '1.05rem', color: 'var(--text-primary)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {t.name}
+                        {t.isPrivate && <Lock size={14} color="var(--text-tertiary)" title={`Private: Code ${t.accessCode}`} />}
+                      </div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>ID: {t.id.slice(0, 8)}...</div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>

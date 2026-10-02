@@ -18,6 +18,11 @@ const CreateTournament = () => {
   const [endTime, setEndTime] = useState('');
   const [timeLimit, setTimeLimit] = useState(0);
   
+  // Privacy & Access
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [accessCode, setAccessCode] = useState('');
+  const [hideLeaderboard, setHideLeaderboard] = useState(false);
+  
   // Custom text option (Typing)
   const [useCustomText, setUseCustomText] = useState(false);
   const [customSections, setCustomSections] = useState([
@@ -62,6 +67,13 @@ const CreateTournament = () => {
           setStartTime(formatLocal(t.startTime));
           setEndTime(formatLocal(t.endTime));
           if (t.timeLimit) setTimeLimit(t.timeLimit);
+          if (t.isPrivate) {
+            setIsPrivate(true);
+            setAccessCode(t.accessCode || '');
+          }
+          if (t.hideLeaderboard) {
+            setHideLeaderboard(true);
+          }
           if (t.customText) {
             setUseCustomText(true);
             setCustomSections(t.customText);
@@ -228,6 +240,9 @@ const CreateTournament = () => {
         startTime: new Date(startTime).toISOString(),
         endTime: new Date(endTime).toISOString(),
         timeLimit: parseInt(timeLimit) || 0,
+        isPrivate,
+        accessCode: isPrivate ? accessCode : '',
+        hideLeaderboard
       };
 
       if (gameType === 'typing') {
@@ -370,6 +385,38 @@ const CreateTournament = () => {
               min="0"
             />
             <p style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem', marginTop: '0.25rem' }}>Set to 0 for unlimited time.</p>
+          </div>
+
+          <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+              <input 
+                type="checkbox" 
+                checked={isPrivate} 
+                onChange={(e) => setIsPrivate(e.target.checked)} 
+                style={{ width: '18px', height: '18px', accentColor: 'var(--accent-primary)' }}
+              />
+              <span style={{ fontWeight: '500' }}>Private Tournament</span>
+            </label>
+            {isPrivate && (
+              <div style={{ marginLeft: '1.5rem' }}>
+                <Input 
+                  placeholder="Enter Access Code"
+                  value={accessCode} 
+                  onChange={(e) => setAccessCode(e.target.value)} 
+                />
+                <p style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem', marginTop: '0.25rem' }}>Contestants will need this code to enter.</p>
+              </div>
+            )}
+            
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+              <input 
+                type="checkbox" 
+                checked={hideLeaderboard} 
+                onChange={(e) => setHideLeaderboard(e.target.checked)} 
+                style={{ width: '18px', height: '18px', accentColor: 'var(--accent-primary)' }}
+              />
+              <span style={{ fontWeight: '500' }}>Hide Leaderboard from Contestants</span>
+            </label>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1.5rem' }}>

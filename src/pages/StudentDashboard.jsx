@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { dbService } from '../services/db';
-import { Play, Trophy, Clock, Keyboard, Grid, Square, HelpCircle } from 'lucide-react';
+import { Play, Trophy, Clock, Keyboard, Grid, Square, HelpCircle, Lock } from 'lucide-react';
 
 const StudentDashboard = () => {
   const [tournaments, setTournaments] = useState([]);
@@ -53,8 +53,15 @@ const StudentDashboard = () => {
     ]
   };
 
-  const handleJoin = (id) => {
-    navigate(`/arena/${id}`);
+  const handleJoin = (t) => {
+    if (t.isPrivate) {
+      const code = window.prompt("This tournament is private. Enter the access code:");
+      if (code !== t.accessCode) {
+        alert("Incorrect access code!");
+        return;
+      }
+    }
+    navigate(`/arena/${t.id}`);
   };
 
   const [activeCategory, setActiveCategory] = useState(null);
@@ -92,7 +99,10 @@ const StudentDashboard = () => {
           {tournaments.map(t => (
             <Card key={t.id} hoverEffect={true}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <h3 style={{ fontSize: '1.25rem' }}>{t.name}</h3>
+                <h3 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {t.name}
+                  {t.isPrivate && <Lock size={16} color="var(--text-tertiary)" title="Private Tournament" />}
+                </h3>
                 <span style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)', borderRadius: '4px' }}>
                   LIVE
                 </span>
@@ -101,7 +111,7 @@ const StudentDashboard = () => {
                 Game: {t.gameType === 'logic-puzzle' ? 'Logic Puzzles' : (t.gameType || 'typing').charAt(0).toUpperCase() + (t.gameType || 'typing').slice(1)} {t.gameType === 'typing' || !t.gameType ? `(${t.type})` : ''}
               </p>
               <div style={{ marginTop: '1rem', display: 'flex', gap: '1rem' }}>
-                <Button onClick={() => handleJoin(t.id)} style={{ flex: 1 }}>
+                <Button onClick={() => handleJoin(t)} style={{ flex: 1 }}>
                   Join <Play size={16} />
                 </Button>
                 <Button variant="secondary" onClick={() => navigate(`/leaderboard/${t.id}`)}>
