@@ -162,9 +162,16 @@ const CreateTournament = () => {
         const qType = parts[0].toLowerCase();
         
         if (qType === 'mcq') {
-          const [_, q, o1, o2, o3, o4, correct, time, pts] = parts;
+          let sec, q, o1, o2, o3, o4, correct, time, pts;
+          if (parts.length >= 10) {
+            [_, sec, q, o1, o2, o3, o4, correct, time, pts] = parts;
+          } else {
+            sec = 'General';
+            [_, q, o1, o2, o3, o4, correct, time, pts] = parts;
+          }
           return {
             type: 'mcq',
+            section: sec || 'General',
             question: q || '',
             options: [o1 || '', o2 || '', o3 || '', o4 || ''],
             correctOptionIndex: Math.max(0, parseInt(correct) - 1 || 0),
@@ -173,9 +180,16 @@ const CreateTournament = () => {
             points: parseInt(pts) || 1
           };
         } else if (qType === 'text') {
-          const [_, q, ans, time, pts] = parts;
+          let sec, q, ans, time, pts;
+          if (parts.length >= 6) {
+            [_, sec, q, ans, time, pts] = parts;
+          } else {
+            sec = 'General';
+            [_, q, ans, time, pts] = parts;
+          }
           return {
             type: 'text',
+            section: sec || 'General',
             question: q || '',
             options: ['', '', '', ''],
             correctOptionIndex: 0,
@@ -547,8 +561,8 @@ const CreateTournament = () => {
               <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Bulk Import (Excel/TSV)</h3>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>
                 Paste from Excel here. Format must be tab-separated:<br/>
-                For MCQ: <code>mcq &lt;tab&gt; Question &lt;tab&gt; Opt1 &lt;tab&gt; Opt2 &lt;tab&gt; Opt3 &lt;tab&gt; Opt4 &lt;tab&gt; CorrectIndex(1-4) &lt;tab&gt; TimeLimit &lt;tab&gt; Points</code><br/>
-                For Text: <code>text &lt;tab&gt; Question &lt;tab&gt; CorrectAnswer &lt;tab&gt; TimeLimit &lt;tab&gt; Points</code>
+                For MCQ: <code>mcq &lt;tab&gt; Section &lt;tab&gt; Question &lt;tab&gt; Opt1 &lt;tab&gt; Opt2 &lt;tab&gt; Opt3 &lt;tab&gt; Opt4 &lt;tab&gt; CorrectIndex(1-4) &lt;tab&gt; TimeLimit &lt;tab&gt; Points</code><br/>
+                For Text: <code>text &lt;tab&gt; Section &lt;tab&gt; Question &lt;tab&gt; CorrectAnswer &lt;tab&gt; TimeLimit &lt;tab&gt; Points</code>
               </p>
               <textarea 
                 value={bulkText}
