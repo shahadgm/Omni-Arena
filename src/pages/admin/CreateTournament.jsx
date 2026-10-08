@@ -162,7 +162,7 @@ const CreateTournament = () => {
         const qType = parts[0].toLowerCase();
         
         if (qType === 'mcq') {
-          let sec, q, o1, o2, o3, o4, correct, time, pts;
+          let _, sec, q, o1, o2, o3, o4, correct, time, pts;
           if (parts.length >= 10) {
             [_, sec, q, o1, o2, o3, o4, correct, time, pts] = parts;
           } else {
@@ -180,7 +180,7 @@ const CreateTournament = () => {
             points: parseInt(pts) || 1
           };
         } else if (qType === 'text') {
-          let sec, q, ans, time, pts;
+          let _, sec, q, ans, time, pts;
           if (parts.length >= 6) {
             [_, sec, q, ans, time, pts] = parts;
           } else {
