@@ -219,37 +219,69 @@ const LeaderboardPage = () => {
                     background: 'rgba(0,0,0,0.2)', 
                     borderBottom: idx < leaderboard.length - 1 ? '1px solid var(--glass-border)' : 'none' 
                   }}>
-                    <div style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: '150px 1fr 1fr 1fr 1fr', 
-                      gap: '1rem',
-                      padding: '0.5rem 0',
-                      borderBottom: '1px solid rgba(255,255,255,0.05)',
-                      color: 'var(--text-secondary)',
-                      fontSize: '0.875rem'
-                    }}>
-                      <div>Language</div>
-                      <div style={{ textAlign: 'center' }}>Net Speed</div>
-                      <div style={{ textAlign: 'center' }}>Accuracy</div>
-                      <div style={{ textAlign: 'center' }}>Progress</div>
-                      <div style={{ textAlign: 'center' }}>Section Score</div>
-                    </div>
-                    {entry.sectionDetails.map((sec, i) => (
-                      <div key={i} style={{ 
-                        display: 'grid', 
-                        gridTemplateColumns: '150px 1fr 1fr 1fr 1fr', 
-                        gap: '1rem',
-                        padding: '0.75rem 0',
-                        borderBottom: i < entry.sectionDetails.length - 1 ? '1px dashed rgba(255,255,255,0.05)' : 'none',
-                        alignItems: 'center'
-                      }}>
-                        <div style={{ fontWeight: '500', color: 'var(--text-primary)' }}>{sec.language}</div>
-                        <div style={{ textAlign: 'center' }}>{sec.wpm}</div>
-                        <div style={{ textAlign: 'center', color: 'var(--success)' }}>{sec.accuracy}%</div>
-                        <div style={{ textAlign: 'center', color: 'var(--accent-secondary)' }}>{sec.progress}%</div>
-                        <div style={{ textAlign: 'center', fontWeight: '600', color: 'var(--accent-primary)' }}>{sec.score ? Number(sec.score).toFixed(2) : 0}</div>
-                      </div>
-                    ))}
+                    {isQuiz ? (
+                      <>
+                        <div style={{ 
+                          display: 'grid', 
+                          gridTemplateColumns: '1fr 1fr', 
+                          gap: '1rem',
+                          padding: '0.5rem 0',
+                          borderBottom: '1px solid rgba(255,255,255,0.05)',
+                          color: 'var(--text-secondary)',
+                          fontSize: '0.875rem'
+                        }}>
+                          <div>Section</div>
+                          <div style={{ textAlign: 'center' }}>Points</div>
+                        </div>
+                        {entry.sectionDetails.map((sec, i) => (
+                          <div key={i} style={{ 
+                            display: 'grid', 
+                            gridTemplateColumns: '1fr 1fr', 
+                            gap: '1rem',
+                            padding: '0.75rem 0',
+                            borderBottom: i < entry.sectionDetails.length - 1 ? '1px dashed rgba(255,255,255,0.05)' : 'none',
+                            alignItems: 'center'
+                          }}>
+                            <div style={{ fontWeight: '500', color: 'var(--text-primary)' }}>{sec.section}</div>
+                            <div style={{ textAlign: 'center', fontWeight: '600', color: 'var(--accent-primary)' }}>{sec.score} / {sec.max}</div>
+                          </div>
+                        ))}
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ 
+                          display: 'grid', 
+                          gridTemplateColumns: '150px 1fr 1fr 1fr 1fr', 
+                          gap: '1rem',
+                          padding: '0.5rem 0',
+                          borderBottom: '1px solid rgba(255,255,255,0.05)',
+                          color: 'var(--text-secondary)',
+                          fontSize: '0.875rem'
+                        }}>
+                          <div>Language</div>
+                          <div style={{ textAlign: 'center' }}>Net Speed</div>
+                          <div style={{ textAlign: 'center' }}>Accuracy</div>
+                          <div style={{ textAlign: 'center' }}>Progress</div>
+                          <div style={{ textAlign: 'center' }}>Section Score</div>
+                        </div>
+                        {entry.sectionDetails.map((sec, i) => (
+                          <div key={i} style={{ 
+                            display: 'grid', 
+                            gridTemplateColumns: '150px 1fr 1fr 1fr 1fr', 
+                            gap: '1rem',
+                            padding: '0.75rem 0',
+                            borderBottom: i < entry.sectionDetails.length - 1 ? '1px dashed rgba(255,255,255,0.05)' : 'none',
+                            alignItems: 'center'
+                          }}>
+                            <div style={{ fontWeight: '500', color: 'var(--text-primary)' }}>{sec.language}</div>
+                            <div style={{ textAlign: 'center' }}>{sec.wpm}</div>
+                            <div style={{ textAlign: 'center', color: 'var(--success)' }}>{sec.accuracy}%</div>
+                            <div style={{ textAlign: 'center', color: 'var(--accent-secondary)' }}>{sec.progress}%</div>
+                            <div style={{ textAlign: 'center', fontWeight: '600', color: 'var(--accent-primary)' }}>{sec.score ? Number(sec.score).toFixed(2) : 0}</div>
+                          </div>
+                        ))}
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -269,7 +301,10 @@ const LeaderboardPage = () => {
                           borderRadius: '0 8px 8px 0'
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <div style={{ fontWeight: '600' }}>Q{i+1}: {q.question}</div>
+                            <div>
+                              {q.section && <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--accent-primary)', letterSpacing: '0.5px', marginBottom: '0.25rem' }}>{q.section}</div>}
+                              <div style={{ fontWeight: '600' }}>Q{i+1}: {q.question}</div>
+                            </div>
                             <div style={{ fontSize: '0.85rem', color: q.isCorrect ? 'var(--success)' : 'var(--error)' }}>
                               {q.pointsAwarded} / {q.maxPoints} pts
                             </div>

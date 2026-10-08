@@ -82,6 +82,7 @@ const CreateTournament = () => {
             const mapped = t.quizQuestions.map(q => ({
               ...q,
               type: q.type || 'mcq',
+              section: q.section || 'General',
               correctAnswer: q.correctAnswer || '',
               points: q.points || 1
             }));
@@ -131,7 +132,8 @@ const CreateTournament = () => {
   };
 
   const handleAddQuizQuestion = () => {
-    setQuizQuestions([...quizQuestions, { type: 'mcq', question: '', options: ['', '', '', ''], correctOptionIndex: 0, correctAnswer: '', timeLimitSec: 30, points: 1 }]);
+    const lastSection = quizQuestions.length > 0 ? quizQuestions[quizQuestions.length - 1].section || 'General' : 'General';
+    setQuizQuestions([...quizQuestions, { type: 'mcq', section: lastSection, question: '', options: ['', '', '', ''], correctOptionIndex: 0, correctAnswer: '', timeLimitSec: 30, points: 1 }]);
   };
 
   const handleUpdateQuizQuestion = (idx, field, value) => {
@@ -589,6 +591,12 @@ const CreateTournament = () => {
                       <option value="mcq">Multiple Choice</option>
                       <option value="text">Single Answer (Text Input)</option>
                     </select>
+                    <Input 
+                      placeholder="Section Name (e.g. GK, Math)"
+                      value={q.section || 'General'}
+                      onChange={e => handleUpdateQuizQuestion(idx, 'section', e.target.value)}
+                      style={{ width: '250px' }}
+                    />
                   </div>
 
                   <Input 

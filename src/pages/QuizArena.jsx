@@ -50,12 +50,27 @@ const QuizArena = () => {
       }
 
       if (t && t.quizQuestions && t.quizQuestions.length > 0) {
-        // Shuffle questions
-        const shuffledQuestions = [...t.quizQuestions];
-        for (let i = shuffledQuestions.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [shuffledQuestions[i], shuffledQuestions[j]] = [shuffledQuestions[j], shuffledQuestions[i]];
-        }
+        // Shuffle questions within their sections
+        const sectionsMap = {};
+        t.quizQuestions.forEach(q => {
+          const sec = q.section || 'General';
+          if (!sectionsMap[sec]) sectionsMap[sec] = [];
+          sectionsMap[sec].push(q);
+        });
+
+        const shuffledQuestions = [];
+        // Preserve the order of sections as they first appear in the original list
+        const uniqueSections = [...new Set(t.quizQuestions.map(q => q.section || 'General'))];
+        
+        uniqueSections.forEach(sec => {
+          const sectionQs = sectionsMap[sec];
+          for (let i = sectionQs.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [sectionQs[i], sectionQs[j]] = [sectionQs[j], sectionQs[i]];
+          }
+          shuffledQuestions.push(...sectionQs);
+        });
+        
         t.quizQuestions = shuffledQuestions;
 
         setTournament(t);
@@ -105,6 +120,8 @@ const QuizArena = () => {
     let totalScore = 0;
     const details = [];
     
+    const sectionScores = {};
+
     tournament.quizQuestions.forEach((q, idx) => {
       let isCorrect = false;
       const pts = q.points || 1;
@@ -130,13 +147,19 @@ const QuizArena = () => {
         }
       }
       
+      const sec = q.section || 'General';
+      if (!sectionScores[sec]) sectionScores[sec] = { score: 0, max: 0 };
+      sectionScores[sec].max += pts;
+
       if (isCorrect) {
         correctCount++;
         totalScore += pts;
+        sectionScores[sec].score += pts;
       }
       
       details.push({
         question: q.question,
+        section: sec,
         userAnswer: userAnswerDisplay,
         correctAnswer: correctAnswerDisplay,
         isCorrect,
@@ -144,6 +167,13 @@ const QuizArena = () => {
         maxPoints: pts
       });
     });
+    
+    // Convert sectionScores object to an array for easy rendering/storing
+    const sectionDetails = Object.keys(sectionScores).map(sec => ({
+      section: sec,
+      score: sectionScores[sec].score,
+      max: sectionScores[sec].max
+    }));
     
     const accuracy = Math.round((correctCount / tournament.quizQuestions.length) * 100);
     setFinalScore(totalScore);
@@ -157,7 +187,8 @@ const QuizArena = () => {
       totalQuestions: tournament.quizQuestions.length,
       progress: 100, // completed
       wpm: 0, // to satisfy leaderboard tiebreakers gracefully
-      quizDetails: details
+      quizDetails: details,
+      sectionDetails
     });
   };
 
@@ -248,9 +279,14 @@ const QuizArena = () => {
       </div>
 
       <Card style={{ marginBottom: '1rem', padding: '1.5rem', flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <h2 style={{ fontSize: '1.35rem', marginBottom: '1.5rem', lineHeight: '1.4' }}>
-          {currentQ.question}
-        </h2>
+        <div style={{ marginBottom: '1.5rem' }}>
+          <span style={{ background: 'rgba(99, 102, 241, 0.15)', color: 'var(--accent-primary)', padding: '0.25rem 0.75rem', borderRadius: '12px', fontSize: '0.8rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Section: {currentQ.section || 'General'}
+          </span>
+          <h2 style={{ fontSize: '1.35rem', marginTop: '1rem', lineHeight: '1.4' }}>
+            {currentQ.question}
+          </h2>
+        </div>
         
         <div style={{ 
           display: currentQ.type === 'text' ? 'block' : 'grid', 
