@@ -1,14 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
 import { Trophy, Zap, Keyboard, Gamepad2 } from 'lucide-react';
+import { authService } from '../services/db';
 
 const LandingPage = () => {
   const [identifier, setIdentifier] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (authService.isAdmin()) {
+      navigate('/admin/dashboard');
+    } else if (localStorage.getItem('studentId')) {
+      navigate('/dashboard');
+    }
+  }, [navigate]);
 
   const handleEnter = (e) => {
     e.preventDefault();
@@ -43,7 +52,7 @@ const LandingPage = () => {
         padding: '2.5rem', 
         position: 'relative',
         boxShadow: '0 20px 40px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05)',
-        background: 'rgba(20, 20, 31, 0.7)'
+        background: 'var(--glass-bg)'
       }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <div style={{ display: 'inline-flex', padding: '1rem', background: 'rgba(99,102,241,0.1)', borderRadius: '50%', marginBottom: '1rem' }}>
