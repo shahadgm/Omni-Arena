@@ -201,7 +201,7 @@ const LeaderboardPage = () => {
                     </>
                   ) : (isQuiz || isCrossword) ? (
                     <>
-                      <div style={{ textAlign: 'center', fontWeight: '700', color: 'var(--accent-primary)', fontSize: '1.25rem' }}>{entry.score}</div>
+                      <div style={{ textAlign: 'center', fontWeight: '700', color: 'var(--accent-primary)', fontSize: '1.25rem' }}>{entry.displayScore !== undefined ? entry.displayScore : entry.score}</div>
                       <div style={{ textAlign: 'center', fontWeight: '500', fontSize: '1.1rem' }}>{isCrossword ? `${entry.timeElapsed}s` : `${entry.correctAnswers}/${entry.totalQuestions}`}</div>
                       <div style={{ textAlign: 'center', color: 'var(--success)' }}>{entry.accuracy}%</div>
                       <div style={{ textAlign: 'center', color: 'var(--accent-secondary)' }}>{entry.progress || 0}%</div>

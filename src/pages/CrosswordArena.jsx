@@ -21,6 +21,7 @@ const CrosswordArena = () => {
   const [startTime, setStartTime] = useState(Date.now());
   const [isFinished, setIsFinished] = useState(false);
   const [finalTime, setFinalTime] = useState(0);
+  const [finalScoreWords, setFinalScoreWords] = useState(0);
 
   const inputRefs = useRef({});
 
@@ -203,10 +204,9 @@ const CrosswordArena = () => {
   const handleSubmit = async (force = false) => {
     if (!tournament) return;
     
-    let isCorrect = true;
     let filled = 0;
     let total = 0;
-    let correctCount = 0;
+    let correctLetters = 0;
     
     for (let r = 0; r < grid.length; r++) {
       for (let c = 0; c < grid[r].length; c++) {
@@ -216,37 +216,56 @@ const CrosswordArena = () => {
           const actual = userInputs[`${r},${c}`];
           if (actual) filled++;
           if (actual === expected) {
-            correctCount++;
-          } else {
-            isCorrect = false;
+            correctLetters++;
           }
         }
       }
     }
     
-    if (!force && (filled < total || !isCorrect)) {
-      if (!window.confirm(`You have filled ${filled} out of ${total} letters. ${!isCorrect ? 'Some answers might be incomplete or incorrect. ' : ''}Are you sure you want to submit?`)) {
+    // Check correct words
+    let correctWords = 0;
+    const allWords = [...clues.across, ...clues.down];
+    allWords.forEach(wordObj => {
+      const { answer, startx, starty, orientation } = wordObj;
+      let isWordCorrect = true;
+      for (let i = 0; i < answer.length; i++) {
+        const r = orientation === 'across' ? starty - 1 : starty - 1 + i;
+        const c = orientation === 'across' ? startx - 1 + i : startx - 1;
+        if (userInputs[`${r},${c}`] !== answer[i].toUpperCase()) {
+          isWordCorrect = false;
+          break;
+        }
+      }
+      if (isWordCorrect) {
+        correctWords++;
+      }
+    });
+
+    if (!force && (filled < total || correctLetters < total)) {
+      if (!window.confirm(`You have filled ${filled} out of ${total} letters. ${correctLetters < total ? 'Some answers might be incomplete or incorrect. ' : ''}Are you sure you want to submit?`)) {
         return;
       }
     }
     
     const timeElapsed = Math.floor((Date.now() - startTime) / 1000);
     setFinalTime(timeElapsed);
+    setFinalScoreWords(correctWords);
     setIsFinished(true);
     
     const studentId = localStorage.getItem('studentId');
     if (studentId && !id.startsWith('practice-')) {
-      const accuracy = Math.round((correctCount / total) * 100);
-      const score = (correctCount * 10000) - timeElapsed;
+      const accuracy = Math.round((correctLetters / total) * 100);
+      const score = (correctWords * 100000) - timeElapsed;
       
       await dbService.saveResult(id, {
         studentId,
         accuracy,
         timeElapsed,
-        progress: accuracy,
+        progress: Math.round((correctWords / allWords.length) * 100),
         score,
-        correctCount,
-        totalLetters: total,
+        displayScore: correctWords,
+        correctCount: correctWords,
+        totalQuestions: allWords.length,
         timestamp: new Date().toISOString()
       });
     }
@@ -273,8 +292,8 @@ const CrosswordArena = () => {
 
       {isFinished ? (
         <Card style={{ padding: '3rem', textAlign: 'center', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <h2 style={{ fontSize: '2.5rem', color: 'var(--success)', marginBottom: '1rem' }}>Puzzle Solved!</h2>
-          <p style={{ fontSize: '1.2rem', marginBottom: '2rem' }}>You completed the crossword in <strong>{finalTime} seconds</strong>.</p>
+          <h2 style={{ fontSize: '2.5rem', color: 'var(--success)', marginBottom: '1rem' }}>Puzzle Finished!</h2>
+          <p style={{ fontSize: '1.2rem', marginBottom: '2rem' }}>You correctly guessed <strong>{finalScoreWords} words</strong> in <strong>{finalTime} seconds</strong>.</p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
             <Button onClick={() => navigate('/dashboard')} variant="secondary">Back to Dashboard</Button>
             <Button onClick={() => navigate(`/leaderboard/${id}`)}>View Leaderboard</Button>
