@@ -33,7 +33,9 @@ const ArenaRouter = () => {
           return;
         }
         
-        if (localStorage.getItem(`started_${id}`)) {
+        const antiCheatKey = `started_${id}_${studentId}`;
+        
+        if (localStorage.getItem(antiCheatKey)) {
           alert('You left the tournament before finishing. Your attempt is void and has been submitted with a score of 0.');
           // Auto-submit 0 score so hasParticipated becomes true for future
           await dbService.saveResult(id, {
@@ -49,7 +51,7 @@ const ArenaRouter = () => {
         }
         
         // Mark as started
-        localStorage.setItem(`started_${id}`, 'true');
+        localStorage.setItem(antiCheatKey, 'true');
       }
 
       const t = await dbService.getTournament(id);
