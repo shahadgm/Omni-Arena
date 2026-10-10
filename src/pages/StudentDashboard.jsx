@@ -17,6 +17,13 @@ const StudentDashboard = () => {
       return;
     }
 
+    // Ensure we are not in fullscreen on the dashboard
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    } catch (e) {}
+
     const fetchTournaments = async () => {
       const data = await dbService.getTournaments();
       // Filter active tournaments
@@ -53,11 +60,29 @@ const StudentDashboard = () => {
     ]
   };
 
-  const handleJoin = (t) => {
+  const handleJoin = async (t) => {
+    try {
+      if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch (err) {
+      console.warn("Fullscreen request failed", err);
+    }
+
+    if (typeof t === 'string') {
+      navigate(`/arena/${t}`);
+      return;
+    }
+
     if (t.isPrivate) {
       const code = window.prompt("This tournament is private. Enter the access code:");
       if (code !== t.accessCode) {
         alert("Incorrect access code!");
+        try {
+          if (document.fullscreenElement && document.exitFullscreen) {
+            await document.exitFullscreen();
+          }
+        } catch (e) {}
         return;
       }
     }

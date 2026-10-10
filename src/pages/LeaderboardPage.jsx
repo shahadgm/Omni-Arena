@@ -16,6 +16,13 @@ const LeaderboardPage = () => {
   const isAdmin = authService.isAdmin();
 
   useEffect(() => {
+    // Ensure we are not in fullscreen on the leaderboard
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    } catch (e) {}
+
     const fetchLeaderboard = async () => {
       const data = await dbService.getLeaderboard(id);
       setLeaderboard(data);
