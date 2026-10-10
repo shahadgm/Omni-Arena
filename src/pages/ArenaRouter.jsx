@@ -15,18 +15,39 @@ const ArenaRouter = () => {
   const [gameType, setGameType] = useState(null);
   const [hasStarted, setHasStarted] = useState(false);
   const [tournamentName, setTournamentName] = useState('Tournament');
-  const [isFullscreen, setIsFullscreen] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(() => {
+    return !!(
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement
+    );
+  });
   
   const studentId = localStorage.getItem('studentId');
   const antiCheatKey = `started_${id}_${studentId}`;
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const isFs = !!(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+      );
+      
+      setIsFullscreen(isFs);
     };
     
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    const events = ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'];
+    events.forEach(event => document.addEventListener(event, handleFullscreenChange));
+    
+    // Set initial state
+    handleFullscreenChange();
+    
+    return () => {
+      events.forEach(event => document.removeEventListener(event, handleFullscreenChange));
+    };
   }, []);
 
   useEffect(() => {
@@ -79,8 +100,13 @@ const ArenaRouter = () => {
   
   const handleStart = async () => {
     try {
-      if (document.documentElement.requestFullscreen) {
-        await document.documentElement.requestFullscreen();
+      const el = document.documentElement;
+      if (el.requestFullscreen) {
+        await el.requestFullscreen();
+      } else if (el.webkitRequestFullscreen) {
+        await el.webkitRequestFullscreen();
+      } else if (el.msRequestFullscreen) {
+        await el.msRequestFullscreen();
       }
     } catch (err) {
       console.warn("Fullscreen request failed", err);
@@ -151,8 +177,13 @@ const ArenaRouter = () => {
           <p style={{ fontSize: '1.25rem', marginBottom: '2rem' }}>You have exited Full Screen mode. You must return to Full Screen to continue your test.</p>
           <Button onClick={async () => {
             try {
-              if (document.documentElement.requestFullscreen) {
-                await document.documentElement.requestFullscreen();
+              const el = document.documentElement;
+              if (el.requestFullscreen) {
+                await el.requestFullscreen();
+              } else if (el.webkitRequestFullscreen) {
+                await el.webkitRequestFullscreen();
+              } else if (el.msRequestFullscreen) {
+                await el.msRequestFullscreen();
               }
             } catch (err) {}
           }} style={{ fontSize: '1.25rem', padding: '1rem 2rem' }}>
