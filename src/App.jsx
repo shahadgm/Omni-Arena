@@ -11,9 +11,22 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import CreateTournament from './pages/admin/CreateTournament';
 
 const App = () => {
+  const [theme, setTheme] = React.useState(() => {
+    return localStorage.getItem('omni-theme') || 'dark';
+  });
+
+  React.useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('omni-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
+
   return (
     <Router>
-      <Navbar />
+      <Navbar theme={theme} toggleTheme={toggleTheme} />
       <div className="page-wrapper">
         <Routes>
           <Route path="/" element={<LandingPage />} />

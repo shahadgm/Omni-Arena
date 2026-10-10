@@ -308,12 +308,12 @@ const CrosswordArena = () => {
               gridTemplateRows: `repeat(${grid.length}, 40px)`,
               gap: '0',
               border: '2px solid var(--glass-border)',
-              backgroundColor: '#000'
+              backgroundColor: 'var(--text-primary)'
             }}>
               {grid.map((row, r) => (
                 Array.from(row).map((cell, c) => {
                   if (cell === '-') {
-                    return <div key={`${r},${c}`} style={{ backgroundColor: '#1a1a2e', width: '40px', height: '40px' }} />;
+                    return <div key={`${r},${c}`} style={{ backgroundColor: 'var(--bg-tertiary)', width: '40px', height: '40px' }} />;
                   }
                   
                   const active = isCellActive(r, c);

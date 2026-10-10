@@ -1,9 +1,9 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../services/db';
-import { Keyboard, LogOut, Shield } from 'lucide-react';
+import { Keyboard, LogOut, Shield, Sun, Moon } from 'lucide-react';
 
-const Navbar = () => {
+const Navbar = ({ theme, toggleTheme }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isAdmin = authService.isAdmin();
@@ -19,10 +19,10 @@ const Navbar = () => {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    background: 'rgba(20, 20, 31, 0.65)',
+    background: 'var(--glass-bg)',
     backdropFilter: 'blur(20px)',
     WebkitBackdropFilter: 'blur(20px)',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+    borderBottom: '1px solid var(--glass-border)',
     boxShadow: '0 4px 30px rgba(0, 0, 0, 0.3)',
     position: 'sticky',
     top: 0,
@@ -72,6 +72,17 @@ const Navbar = () => {
       </Link>
       
       <div style={linksStyle}>
+        <button 
+          onClick={toggleTheme}
+          style={{
+            background: 'none', border: 'none', color: 'var(--text-primary)',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem',
+            padding: '0.5rem', borderRadius: '50%'
+          }}
+          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+        >
+          {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+        </button>
         {isAdmin ? (
           <>
             <Link to="/admin/dashboard" style={linkItemStyle}>Dashboard</Link>
