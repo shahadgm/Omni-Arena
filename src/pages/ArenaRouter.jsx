@@ -15,9 +15,19 @@ const ArenaRouter = () => {
   const [gameType, setGameType] = useState(null);
   const [hasStarted, setHasStarted] = useState(false);
   const [tournamentName, setTournamentName] = useState('Tournament');
+  const [isFullscreen, setIsFullscreen] = useState(true);
   
   const studentId = localStorage.getItem('studentId');
   const antiCheatKey = `started_${id}_${studentId}`;
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   useEffect(() => {
     const fetchTournament = async () => {
@@ -109,16 +119,54 @@ const ArenaRouter = () => {
     );
   }
 
-  switch(gameType) {
-    case 'quiz': return <QuizArena />;
-    case 'map': return <MapArena />;
-    case 'crossword': return <CrosswordArena />;
-    case 'logic-puzzle':
-    case 'nonogram': 
-    case 'shikaku': return <MultiPuzzleArena />;
-    case 'typing':
-    default: return <CompetitionArena />;
-  }
+  const renderArena = () => {
+    switch(gameType) {
+      case 'quiz': return <QuizArena />;
+      case 'map': return <MapArena />;
+      case 'crossword': return <CrosswordArena />;
+      case 'logic-puzzle':
+      case 'nonogram': 
+      case 'shikaku': return <MultiPuzzleArena />;
+      case 'typing':
+      default: return <CompetitionArena />;
+    }
+  };
+
+  return (
+    <>
+      {!isFullscreen && hasStarted && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'var(--bg-primary)',
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '2rem',
+          textAlign: 'center'
+        }}>
+          <h2 style={{ color: 'var(--error)', fontSize: '2.5rem', marginBottom: '1rem' }}>WARNING!</h2>
+          <p style={{ fontSize: '1.25rem', marginBottom: '2rem' }}>You have exited Full Screen mode. You must return to Full Screen to continue your test.</p>
+          <Button onClick={async () => {
+            try {
+              if (document.documentElement.requestFullscreen) {
+                await document.documentElement.requestFullscreen();
+              }
+            } catch (err) {}
+          }} style={{ fontSize: '1.25rem', padding: '1rem 2rem' }}>
+            Return to Full Screen
+          </Button>
+        </div>
+      )}
+      
+      {/* Render the arena but hide it completely if they are not in full screen */}
+      <div style={{ display: !isFullscreen && hasStarted ? 'none' : 'flex', width: '100%', flex: 1, flexDirection: 'column' }}>
+        {renderArena()}
+      </div>
+    </>
+  );
 };
 
 export default ArenaRouter;
