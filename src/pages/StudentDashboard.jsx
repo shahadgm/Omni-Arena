@@ -61,14 +61,6 @@ const StudentDashboard = () => {
   };
 
   const handleJoin = async (t) => {
-    try {
-      if (document.documentElement.requestFullscreen) {
-        await document.documentElement.requestFullscreen();
-      }
-    } catch (err) {
-      console.warn("Fullscreen request failed", err);
-    }
-
     if (typeof t === 'string') {
       navigate(`/arena/${t}`);
       return;
@@ -78,11 +70,6 @@ const StudentDashboard = () => {
       const code = window.prompt("This tournament is private. Enter the access code:");
       if (code !== t.accessCode) {
         alert("Incorrect access code!");
-        try {
-          if (document.fullscreenElement && document.exitFullscreen) {
-            await document.exitFullscreen();
-          }
-        } catch (e) {}
         return;
       }
     }
