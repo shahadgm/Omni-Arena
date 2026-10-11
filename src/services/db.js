@@ -69,6 +69,54 @@ export const dbService = {
     }
   },
 
+  async allowStudentRetake(competitionId, studentId) {
+    try {
+      // 1. Delete any existing results for this student in this tournament
+      const q = query(
+        collection(db, 'results'),
+        where('competitionId', '==', competitionId),
+        where('studentId', '==', studentId)
+      );
+      const snapshot = await getDocs(q);
+      const deletePromises = [];
+      snapshot.forEach((document) => {
+        deletePromises.push(deleteDoc(doc(db, 'results', document.id)));
+      });
+      await Promise.all(deletePromises);
+
+      // 2. Authorize retake in tournament document
+      const tournamentRef = doc(db, 'tournaments', competitionId);
+      const tSnap = await getDoc(tournamentRef);
+      if (tSnap.exists()) {
+        const currentAllowed = tSnap.data().allowedRetakes || [];
+        if (!currentAllowed.includes(studentId)) {
+          await updateDoc(tournamentRef, {
+            allowedRetakes: [...currentAllowed, studentId]
+          });
+        }
+      }
+      return true;
+    } catch (error) {
+      console.error("Error allowing student retake:", error);
+      throw error;
+    }
+  },
+
+  async consumeRetake(competitionId, studentId) {
+    try {
+      const tournamentRef = doc(db, 'tournaments', competitionId);
+      const tSnap = await getDoc(tournamentRef);
+      if (tSnap.exists()) {
+        const currentAllowed = tSnap.data().allowedRetakes || [];
+        await updateDoc(tournamentRef, {
+          allowedRetakes: currentAllowed.filter(s => s !== studentId)
+        });
+      }
+    } catch (error) {
+      console.error("Error consuming retake:", error);
+    }
+  },
+
   async getTournament(id) {
     try {
       const docRef = doc(db, 'tournaments', id);

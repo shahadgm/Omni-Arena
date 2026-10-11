@@ -63,36 +63,46 @@ const ArenaRouter = () => {
         return;
       }
       
-      if (studentId && !id.startsWith('practice-')) {
-        const participated = await dbService.hasParticipated(id, studentId);
-        if (participated) {
-          alert('You have already participated in this tournament! You can only play once.');
-          navigate(`/leaderboard/${id}`);
-          return;
-        }
-        
-        if (localStorage.getItem(antiCheatKey)) {
-          alert('You left the tournament before finishing. Your attempt is void and has been submitted with a score of 0.');
-          // Auto-submit 0 score so hasParticipated becomes true for future
-          await dbService.saveResult(id, {
-            studentId,
-            score: 0,
-            accuracy: 0,
-            progress: 0,
-            abandoned: true,
-            timestamp: new Date().toISOString()
-          });
-          navigate(`/leaderboard/${id}`);
-          return;
-        }
-      }
-
       const t = await dbService.getTournament(id);
       if (t) {
         setGameType(t.gameType || 'typing');
         setTournamentName(t.name);
       } else {
         navigate('/dashboard');
+        return;
+      }
+
+      if (studentId && !id.startsWith('practice-')) {
+        const isRetakeAllowed = t.allowedRetakes && Array.isArray(t.allowedRetakes) && t.allowedRetakes.includes(studentId);
+        
+        if (isRetakeAllowed) {
+          // Admin granted candidate another chance: clear local lockout and consume authorization
+          localStorage.removeItem(antiCheatKey);
+          await dbService.consumeRetake(id, studentId);
+        } else {
+          const participated = await dbService.hasParticipated(id, studentId);
+          if (participated) {
+            alert('You have already participated in this tournament! You can only play once.');
+            navigate(`/leaderboard/${id}`);
+            return;
+          }
+          
+          if (localStorage.getItem(antiCheatKey)) {
+            alert('You left the tournament before finishing. Your attempt is void and has been submitted with a score of 0.');
+            // Auto-submit 0 score so hasParticipated becomes true for future
+            await dbService.saveResult(id, {
+              studentId,
+              score: 0,
+              displayScore: 0,
+              accuracy: 0,
+              progress: 0,
+              abandoned: true,
+              timestamp: new Date().toISOString()
+            });
+            navigate(`/leaderboard/${id}`);
+            return;
+          }
+        }
       }
     };
     fetchTournament();

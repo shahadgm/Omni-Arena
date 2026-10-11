@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import { dbService, authService } from '../services/db';
-import { Trophy, ArrowLeft, Medal, ChevronDown, ChevronUp } from 'lucide-react';
+import { Trophy, ArrowLeft, Medal, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
 
 const LeaderboardPage = () => {
   const { id } = useParams();
@@ -12,8 +12,34 @@ const LeaderboardPage = () => {
   const [gameType, setGameType] = useState('typing');
   const [expandedId, setExpandedId] = useState(null);
   const [isHidden, setIsHidden] = useState(false);
+  const [retakeInput, setRetakeInput] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
   
   const isAdmin = authService.isAdmin();
+
+  const handleAllowRetake = async (targetStudentId) => {
+    if (!window.confirm(`Are you sure you want to give "${targetStudentId}" another chance? Their current score will be removed from the leaderboard and their attempt lock will be cleared.`)) {
+      return;
+    }
+    setActionLoading(true);
+    try {
+      await dbService.allowStudentRetake(id, targetStudentId);
+      setLeaderboard(prev => prev.filter(e => e.studentId !== targetStudentId));
+      alert(`Candidate "${targetStudentId}" can now join this tournament again!`);
+    } catch (err) {
+      alert("Error resetting attempt: " + err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleManualRetake = async (e) => {
+    e.preventDefault();
+    const targetId = retakeInput.trim();
+    if (!targetId) return;
+    await handleAllowRetake(targetId);
+    setRetakeInput('');
+  };
 
   useEffect(() => {
     // Ensure we are not in fullscreen on the leaderboard
@@ -109,13 +135,13 @@ const LeaderboardPage = () => {
   };
 
   const gridCols = isMap
-    ? '80px 1fr 150px 100px 100px 40px' 
+    ? (isAdmin ? '80px 1fr 130px 90px 90px 140px' : '80px 1fr 150px 100px 100px 40px')
     : (isQuiz || isCrossword || isPuzzle)
-      ? '80px 1fr 100px 100px 100px 100px 40px'
-      : '80px 1fr 80px 100px 100px 120px 100px 40px';
+      ? (isAdmin ? '80px 1fr 90px 90px 90px 90px 140px' : '80px 1fr 100px 100px 100px 100px 40px')
+      : (isAdmin ? '80px 1fr 80px 90px 90px 100px 90px 140px' : '80px 1fr 80px 100px 100px 120px 100px 40px');
 
   return (
-    <div className="container" style={{ maxWidth: '800px' }}>
+    <div className="container" style={{ maxWidth: '850px' }}>
       <div style={{ marginBottom: '2rem' }}>
         <Link to={isAdmin ? "/admin/dashboard" : "/dashboard"} style={{ color: 'var(--text-secondary)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
           <ArrowLeft size={16} /> Back to Dashboard
@@ -125,6 +151,54 @@ const LeaderboardPage = () => {
         </h1>
         <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem' }}>{title}</p>
       </div>
+
+      {isAdmin && !id.startsWith('practice-') && (
+        <Card style={{ marginBottom: '1.5rem', padding: '1.25rem', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)' }}>
+                <RotateCcw size={16} color="var(--accent-primary)" /> Candidate Retake Management
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.2rem' }}>
+                Give any candidate another chance to join this tournament, clearing their attempt lock.
+              </p>
+            </div>
+            <form onSubmit={handleManualRetake} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <input 
+                type="text" 
+                placeholder="Student ID / Name..." 
+                value={retakeInput}
+                onChange={(e) => setRetakeInput(e.target.value)}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  background: 'var(--bg-primary)',
+                  border: '1px solid var(--glass-border)',
+                  borderRadius: '8px',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.85rem',
+                  outline: 'none'
+                }}
+              />
+              <button 
+                type="submit" 
+                disabled={actionLoading}
+                style={{
+                  padding: '0.5rem 0.9rem',
+                  background: 'var(--accent-primary)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Give Chance
+              </button>
+            </form>
+          </div>
+        </Card>
+      )}
 
       {isHidden ? (
         <Card padding="3rem">
@@ -160,7 +234,7 @@ const LeaderboardPage = () => {
                 <div style={{ textAlign: 'center' }}>Progress</div>
               </>
             )}
-            <div></div>
+            <div style={{ textAlign: 'right' }}>{isAdmin ? 'Actions' : ''}</div>
           </div>
           
           {loading ? (
@@ -221,7 +295,33 @@ const LeaderboardPage = () => {
                       <div style={{ textAlign: 'center', color: 'var(--accent-secondary)' }}>{entry.progress || 0}%</div>
                     </>
                   )}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', color: 'var(--text-tertiary)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', color: 'var(--text-tertiary)', alignItems: 'center', gap: '0.5rem' }}>
+                    {isAdmin && !id.startsWith('practice-') && (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAllowRetake(entry.studentId);
+                        }}
+                        disabled={actionLoading}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.12)',
+                          color: '#ef4444',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          padding: '0.35rem 0.65rem',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          fontSize: '0.75rem',
+                          fontWeight: '600',
+                          whiteSpace: 'nowrap'
+                        }}
+                        title={`Give ${entry.studentId} another chance to play`}
+                      >
+                        <RotateCcw size={12} /> Retake
+                      </button>
+                    )}
                     {(entry.sectionDetails || (isAdmin && (entry.quizDetails || entry.mapDetails))) && (expandedId === entry.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />)}
                   </div>
                 </div>
