@@ -88,24 +88,40 @@ const MultiPuzzleArena = () => {
     return () => clearInterval(timer);
   }, [completed, puzzles.length, loading]);
 
-  const handleSolve = async () => {
+  const [puzzleScores, setPuzzleScores] = useState([]);
+  const [finalStats, setFinalStats] = useState(null);
+
+  const handleSolve = async (puzzleScore) => {
+    const currentScore = puzzleScore || { points: 100, accuracy: 100, isComplete: true };
+    const updatedScores = [...puzzleScores, currentScore];
+    setPuzzleScores(updatedScores);
+
     if (currentIdx < puzzles.length - 1) {
       setCurrentIdx(currentIdx + 1);
     } else {
       // Completed all puzzles
       setCompleted(true);
-      const score = Math.max(10000 - timeElapsed, 100);
+      const avgPoints = Math.round(updatedScores.reduce((sum, p) => sum + (p.points ?? 100), 0) / puzzles.length);
+      const avgAccuracy = Math.round(updatedScores.reduce((sum, p) => sum + (p.accuracy ?? 100), 0) / puzzles.length);
+      const score = (avgPoints * 100000) - timeElapsed;
+      const displayScore = avgPoints;
+
+      setFinalStats({ points: avgPoints, accuracy: avgAccuracy, time: timeElapsed });
       
-      await dbService.saveResult(id, {
-        studentId,
-        score,
-        accuracy: 100,
-        timeElapsed,
-        progress: 100,
-        wpm: 0
-      });
+      if (!id.startsWith('practice-')) {
+        await dbService.saveResult(id, {
+          studentId,
+          score,
+          displayScore,
+          accuracy: avgAccuracy,
+          timeElapsed,
+          progress: 100,
+          puzzleDetails: updatedScores,
+          wpm: 0
+        });
+      }
       
-      setTimeout(() => navigate(`/leaderboard/${id}`), 2000);
+      setTimeout(() => navigate(`/leaderboard/${id}`), 2500);
     }
   };
 
@@ -119,6 +135,7 @@ const MultiPuzzleArena = () => {
       dbService.saveResult(id, {
         studentId,
         score: 0,
+        displayScore: 0,
         accuracy: 0,
         timeElapsed,
         progress: Math.round((currentIdx / puzzles.length) * 100),
@@ -137,8 +154,18 @@ const MultiPuzzleArena = () => {
         <Card style={{ textAlign: 'center', padding: '4rem 2rem', maxWidth: '500px', width: '100%' }}>
           <Trophy size={64} color="var(--accent-primary)" style={{ margin: '0 auto 1.5rem' }} />
           <h2 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Tournament Complete!</h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>Great job, {studentId}!</p>
-          <div style={{ fontSize: '2rem', fontWeight: 'bold', color: 'var(--success)' }}>{timeElapsed}s</div>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>Great effort, {studentId}!</p>
+          <div style={{ background: 'var(--bg-tertiary)', padding: '1.5rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
+            <div style={{ fontSize: '2.5rem', fontWeight: 'bold', color: 'var(--accent-primary)', marginBottom: '0.25rem' }}>
+              {finalStats?.points ?? 100} <span style={{ fontSize: '1.25rem', color: 'var(--text-secondary)' }}>/ 100 pts</span>
+            </div>
+            <div style={{ color: 'var(--success)', fontWeight: '600', fontSize: '1.1rem', marginBottom: '0.5rem' }}>
+              {finalStats?.accuracy ?? 100}% Accuracy
+            </div>
+            <div style={{ color: 'var(--text-tertiary)', fontSize: '0.95rem' }}>
+              Time Taken: <strong>{timeElapsed}s</strong>
+            </div>
+          </div>
           <p style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem' }}>Redirecting to leaderboard...</p>
         </Card>
       </div>

@@ -54,40 +54,83 @@ const ShikakuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Shik
     setDrawing({ ...drawing, r2: r, c2: c });
   };
 
-  useEffect(() => {
-    if (!puzzle) return;
-    
-    let isValid = true;
-    let coveredCount = 0;
-    for (const r of rects) {
-      coveredCount += (r.r2 - r.r1 + 1) * (r.c2 - r.c1 + 1);
-    }
-    if (coveredCount !== puzzle.size * puzzle.size) {
-      isValid = false;
-    }
+  const [confirmModal, setConfirmModal] = useState(false);
 
-    if (isValid) {
-      for (const r of rects) {
-        let numsInRect = [];
-        for (let i = r.r1; i <= r.r2; i++) {
-          for (let j = r.c1; j <= r.c2; j++) {
-            if (puzzle.grid[i][j] !== null) {
-              numsInRect.push(puzzle.grid[i][j]);
-            }
-          }
-        }
-        const area = (r.r2 - r.r1 + 1) * (r.c2 - r.c1 + 1);
-        if (numsInRect.length !== 1 || numsInRect[0] !== area) {
-          isValid = false;
-          break;
+  const calculateScore = () => {
+    if (!puzzle) return { isComplete: false, points: 0, accuracy: 0, validRects: 0, totalClues: 0 };
+    
+    let totalClues = 0;
+    for (let r = 0; r < puzzle.size; r++) {
+      for (let c = 0; c < puzzle.size; c++) {
+        if (puzzle.grid[r][c] !== null) {
+          totalClues++;
         }
       }
     }
 
-    if (isValid) {
-      onSolve();
+    let validRects = 0;
+    let coveredCount = 0;
+
+    for (const r of rects) {
+      const area = (r.r2 - r.r1 + 1) * (r.c2 - r.c1 + 1);
+      coveredCount += area;
+
+      let numsInRect = [];
+      for (let i = r.r1; i <= r.r2; i++) {
+        for (let j = r.c1; j <= r.c2; j++) {
+          if (puzzle.grid[i][j] !== null) {
+            numsInRect.push(puzzle.grid[i][j]);
+          }
+        }
+      }
+
+      if (numsInRect.length === 1 && numsInRect[0] === area) {
+        validRects++;
+      }
     }
-  }, [rects, puzzle, onSolve]);
+
+    const isFullCovered = coveredCount === puzzle.size * puzzle.size;
+    const isComplete = validRects === totalClues && isFullCovered;
+
+    let accuracy = 0;
+    if (isComplete) {
+      accuracy = 100;
+    } else if (totalClues > 0) {
+      accuracy = Math.round((validRects / totalClues) * 100);
+      accuracy = Math.min(99, Math.max(0, accuracy));
+    }
+
+    return {
+      isComplete,
+      accuracy,
+      points: accuracy,
+      validRects,
+      totalClues
+    };
+  };
+
+  useEffect(() => {
+    if (!puzzle) return;
+    const score = calculateScore();
+    if (score.isComplete) {
+      onSolve(score);
+    }
+  }, [rects, puzzle]);
+
+  const handleSubmitClick = () => {
+    const score = calculateScore();
+    if (score.isComplete) {
+      onSolve(score);
+    } else {
+      setConfirmModal(true);
+    }
+  };
+
+  const handleConfirmSubmit = () => {
+    const score = calculateScore();
+    setConfirmModal(false);
+    onSolve(score);
+  };
 
   if (!puzzle) return <div className="page-wrapper">Loading...</div>;
 
@@ -178,11 +221,52 @@ const ShikakuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Shik
           <Button variant="secondary" onClick={() => setRects([])} style={{ padding: '0.75rem 1.5rem', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white' }}>
             Clear All
           </Button>
-          <Button onClick={() => alert('Puzzle is not fully solved yet!')} style={{ padding: '0.75rem 1.5rem', background: '#10b981', color: 'white', border: 'none', fontWeight: 'bold' }}>
+          <Button onClick={handleSubmitClick} style={{ padding: '0.75rem 1.5rem', background: '#10b981', color: 'white', border: 'none', fontWeight: 'bold' }}>
             Submit Solution
           </Button>
         </div>
       </Card>
+
+      {confirmModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 10000,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '1.5rem'
+        }}>
+          <Card style={{ maxWidth: '480px', width: '100%', padding: '2rem', textAlign: 'center', border: '1px solid var(--glass-border)' }}>
+            <h3 style={{ fontSize: '1.5rem', marginBottom: '1rem', color: 'var(--text-primary)' }}>Submit Solution?</h3>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '1rem', lineHeight: '1.5' }}>
+              Your puzzle is not fully solved yet. If you submit now, you will be awarded partial marks based on your correctly formed rectangles.
+            </p>
+            
+            <div style={{ background: 'var(--bg-tertiary)', padding: '1.25rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
+                <span>Valid Rectangles:</span>
+                <strong style={{ color: 'var(--text-primary)' }}>{calculateScore().validRects} / {calculateScore().totalClues}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
+                <span>Calculated Score:</span>
+                <strong style={{ color: 'var(--success)', fontSize: '1.2rem' }}>{calculateScore().points} / 100 pts ({calculateScore().accuracy}%)</strong>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <Button variant="secondary" onClick={() => setConfirmModal(false)} style={{ flex: 1 }}>
+                Keep Solving
+              </Button>
+              <Button onClick={handleConfirmSubmit} style={{ flex: 1, background: 'var(--accent-primary)' }}>
+                Submit Now
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };

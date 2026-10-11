@@ -108,9 +108,9 @@ const LeaderboardPage = () => {
     }
   };
 
-  const gridCols = (isPuzzle || isMap)
+  const gridCols = isMap
     ? '80px 1fr 150px 100px 100px 40px' 
-    : (isQuiz || isCrossword)
+    : (isQuiz || isCrossword || isPuzzle)
       ? '80px 1fr 100px 100px 100px 100px 40px'
       : '80px 1fr 80px 100px 100px 120px 100px 40px';
 
@@ -138,16 +138,16 @@ const LeaderboardPage = () => {
           <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'grid', gridTemplateColumns: gridCols, fontWeight: '600', color: 'var(--text-secondary)' }}>
             <div>Rank</div>
             <div>Student</div>
-            {(isPuzzle || isMap) ? (
-              <>
-                <div style={{ textAlign: 'center', color: 'var(--accent-primary)' }}>{isMap ? 'Score' : 'Time Taken'}</div>
-                <div style={{ textAlign: 'center' }}>{isMap ? 'Time Elapsed' : 'Accuracy'}</div>
-                <div style={{ textAlign: 'center' }}>{isMap ? 'Accuracy' : 'Progress'}</div>
-              </>
-            ) : (isQuiz || isCrossword) ? (
+            {isMap ? (
               <>
                 <div style={{ textAlign: 'center', color: 'var(--accent-primary)' }}>Score</div>
-                <div style={{ textAlign: 'center' }}>{isCrossword ? 'Time' : 'Correct'}</div>
+                <div style={{ textAlign: 'center' }}>Time Elapsed</div>
+                <div style={{ textAlign: 'center' }}>Accuracy</div>
+              </>
+            ) : (isQuiz || isCrossword || isPuzzle) ? (
+              <>
+                <div style={{ textAlign: 'center', color: 'var(--accent-primary)' }}>Score</div>
+                <div style={{ textAlign: 'center' }}>{isCrossword || isPuzzle ? 'Time' : 'Correct'}</div>
                 <div style={{ textAlign: 'center' }}>Accuracy</div>
                 <div style={{ textAlign: 'center' }}>Progress</div>
               </>
@@ -193,16 +193,22 @@ const LeaderboardPage = () => {
                   </div>
                   <div style={{ fontWeight: '500', fontSize: '1.1rem' }}>{entry.studentId}</div>
                   
-                  {(isPuzzle || isMap) ? (
+                  {isMap ? (
                     <>
-                      <div style={{ textAlign: 'center', fontWeight: '700', color: 'var(--accent-primary)', fontSize: '1.25rem' }}>{isMap ? entry.score : `${entry.timeElapsed}s`}</div>
-                      <div style={{ textAlign: 'center', color: 'var(--success)' }}>{isMap ? `${entry.timeElapsed}s` : `${entry.accuracy}%`}</div>
-                      <div style={{ textAlign: 'center', color: 'var(--accent-secondary)' }}>{isMap ? `${entry.accuracy}%` : `${entry.progress || 0}%`}</div>
+                      <div style={{ textAlign: 'center', fontWeight: '700', color: 'var(--accent-primary)', fontSize: '1.25rem' }}>{entry.score}</div>
+                      <div style={{ textAlign: 'center', color: 'var(--success)' }}>{entry.timeElapsed}s</div>
+                      <div style={{ textAlign: 'center', color: 'var(--accent-secondary)' }}>{entry.accuracy}%</div>
                     </>
-                  ) : (isQuiz || isCrossword) ? (
+                  ) : (isQuiz || isCrossword || isPuzzle) ? (
                     <>
-                      <div style={{ textAlign: 'center', fontWeight: '700', color: 'var(--accent-primary)', fontSize: '1.25rem' }}>{entry.displayScore !== undefined ? entry.displayScore : entry.score}</div>
-                      <div style={{ textAlign: 'center', fontWeight: '500', fontSize: '1.1rem' }}>{isCrossword ? `${entry.timeElapsed}s` : `${entry.correctAnswers}/${entry.totalQuestions}`}</div>
+                      <div style={{ textAlign: 'center', fontWeight: '700', color: 'var(--accent-primary)', fontSize: '1.25rem' }}>
+                        {isPuzzle
+                          ? `${entry.displayScore !== undefined ? entry.displayScore : (entry.score > 100000 ? Math.floor(entry.score / 100000) : entry.score)} pts`
+                          : (entry.displayScore !== undefined ? entry.displayScore : entry.score)}
+                      </div>
+                      <div style={{ textAlign: 'center', fontWeight: '500', fontSize: '1.1rem' }}>
+                        {isCrossword || isPuzzle ? `${entry.timeElapsed}s` : `${entry.correctAnswers}/${entry.totalQuestions}`}
+                      </div>
                       <div style={{ textAlign: 'center', color: 'var(--success)' }}>{entry.accuracy}%</div>
                       <div style={{ textAlign: 'center', color: 'var(--accent-secondary)' }}>{entry.progress || 0}%</div>
                     </>

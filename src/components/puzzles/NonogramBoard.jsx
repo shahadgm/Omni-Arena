@@ -39,37 +39,97 @@ const NonogramBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Non
     setUserGrid(newGrid);
   };
 
-  useEffect(() => {
-    if (!puzzle || !userGrid) return;
+  const [confirmModal, setConfirmModal] = useState(false);
+
+  const calculateScore = () => {
+    if (!puzzle || !userGrid) return { isComplete: false, points: 0, accuracy: 0, satisfiedClues: 0, totalClueLines: 0 };
     
-    let isCorrect = true;
+    let satisfiedRows = 0;
+    let satisfiedCols = 0;
+    
     for (let r = 0; r < puzzle.size; r++) {
       const userRow = userGrid[r].map(cell => cell === 1);
       const userClues = getClues(userRow);
-      if (JSON.stringify(userClues) !== JSON.stringify(puzzle.rowClues[r])) {
-        isCorrect = false;
-        break;
+      if (JSON.stringify(userClues) === JSON.stringify(puzzle.rowClues[r])) {
+        satisfiedRows++;
       }
     }
 
-    if (isCorrect) {
-      for (let c = 0; c < puzzle.size; c++) {
-        const userCol = [];
-        for (let r = 0; r < puzzle.size; r++) {
-          userCol.push(userGrid[r][c] === 1);
-        }
-        const userClues = getClues(userCol);
-        if (JSON.stringify(userClues) !== JSON.stringify(puzzle.colClues[c])) {
-          isCorrect = false;
-          break;
+    for (let c = 0; c < puzzle.size; c++) {
+      const userCol = [];
+      for (let r = 0; r < puzzle.size; r++) {
+        userCol.push(userGrid[r][c] === 1);
+      }
+      const userClues = getClues(userCol);
+      if (JSON.stringify(userClues) === JSON.stringify(puzzle.colClues[c])) {
+        satisfiedCols++;
+      }
+    }
+
+    const totalClueLines = puzzle.size * 2;
+    const satisfiedClues = satisfiedRows + satisfiedCols;
+    const isComplete = satisfiedClues === totalClueLines;
+
+    let correctFilled = 0;
+    let wrongFilled = 0;
+    let totalTargetFilled = 0;
+
+    if (puzzle.grid) {
+      for (let r = 0; r < puzzle.size; r++) {
+        for (let c = 0; c < puzzle.size; c++) {
+          const isTarget = !!puzzle.grid[r][c];
+          const isMarked = userGrid[r][c] === 1;
+          if (isTarget) totalTargetFilled++;
+          if (isMarked && isTarget) correctFilled++;
+          if (isMarked && !isTarget) wrongFilled++;
         }
       }
     }
 
-    if (isCorrect) {
-      onSolve();
+    let accuracy = 0;
+    if (isComplete) {
+      accuracy = 100;
+    } else if (totalTargetFilled > 0) {
+      const netCells = Math.max(0, correctFilled - (wrongFilled * 0.5));
+      const cellPct = (netCells / totalTargetFilled) * 100;
+      const cluePct = (satisfiedClues / totalClueLines) * 100;
+      accuracy = Math.round((cellPct * 0.7) + (cluePct * 0.3));
+      accuracy = Math.min(99, Math.max(0, accuracy));
+    } else {
+      accuracy = Math.round((satisfiedClues / totalClueLines) * 100);
     }
-  }, [userGrid, puzzle, onSolve]);
+
+    return {
+      isComplete,
+      accuracy,
+      points: accuracy,
+      satisfiedClues,
+      totalClueLines
+    };
+  };
+
+  useEffect(() => {
+    if (!puzzle || !userGrid) return;
+    const score = calculateScore();
+    if (score.isComplete) {
+      onSolve(score);
+    }
+  }, [userGrid, puzzle]);
+
+  const handleSubmitClick = () => {
+    const score = calculateScore();
+    if (score.isComplete) {
+      onSolve(score);
+    } else {
+      setConfirmModal(true);
+    }
+  };
+
+  const handleConfirmSubmit = () => {
+    const score = calculateScore();
+    setConfirmModal(false);
+    onSolve(score);
+  };
 
   if (!puzzle || !userGrid) return <div className="page-wrapper">Loading...</div>;
 
@@ -153,12 +213,53 @@ const NonogramBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Non
           <Button variant="secondary" onClick={() => setUserGrid(Array(puzzle.size).fill(null).map(() => Array(puzzle.size).fill(0)))} style={{ padding: '0.75rem 1.5rem', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white' }}>
             Clear All
           </Button>
-          <Button onClick={() => alert('Puzzle is not fully solved yet!')} style={{ padding: '0.75rem 1.5rem', background: '#10b981', color: 'white', border: 'none', fontWeight: 'bold' }}>
+          <Button onClick={handleSubmitClick} style={{ padding: '0.75rem 1.5rem', background: '#10b981', color: 'white', border: 'none', fontWeight: 'bold' }}>
             Submit Solution
           </Button>
         </div>
 
       </Card>
+
+      {confirmModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 10000,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '1.5rem'
+        }}>
+          <Card style={{ maxWidth: '480px', width: '100%', padding: '2rem', textAlign: 'center', border: '1px solid var(--glass-border)' }}>
+            <h3 style={{ fontSize: '1.5rem', marginBottom: '1rem', color: 'var(--text-primary)' }}>Submit Solution?</h3>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '1rem', lineHeight: '1.5' }}>
+              Your puzzle is not fully solved yet. If you submit now, you will be awarded partial marks based on your correct clues and cells.
+            </p>
+            
+            <div style={{ background: 'var(--bg-tertiary)', padding: '1.25rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
+                <span>Satisfied Clues:</span>
+                <strong style={{ color: 'var(--text-primary)' }}>{calculateScore().satisfiedClues} / {calculateScore().totalClueLines}</strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
+                <span>Calculated Score:</span>
+                <strong style={{ color: 'var(--success)', fontSize: '1.2rem' }}>{calculateScore().points} / 100 pts ({calculateScore().accuracy}%)</strong>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <Button variant="secondary" onClick={() => setConfirmModal(false)} style={{ flex: 1 }}>
+                Keep Solving
+              </Button>
+              <Button onClick={handleConfirmSubmit} style={{ flex: 1, background: 'var(--accent-primary)' }}>
+                Submit Now
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };
