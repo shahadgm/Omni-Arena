@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { dbService } from '../services/db';
 import { generateNonogram, generateShikaku, generateClues } from '../utils/puzzleGenerators';
@@ -90,14 +90,18 @@ const MultiPuzzleArena = () => {
 
   const [puzzleScores, setPuzzleScores] = useState([]);
   const [finalStats, setFinalStats] = useState(null);
+  const solvedIndicesRef = useRef(new Set());
 
   const handleSolve = async (puzzleScore) => {
+    if (solvedIndicesRef.current.has(currentIdx)) return;
+    solvedIndicesRef.current.add(currentIdx);
+
     const currentScore = puzzleScore || { points: 100, accuracy: 100, isComplete: true };
     const updatedScores = [...puzzleScores, currentScore];
     setPuzzleScores(updatedScores);
 
     if (currentIdx < puzzles.length - 1) {
-      setCurrentIdx(currentIdx + 1);
+      setCurrentIdx(prev => prev + 1);
     } else {
       // Completed all puzzles
       setCompleted(true);
@@ -173,12 +177,16 @@ const MultiPuzzleArena = () => {
   }
 
   const currentPuzzle = puzzles[currentIdx];
+  if (!currentPuzzle) {
+    return <div className="page-wrapper" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>Loading next puzzle...</div>;
+  }
+
   const title = `Puzzle ${currentIdx + 1} of ${puzzles.length} - ${currentPuzzle.type === 'nonogram' ? 'Nonogram' : 'Shikaku'}`;
 
   if (currentPuzzle.type === 'nonogram') {
-    return <NonogramBoard puzzle={currentPuzzle.data} onSolve={handleSolve} timeElapsed={timeElapsed} onSurrender={handleSurrender} title={title} />;
+    return <NonogramBoard key={`nonogram-${currentIdx}`} puzzle={currentPuzzle.data} onSolve={handleSolve} timeElapsed={timeElapsed} onSurrender={handleSurrender} title={title} />;
   } else {
-    return <ShikakuBoard puzzle={currentPuzzle.data} onSolve={handleSolve} timeElapsed={timeElapsed} onSurrender={handleSurrender} title={title} />;
+    return <ShikakuBoard key={`shikaku-${currentIdx}`} puzzle={currentPuzzle.data} onSolve={handleSolve} timeElapsed={timeElapsed} onSurrender={handleSurrender} title={title} />;
   }
 };
 

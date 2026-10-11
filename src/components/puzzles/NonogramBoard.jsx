@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import { ArrowLeft } from 'lucide-react';
@@ -40,6 +40,7 @@ const NonogramBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Non
   };
 
   const [confirmModal, setConfirmModal] = useState(false);
+  const hasSubmittedRef = useRef(false);
 
   const calculateScore = () => {
     if (!puzzle || !userGrid) return { isComplete: false, points: 0, accuracy: 0, satisfiedClues: 0, totalClueLines: 0 };
@@ -48,9 +49,10 @@ const NonogramBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Non
     let satisfiedCols = 0;
     
     for (let r = 0; r < puzzle.size; r++) {
+      if (!userGrid[r] || !Array.isArray(userGrid[r])) continue;
       const userRow = userGrid[r].map(cell => cell === 1);
       const userClues = getClues(userRow);
-      if (JSON.stringify(userClues) === JSON.stringify(puzzle.rowClues[r])) {
+      if (puzzle.rowClues && puzzle.rowClues[r] && JSON.stringify(userClues) === JSON.stringify(puzzle.rowClues[r])) {
         satisfiedRows++;
       }
     }
@@ -58,10 +60,10 @@ const NonogramBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Non
     for (let c = 0; c < puzzle.size; c++) {
       const userCol = [];
       for (let r = 0; r < puzzle.size; r++) {
-        userCol.push(userGrid[r][c] === 1);
+        if (userGrid[r]) userCol.push(userGrid[r][c] === 1);
       }
       const userClues = getClues(userCol);
-      if (JSON.stringify(userClues) === JSON.stringify(puzzle.colClues[c])) {
+      if (puzzle.colClues && puzzle.colClues[c] && JSON.stringify(userClues) === JSON.stringify(puzzle.colClues[c])) {
         satisfiedCols++;
       }
     }
@@ -77,8 +79,8 @@ const NonogramBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Non
     if (puzzle.grid) {
       for (let r = 0; r < puzzle.size; r++) {
         for (let c = 0; c < puzzle.size; c++) {
-          const isTarget = !!puzzle.grid[r][c];
-          const isMarked = userGrid[r][c] === 1;
+          const isTarget = !!(puzzle.grid[r] && puzzle.grid[r][c]);
+          const isMarked = !!(userGrid[r] && userGrid[r][c] === 1);
           if (isTarget) totalTargetFilled++;
           if (isMarked && isTarget) correctFilled++;
           if (isMarked && !isTarget) wrongFilled++;
@@ -109,16 +111,19 @@ const NonogramBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Non
   };
 
   useEffect(() => {
-    if (!puzzle || !userGrid) return;
+    if (!puzzle || !userGrid || hasSubmittedRef.current) return;
     const score = calculateScore();
     if (score.isComplete) {
+      hasSubmittedRef.current = true;
       onSolve(score);
     }
   }, [userGrid, puzzle]);
 
   const handleSubmitClick = () => {
+    if (hasSubmittedRef.current) return;
     const score = calculateScore();
     if (score.isComplete) {
+      hasSubmittedRef.current = true;
       onSolve(score);
     } else {
       setConfirmModal(true);
@@ -126,6 +131,8 @@ const NonogramBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Non
   };
 
   const handleConfirmSubmit = () => {
+    if (hasSubmittedRef.current) return;
+    hasSubmittedRef.current = true;
     const score = calculateScore();
     setConfirmModal(false);
     onSolve(score);

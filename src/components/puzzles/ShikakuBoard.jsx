@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
 import { ArrowLeft } from 'lucide-react';
@@ -55,14 +55,16 @@ const ShikakuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Shik
   };
 
   const [confirmModal, setConfirmModal] = useState(false);
+  const hasSubmittedRef = useRef(false);
 
   const calculateScore = () => {
-    if (!puzzle) return { isComplete: false, points: 0, accuracy: 0, validRects: 0, totalClues: 0 };
+    if (!puzzle || !puzzle.grid) return { isComplete: false, points: 0, accuracy: 0, validRects: 0, totalClues: 0 };
     
     let totalClues = 0;
     for (let r = 0; r < puzzle.size; r++) {
+      if (!puzzle.grid[r]) continue;
       for (let c = 0; c < puzzle.size; c++) {
-        if (puzzle.grid[r][c] !== null) {
+        if (puzzle.grid[r][c] !== null && puzzle.grid[r][c] !== undefined) {
           totalClues++;
         }
       }
@@ -77,8 +79,9 @@ const ShikakuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Shik
 
       let numsInRect = [];
       for (let i = r.r1; i <= r.r2; i++) {
+        if (!puzzle.grid[i]) continue;
         for (let j = r.c1; j <= r.c2; j++) {
-          if (puzzle.grid[i][j] !== null) {
+          if (puzzle.grid[i][j] !== null && puzzle.grid[i][j] !== undefined) {
             numsInRect.push(puzzle.grid[i][j]);
           }
         }
@@ -110,16 +113,19 @@ const ShikakuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Shik
   };
 
   useEffect(() => {
-    if (!puzzle) return;
+    if (!puzzle || hasSubmittedRef.current) return;
     const score = calculateScore();
     if (score.isComplete) {
+      hasSubmittedRef.current = true;
       onSolve(score);
     }
   }, [rects, puzzle]);
 
   const handleSubmitClick = () => {
+    if (hasSubmittedRef.current) return;
     const score = calculateScore();
     if (score.isComplete) {
+      hasSubmittedRef.current = true;
       onSolve(score);
     } else {
       setConfirmModal(true);
@@ -127,6 +133,8 @@ const ShikakuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Shik
   };
 
   const handleConfirmSubmit = () => {
+    if (hasSubmittedRef.current) return;
+    hasSubmittedRef.current = true;
     const score = calculateScore();
     setConfirmModal(false);
     onSolve(score);
