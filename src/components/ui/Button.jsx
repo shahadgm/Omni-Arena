@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Button = ({ children, variant = 'primary', className = '', ...props }) => {
+const Button = ({ children, variant = 'primary', className = '', style = {}, ...props }) => {
   const baseStyle = {
     padding: '0.75rem 1.5rem',
     borderRadius: '8px',
@@ -38,7 +38,7 @@ const Button = ({ children, variant = 'primary', className = '', ...props }) => 
 
   return (
     <button 
-      style={{ ...baseStyle, ...variants[variant] }} 
+      style={{ ...baseStyle, ...variants[variant], ...style }} 
       className={className}
       onMouseOver={(e) => {
         if(variant === 'primary') e.currentTarget.style.transform = 'translateY(-2px)';

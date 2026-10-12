@@ -22,8 +22,20 @@ const CrosswordArena = () => {
   const [isFinished, setIsFinished] = useState(false);
   const [finalTime, setFinalTime] = useState(0);
   const [finalScoreWords, setFinalScoreWords] = useState(0);
+  const [cellSize, setCellSize] = useState(36);
 
   const inputRefs = useRef({});
+
+  const handleZoomIn = () => setCellSize(prev => Math.min(prev + 4, 52));
+  const handleZoomOut = () => setCellSize(prev => Math.max(prev - 4, 22));
+  const handleZoomReset = () => {
+    if (!grid || grid.length === 0 || !grid[0]) return setCellSize(36);
+    const cols = grid[0].length;
+    if (cols > 24) setCellSize(28);
+    else if (cols > 18) setCellSize(32);
+    else if (cols > 12) setCellSize(36);
+    else setCellSize(40);
+  };
 
   useEffect(() => {
     const init = async () => {
@@ -64,6 +76,12 @@ const CrosswordArena = () => {
       setTournament(t);
       const layout = t.crosswordLayout;
       setGrid(layout.table);
+
+      const cols = layout.cols || (layout.table[0] ? layout.table[0].length : 15);
+      if (cols > 24) setCellSize(28);
+      else if (cols > 18) setCellSize(32);
+      else if (cols > 12) setCellSize(36);
+      else setCellSize(40);
       
       const nums = {};
       const ac = [];
@@ -128,10 +146,11 @@ const CrosswordArena = () => {
     }
     setActiveCell({ r, c });
     
-    // Focus the input
+    // Focus the input and scroll into view
     setTimeout(() => {
       if (inputRefs.current[`${r},${c}`]) {
         inputRefs.current[`${r},${c}`].focus();
+        inputRefs.current[`${r},${c}`].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
       }
     }, 10);
   };
@@ -139,10 +158,13 @@ const CrosswordArena = () => {
   const handleClueClick = (orientation, position) => {
     const wordObj = clues[orientation].find(c => c.position === position);
     setActiveWord({ orientation, position });
-    setActiveCell({ r: wordObj.starty - 1, c: wordObj.startx - 1 });
+    const targetR = wordObj.starty - 1;
+    const targetC = wordObj.startx - 1;
+    setActiveCell({ r: targetR, c: targetC });
     setTimeout(() => {
-      if (inputRefs.current[`${wordObj.starty - 1},${wordObj.startx - 1}`]) {
-        inputRefs.current[`${wordObj.starty - 1},${wordObj.startx - 1}`].focus();
+      if (inputRefs.current[`${targetR},${targetC}`]) {
+        inputRefs.current[`${targetR},${targetC}`].focus();
+        inputRefs.current[`${targetR},${targetC}`].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
       }
     }, 10);
   };
@@ -158,6 +180,7 @@ const CrosswordArena = () => {
       setTimeout(() => {
         if (inputRefs.current[`${nextR},${nextC}`]) {
           inputRefs.current[`${nextR},${nextC}`].focus();
+          inputRefs.current[`${nextR},${nextC}`].scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
         }
       }, 10);
     }
@@ -280,14 +303,21 @@ const CrosswordArena = () => {
   return (
     <div 
       className="container" 
-      style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 100px)', paddingBottom: '4rem', userSelect: 'none' }}
+      style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 100px)', paddingBottom: '4rem', userSelect: 'none', maxWidth: '1600px' }}
       onCopy={e => e.preventDefault()}
       onCut={e => e.preventDefault()}
       onPaste={e => e.preventDefault()}
       onContextMenu={e => e.preventDefault()}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
         <h1 style={{ fontSize: '1.75rem' }}>{tournament.name}</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', backgroundColor: 'var(--bg-secondary)', padding: '0.4rem 0.8rem', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Zoom:</span>
+          <Button onClick={handleZoomOut} variant="secondary" style={{ padding: '0.2rem 0.6rem', fontSize: '1rem', minWidth: '32px' }} title="Zoom Out">−</Button>
+          <span style={{ fontSize: '0.85rem', minWidth: '42px', textAlign: 'center', fontWeight: 'bold' }}>{cellSize}px</span>
+          <Button onClick={handleZoomIn} variant="secondary" style={{ padding: '0.2rem 0.6rem', fontSize: '1rem', minWidth: '32px' }} title="Zoom In">+</Button>
+          <Button onClick={handleZoomReset} variant="secondary" style={{ padding: '0.2rem 0.6rem', fontSize: '0.8rem' }} title="Fit to Grid">Fit</Button>
+        </div>
       </div>
 
       {isFinished ? (
@@ -300,77 +330,110 @@ const CrosswordArena = () => {
           </div>
         </Card>
       ) : (
-        <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-          <Card style={{ flex: '2 1 500px', padding: '2rem', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: `repeat(${grid[0].length}, 40px)`, 
-              gridTemplateRows: `repeat(${grid.length}, 40px)`,
-              gap: '0',
-              border: '2px solid var(--glass-border)',
-              backgroundColor: 'var(--text-primary)'
-            }}>
-              {grid.map((row, r) => (
-                Array.from(row).map((cell, c) => {
-                  if (cell === '-') {
-                    return <div key={`${r},${c}`} style={{ backgroundColor: 'var(--bg-tertiary)', width: '40px', height: '40px' }} />;
-                  }
-                  
-                  const active = isCellActive(r, c);
-                  const selected = activeCell?.r === r && activeCell?.c === c;
-                  const num = numbersMap[`${r},${c}`];
-                  
-                  return (
-                    <div 
-                      key={`${r},${c}`} 
-                      style={{ 
-                        width: '40px', 
-                        height: '40px', 
-                        backgroundColor: selected ? '#ffeb3b' : active ? '#a5d6a7' : '#fff',
-                        border: '1px solid #333',
-                        position: 'relative',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer'
-                      }}
-                      onClick={() => handleCellClick(r, c)}
-                    >
-                      {num && <span style={{ position: 'absolute', top: '2px', left: '2px', fontSize: '10px', color: '#000', fontWeight: 'bold' }}>{num}</span>}
-                      <input
-                        ref={el => inputRefs.current[`${r},${c}`] = el}
-                        value={userInputs[`${r},${c}`] || ''}
-                        onChange={(e) => handleChange(e, r, c)}
-                        onKeyDown={(e) => handleKeyDown(e, r, c)}
-                        onFocus={() => {
-                          if (!active) handleCellClick(r, c);
+        <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <Card style={{ flex: '2 1 600px', padding: '1.5rem', minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div 
+              style={{ 
+                width: '100%', 
+                maxHeight: '72vh', 
+                overflow: 'auto', 
+                backgroundColor: 'rgba(0, 0, 0, 0.2)', 
+                borderRadius: '8px', 
+                padding: '1.5rem',
+                border: '1px solid var(--glass-border)',
+                display: 'flex'
+              }}
+            >
+              <div style={{ 
+                margin: 'auto',
+                display: 'grid', 
+                gridTemplateColumns: `repeat(${grid[0].length}, ${cellSize}px)`, 
+                gridTemplateRows: `repeat(${grid.length}, ${cellSize}px)`,
+                gap: '0',
+                border: '2px solid var(--glass-border)',
+                backgroundColor: 'var(--text-primary)',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.25)'
+              }}>
+                {grid.map((row, r) => (
+                  Array.from(row).map((cell, c) => {
+                    if (cell === '-') {
+                      return <div key={`${r},${c}`} style={{ backgroundColor: 'var(--bg-tertiary)', width: `${cellSize}px`, height: `${cellSize}px` }} />;
+                    }
+                    
+                    const active = isCellActive(r, c);
+                    const selected = activeCell?.r === r && activeCell?.c === c;
+                    const num = numbersMap[`${r},${c}`];
+                    
+                    return (
+                      <div 
+                        key={`${r},${c}`} 
+                        style={{ 
+                          width: `${cellSize}px`, 
+                          height: `${cellSize}px`, 
+                          backgroundColor: selected ? '#ffeb3b' : active ? '#a5d6a7' : '#fff',
+                          border: '1px solid #333',
+                          position: 'relative',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer'
                         }}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          background: 'transparent',
-                          border: 'none',
-                          textAlign: 'center',
-                          fontSize: '18px',
-                          fontWeight: 'bold',
-                          color: '#000',
-                          textTransform: 'uppercase',
-                          outline: 'none',
-                          padding: 0,
-                          cursor: 'pointer',
-                          caretColor: 'transparent' // Hide cursor for cleaner look
-                        }}
-                        maxLength={1}
-                      />
-                    </div>
-                  );
-                })
-              ))}
+                        onClick={() => handleCellClick(r, c)}
+                      >
+                        {num && (
+                          <span 
+                            style={{ 
+                              position: 'absolute', 
+                              top: '1px', 
+                              left: '2px', 
+                              fontSize: `${Math.max(8, Math.round(cellSize * 0.25))}px`, 
+                              lineHeight: 1, 
+                              color: '#000', 
+                              fontWeight: 'bold',
+                              pointerEvents: 'none'
+                            }}
+                          >
+                            {num}
+                          </span>
+                        )}
+                        <input
+                          ref={el => inputRefs.current[`${r},${c}`] = el}
+                          value={userInputs[`${r},${c}`] || ''}
+                          onChange={(e) => handleChange(e, r, c)}
+                          onKeyDown={(e) => handleKeyDown(e, r, c)}
+                          onFocus={() => {
+                            if (!active) handleCellClick(r, c);
+                          }}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            background: 'transparent',
+                            border: 'none',
+                            textAlign: 'center',
+                            fontSize: `${Math.max(11, Math.round(cellSize * 0.48))}px`,
+                            fontWeight: 'bold',
+                            color: '#000',
+                            textTransform: 'uppercase',
+                            outline: 'none',
+                            padding: 0,
+                            cursor: 'pointer',
+                            caretColor: 'transparent'
+                          }}
+                          maxLength={1}
+                        />
+                      </div>
+                    );
+                  })
+                ))}
+              </div>
+            </div>
+            <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-tertiary)', textAlign: 'center' }}>
+              Tip: Click clues or cells to navigate. Arrow keys move cursor. Use Zoom buttons or scrollbars if board extends.
             </div>
           </Card>
           
-          <div style={{ flex: '1 1 300px', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <Card style={{ padding: '1.5rem', maxHeight: '400px', overflowY: 'auto' }}>
+          <div style={{ flex: '1 1 320px', display: 'flex', flexDirection: 'column', gap: '1rem', minWidth: '280px' }}>
+            <Card style={{ padding: '1.5rem', maxHeight: '36vh', overflowY: 'auto' }}>
               <h3 style={{ fontSize: '1.2rem', marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>Across</h3>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {clues.across.map(c => {
@@ -396,7 +459,7 @@ const CrosswordArena = () => {
               </ul>
             </Card>
             
-            <Card style={{ padding: '1.5rem', maxHeight: '400px', overflowY: 'auto' }}>
+            <Card style={{ padding: '1.5rem', maxHeight: '36vh', overflowY: 'auto' }}>
               <h3 style={{ fontSize: '1.2rem', marginBottom: '1rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.5rem' }}>Down</h3>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                 {clues.down.map(c => {
