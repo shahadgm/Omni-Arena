@@ -3,89 +3,70 @@ import { useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import { Trophy, Zap, Keyboard, Gamepad2, UserPlus, LogIn, Lock, User, Sparkles } from 'lucide-react';
+import { Trophy, Zap, Gamepad2, Shield, Lock, User } from 'lucide-react';
 import { authService } from '../services/db';
 
 const LandingPage = () => {
-  const [tab, setTab] = useState('login'); // 'login' | 'register'
+  const [tab, setTab] = useState('contestant'); // 'contestant' | 'admin'
   
-  // Login form state
-  const [loginUsername, setLoginUsername] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
+  // Contestant entry state
+  const [contestantId, setContestantId] = useState('');
   
-  // Register form state
-  const [regDisplayName, setRegDisplayName] = useState('');
-  const [regUsername, setRegUsername] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  // Admin login state
+  const [adminUsername, setAdminUsername] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
     if (authService.isAdmin()) {
       navigate('/admin/dashboard');
-    } else if (authService.isAuthenticated()) {
+    } else if (localStorage.getItem('studentId')) {
       navigate('/dashboard');
     }
   }, [navigate]);
 
-  const handleLogin = async (e) => {
+  const handleContestantEnter = (e) => {
     e.preventDefault();
     setError('');
-    setSuccessMsg('');
-    if (!loginUsername.trim() || !loginPassword) {
-      setError('Please enter both username and password.');
+    const cleanId = contestantId.trim();
+    if (cleanId.length < 2) {
+      setError('Please enter a valid Name or Admission Number (min 2 characters).');
+      return;
+    }
+
+    // Store student identity for tournament participation
+    localStorage.setItem('studentId', cleanId);
+    localStorage.setItem('displayName', cleanId);
+    localStorage.setItem('user', JSON.stringify({
+      username: cleanId,
+      displayName: cleanId,
+      role: 'student'
+    }));
+    localStorage.setItem('isAdmin', 'false');
+    navigate('/dashboard');
+  };
+
+  const handleAdminLogin = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (!adminUsername.trim() || !adminPassword) {
+      setError('Please enter both admin username and password.');
       return;
     }
     setLoading(true);
     try {
-      const user = await authService.login(loginUsername, loginPassword);
+      const user = await authService.login(adminUsername, adminPassword);
       if (user.role === 'admin') {
         navigate('/admin/dashboard');
       } else {
-        navigate('/dashboard');
+        setError('Administrator privileges required.');
+        authService.logout();
       }
     } catch (err) {
-      setError(err.message || 'Login failed. Please check your credentials.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    setError('');
-    setSuccessMsg('');
-
-    if (regUsername.trim().length < 3) {
-      setError('Username must be at least 3 characters.');
-      return;
-    }
-    if (regPassword.length < 4) {
-      setError('Password must be at least 4 characters long.');
-      return;
-    }
-    if (regPassword !== regConfirmPassword) {
-      setError('Passwords do not match. Please re-enter.');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const user = await authService.register(regUsername, regPassword, regDisplayName);
-      setSuccessMsg('Account created successfully! Redirecting...');
-      setTimeout(() => {
-        if (user && user.role === 'admin') {
-          navigate('/admin/dashboard');
-        } else {
-          navigate('/dashboard');
-        }
-      }, 500);
-    } catch (err) {
-      setError(err.message || 'Registration failed. Please try again.');
+      setError(err.message || 'Invalid username or password.');
     } finally {
       setLoading(false);
     }
@@ -102,11 +83,11 @@ const LandingPage = () => {
           <span className="text-gradient">OmniArena</span>
         </h1>
         <p style={{ fontSize: '1.2rem', color: 'var(--text-secondary)', maxWidth: '620px', margin: '0 auto', lineHeight: 1.6 }}>
-          Compete in live tournaments, host your own public or private competitions, and climb the global leaderboards.
+          Compete in live tournaments, enter private match rooms, and climb the global leaderboards.
         </p>
       </div>
 
-      {/* Main Auth Card */}
+      {/* Main Card */}
       <Card style={{ 
         width: '100%', 
         maxWidth: '460px', 
@@ -127,13 +108,13 @@ const LandingPage = () => {
         }}>
           <button
             type="button"
-            onClick={() => { setTab('login'); setError(''); setSuccessMsg(''); }}
+            onClick={() => { setTab('contestant'); setError(''); }}
             style={{
               padding: '0.65rem 1rem',
               borderRadius: '9px',
               border: 'none',
-              background: tab === 'login' ? 'var(--accent-primary)' : 'transparent',
-              color: tab === 'login' ? '#ffffff' : 'var(--text-secondary)',
+              background: tab === 'contestant' ? 'var(--accent-primary)' : 'transparent',
+              color: tab === 'contestant' ? '#ffffff' : 'var(--text-secondary)',
               fontWeight: '600',
               cursor: 'pointer',
               display: 'flex',
@@ -141,20 +122,20 @@ const LandingPage = () => {
               justifyContent: 'center',
               gap: '0.5rem',
               transition: 'all 0.2s ease',
-              boxShadow: tab === 'login' ? '0 2px 8px rgba(99,102,241,0.3)' : 'none'
+              boxShadow: tab === 'contestant' ? '0 2px 8px rgba(99,102,241,0.3)' : 'none'
             }}
           >
-            <LogIn size={17} /> Log In
+            <User size={17} /> Contestant
           </button>
           <button
             type="button"
-            onClick={() => { setTab('register'); setError(''); setSuccessMsg(''); }}
+            onClick={() => { setTab('admin'); setError(''); }}
             style={{
               padding: '0.65rem 1rem',
               borderRadius: '9px',
               border: 'none',
-              background: tab === 'register' ? 'var(--accent-primary)' : 'transparent',
-              color: tab === 'register' ? '#ffffff' : 'var(--text-secondary)',
+              background: tab === 'admin' ? 'var(--accent-primary)' : 'transparent',
+              color: tab === 'admin' ? '#ffffff' : 'var(--text-secondary)',
               fontWeight: '600',
               cursor: 'pointer',
               display: 'flex',
@@ -162,10 +143,10 @@ const LandingPage = () => {
               justifyContent: 'center',
               gap: '0.5rem',
               transition: 'all 0.2s ease',
-              boxShadow: tab === 'register' ? '0 2px 8px rgba(99,102,241,0.3)' : 'none'
+              boxShadow: tab === 'admin' ? '0 2px 8px rgba(99,102,241,0.3)' : 'none'
             }}
           >
-            <UserPlus size={17} /> Create Account
+            <Shield size={17} /> Admin Login
           </button>
         </div>
 
@@ -186,125 +167,78 @@ const LandingPage = () => {
           </div>
         )}
 
-        {successMsg && (
-          <div style={{ 
-            padding: '0.75rem 1rem', 
-            background: 'rgba(16, 185, 129, 0.12)', 
-            border: '1px solid rgba(16, 185, 129, 0.3)', 
-            borderRadius: '8px', 
-            color: 'var(--success)', 
-            fontSize: '0.9rem',
-            marginBottom: '1.25rem'
-          }}>
-            {successMsg}
+        {tab === 'contestant' ? (
+          <div>
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'inline-flex', padding: '0.85rem', background: 'rgba(99,102,241,0.1)', borderRadius: '50%', marginBottom: '0.75rem' }}>
+                <Gamepad2 size={30} color="var(--accent-primary)" />
+              </div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '0.35rem' }}>Enter the Arena</h2>
+              <p style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem' }}>Enter your Name or Admission Number to join competitions</p>
+            </div>
+
+            <form onSubmit={handleContestantEnter} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-secondary)' }}>Name or Admission Number</label>
+                <Input 
+                  placeholder="e.g. ADM-12345 or John Doe" 
+                  value={contestantId}
+                  onChange={(e) => { setContestantId(e.target.value); setError(''); }}
+                  autoFocus
+                  required
+                />
+              </div>
+
+              <Button 
+                type="submit" 
+                style={{ width: '100%', padding: '0.85rem', fontSize: '1.05rem', marginTop: '0.5rem', display: 'flex', justifyContent: 'center', gap: '0.5rem' }}
+              >
+                Enter Platform <Zap size={18} />
+              </Button>
+            </form>
           </div>
-        )}
-
-        {tab === 'login' ? (
-          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <label style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-secondary)' }}>Username or Student ID</label>
-              <Input 
-                placeholder="e.g. alex24 or ADM-102" 
-                value={loginUsername}
-                onChange={(e) => { setLoginUsername(e.target.value); setError(''); }}
-                autoFocus
-                required
-              />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <label style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-secondary)' }}>Password</label>
-              <Input 
-                type="password"
-                placeholder="••••••••" 
-                value={loginPassword}
-                onChange={(e) => { setLoginPassword(e.target.value); setError(''); }}
-                required
-              />
-            </div>
-
-            <Button 
-              type="submit" 
-              disabled={loading} 
-              style={{ width: '100%', padding: '0.85rem', fontSize: '1.05rem', marginTop: '0.5rem', display: 'flex', justifyContent: 'center', gap: '0.5rem' }}
-            >
-              {loading ? 'Logging in...' : 'Enter Arena'} <Zap size={18} />
-            </Button>
-
-            <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
-              <button 
-                type="button" 
-                onClick={() => setTab('register')}
-                style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', fontSize: '0.9rem', cursor: 'pointer', textDecoration: 'underline' }}
-              >
-                Don't have an account? Sign up now
-              </button>
-            </div>
-          </form>
         ) : (
-          <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-secondary)' }}>Display Name</label>
-              <Input 
-                placeholder="e.g. Alex Morgan" 
-                value={regDisplayName}
-                onChange={(e) => { setRegDisplayName(e.target.value); setError(''); }}
-                autoFocus
-                required
-              />
+          <div>
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'inline-flex', padding: '0.85rem', background: 'rgba(99,102,241,0.1)', borderRadius: '50%', marginBottom: '0.75rem' }}>
+                <Lock size={30} color="var(--accent-primary)" />
+              </div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '0.35rem' }}>Admin Portal</h2>
+              <p style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem' }}>Sign in with your administrator credentials</p>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-secondary)' }}>Username / Student ID</label>
-              <Input 
-                placeholder="e.g. alex24 (min 3 chars)" 
-                value={regUsername}
-                onChange={(e) => { setRegUsername(e.target.value.toLowerCase().replace(/\s+/g, '')); setError(''); }}
-                required
-              />
-            </div>
+            <form onSubmit={handleAdminLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-secondary)' }}>Username</label>
+                <Input 
+                  placeholder="e.g. admin" 
+                  value={adminUsername}
+                  onChange={(e) => { setAdminUsername(e.target.value); setError(''); }}
+                  autoFocus
+                  required
+                />
+              </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-secondary)' }}>Password</label>
-              <Input 
-                type="password"
-                placeholder="Min 4 characters" 
-                value={regPassword}
-                onChange={(e) => { setRegPassword(e.target.value); setError(''); }}
-                required
-              />
-            </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-secondary)' }}>Password</label>
+                <Input 
+                  type="password"
+                  placeholder="••••••••" 
+                  value={adminPassword}
+                  onChange={(e) => { setAdminPassword(e.target.value); setError(''); }}
+                  required
+                />
+              </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-              <label style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-secondary)' }}>Confirm Password</label>
-              <Input 
-                type="password"
-                placeholder="Repeat password" 
-                value={regConfirmPassword}
-                onChange={(e) => { setRegConfirmPassword(e.target.value); setError(''); }}
-                required
-              />
-            </div>
-
-            <Button 
-              type="submit" 
-              disabled={loading} 
-              style={{ width: '100%', padding: '0.85rem', fontSize: '1.05rem', marginTop: '0.5rem', display: 'flex', justifyContent: 'center', gap: '0.5rem' }}
-            >
-              {loading ? 'Creating Account...' : 'Create Account & Enter'} <Sparkles size={18} />
-            </Button>
-
-            <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
-              <button 
-                type="button" 
-                onClick={() => setTab('login')}
-                style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', fontSize: '0.9rem', cursor: 'pointer', textDecoration: 'underline' }}
+              <Button 
+                type="submit" 
+                disabled={loading} 
+                style={{ width: '100%', padding: '0.85rem', fontSize: '1.05rem', marginTop: '0.5rem', display: 'flex', justifyContent: 'center', gap: '0.5rem' }}
               >
-                Already have an account? Log in
-              </button>
-            </div>
-          </form>
+                {loading ? 'Authenticating...' : 'Sign In as Admin'} <Zap size={18} />
+              </Button>
+            </form>
+          </div>
         )}
       </Card>
 

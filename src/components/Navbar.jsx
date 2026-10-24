@@ -156,7 +156,7 @@ const Navbar = ({ theme, toggleTheme }) => {
             </>
           ) : (
             <Link to="/" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
-              <User size={16} /> Log In / Register
+              <User size={16} /> Enter Arena
             </Link>
           )}
 
@@ -234,7 +234,7 @@ const Navbar = ({ theme, toggleTheme }) => {
             </>
           ) : (
             <Link to="/" style={mobileLinkItemStyle} onClick={() => setMobileMenuOpen(false)}>
-              <User size={18} color="var(--accent-primary)" /> Log In / Register
+              <User size={18} color="var(--accent-primary)" /> Enter Arena
             </Link>
           )}
         </div>
