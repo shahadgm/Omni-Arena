@@ -17,7 +17,7 @@ service cloud.firestore {
       allow create: if request.resource.data.username == username
                     && isValidString(request.resource.data.username, 3, 30)
                     && isValidString(request.resource.data.displayName, 1, 50)
-                    && request.resource.data.role in ['student', 'admin']
+                    && request.resource.data.role in ['student', 'user', 'admin']
                     && request.resource.data.passwordHash is string;
 
       // Allow updating existing account (e.g. password change, display name update)
