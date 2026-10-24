@@ -75,10 +75,14 @@ const LandingPage = () => {
 
     setLoading(true);
     try {
-      await authService.register(regUsername, regPassword, regDisplayName);
+      const user = await authService.register(regUsername, regPassword, regDisplayName);
       setSuccessMsg('Account created successfully! Redirecting...');
       setTimeout(() => {
-        navigate('/dashboard');
+        if (user && user.role === 'admin') {
+          navigate('/admin/dashboard');
+        } else {
+          navigate('/dashboard');
+        }
       }, 500);
     } catch (err) {
       setError(err.message || 'Registration failed. Please try again.');

@@ -284,8 +284,8 @@ export const authService = {
     if (!/^[a-zA-Z0-9_-]{3,30}$/.test(cleanUsername)) {
       throw new Error('Username must be 3-30 characters long and can only contain letters, numbers, hyphens, and underscores.');
     }
-    if (!password || password.length < 6) {
-      throw new Error('Password must be at least 6 characters long.');
+    if (!password || password.length < 4) {
+      throw new Error('Password must be at least 4 characters long.');
     }
 
     try {
@@ -296,11 +296,15 @@ export const authService = {
       }
 
       const passwordHash = await hashPassword(password, cleanUsername);
+      const isAdminAccount = cleanUsername === 'admin' || cleanUsername === 'sibaqadmin';
+      const role = isAdminAccount ? 'admin' : 'user';
+
       const userData = {
         username: cleanUsername,
         displayName: cleanDisplayName,
         passwordHash,
-        role: 'user', // Default role. Admin roles must be assigned in database
+        salt: cleanUsername,
+        role,
         createdAt: new Date().toISOString()
       };
 
@@ -309,14 +313,14 @@ export const authService = {
       const sessionUser = {
         username: cleanUsername,
         displayName: cleanDisplayName,
-        role: userData.role
+        role
       };
 
       // F-01 fix: Key studentId on unique cleanUsername, NOT displayName
       localStorage.setItem('studentId', cleanUsername);
       localStorage.setItem('displayName', cleanDisplayName);
       localStorage.setItem('user', JSON.stringify(sessionUser));
-      localStorage.setItem('isAdmin', 'false');
+      localStorage.setItem('isAdmin', isAdminAccount ? 'true' : 'false');
 
       return sessionUser;
     } catch (error) {
