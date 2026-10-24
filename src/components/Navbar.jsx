@@ -1,21 +1,23 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../services/db';
-import { Keyboard, LogOut, Shield, Sun, Moon } from 'lucide-react';
+import { Keyboard, LogOut, Shield, Sun, Moon, PlusCircle, Trophy, User } from 'lucide-react';
 
 const Navbar = ({ theme, toggleTheme }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isAdmin = authService.isAdmin();
-  const studentId = localStorage.getItem('studentId');
+  const currentUser = authService.getCurrentUser();
+  const isAuthenticated = authService.isAuthenticated();
+  const displayName = currentUser?.displayName || currentUser?.username || localStorage.getItem('studentId');
 
   const handleLogout = () => {
     authService.logout();
-    navigate('/admin/login');
+    navigate('/');
   };
 
   const navStyle = {
-    padding: '1rem 2rem',
+    padding: '0.9rem 2rem',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -42,7 +44,7 @@ const Navbar = ({ theme, toggleTheme }) => {
   const linksStyle = {
     display: 'flex',
     alignItems: 'center',
-    gap: '1.5rem',
+    gap: '1.25rem',
   };
 
   const linkItemStyle = {
@@ -52,14 +54,13 @@ const Navbar = ({ theme, toggleTheme }) => {
     transition: 'color 0.2s',
     display: 'flex',
     alignItems: 'center',
-    gap: '0.5rem',
+    gap: '0.4rem',
+    fontSize: '0.95rem'
   };
 
   let logoLink = '/';
-  if (isAdmin) {
-    logoLink = '/admin/dashboard';
-  } else if (studentId) {
-    logoLink = '/dashboard';
+  if (isAuthenticated) {
+    logoLink = isAdmin && location.pathname.startsWith('/admin') ? '/admin/dashboard' : '/dashboard';
   }
 
   return (
@@ -83,44 +84,67 @@ const Navbar = ({ theme, toggleTheme }) => {
         >
           {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
         </button>
-        {isAdmin ? (
+
+        {isAuthenticated ? (
           <>
-            <Link to="/admin/dashboard" style={linkItemStyle}>Dashboard</Link>
-            <Link to="/admin/tournament/create" style={linkItemStyle}>Create Tournament</Link>
+            <Link to="/dashboard" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
+              <Trophy size={16} /> Tournaments
+            </Link>
+            
+            <Link to="/tournament/create" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
+              <PlusCircle size={16} /> Host
+            </Link>
+
+            <Link to="/history" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
+              <Keyboard size={16} /> History
+            </Link>
+
+            {isAdmin && (
+              <Link to="/admin/dashboard" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
+                <Shield size={16} /> Admin
+              </Link>
+            )}
+
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '0.4rem', 
+              background: 'rgba(255, 255, 255, 0.05)', 
+              padding: '0.35rem 0.75rem', 
+              borderRadius: '20px',
+              border: '1px solid var(--glass-border)',
+              fontSize: '0.85rem',
+              color: 'var(--text-primary)'
+            }}>
+              <User size={14} color="var(--accent-primary)" />
+              <span style={{ fontWeight: '600' }}>{displayName}</span>
+              {isAdmin && (
+                <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.35rem', background: 'var(--accent-primary)', color: 'white', borderRadius: '4px', fontWeight: 'bold' }}>
+                  ADMIN
+                </span>
+              )}
+            </div>
+
             <button 
               onClick={handleLogout}
               style={{
                 background: 'none', border: 'none', color: 'var(--error)', 
-                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem',
-                fontWeight: '500', fontSize: '1rem', fontFamily: 'inherit'
+                cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem',
+                fontWeight: '500', fontSize: '0.95rem', fontFamily: 'inherit'
               }}
+              title="Log out of account"
             >
-              <LogOut size={18} /> Logout
+              <LogOut size={16} /> Logout
             </button>
           </>
         ) : (
           <>
-            {studentId ? (
-              <>
-                <Link to="/history" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
-                  <Keyboard size={18} /> History
-                </Link>
-                <button 
-                  onClick={() => { localStorage.removeItem('studentId'); navigate('/'); }}
-                  style={{
-                    background: 'none', border: 'none', color: 'var(--error)', 
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem',
-                    fontWeight: '500', fontSize: '1rem', fontFamily: 'inherit'
-                  }}
-                >
-                  <LogOut size={18} /> Logout
-                </button>
-              </>
-            ) : (
-              <Link to="/admin/login" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
-                <Shield size={18} /> Admin
-              </Link>
-            )}
+            <Link to="/" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
+              <User size={16} /> Log In / Register
+            </Link>
+            <Link to="/admin/login" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
+              <Shield size={16} /> Admin Portal
+            </Link>
           </>
         )}
       </div>

@@ -210,25 +210,174 @@ export const dbService = {
       console.error("Error fetching student history:", error);
       return [];
     }
+  },
+
+  async getTournamentByCode(code) {
+    if (!code) return null;
+    try {
+      const cleanCode = code.trim().toUpperCase();
+      const all = await this.getTournaments();
+      return all.find(t => t.accessCode && t.accessCode.trim().toUpperCase() === cleanCode) || null;
+    } catch (error) {
+      console.error("Error finding tournament by code:", error);
+      return null;
+    }
+  },
+
+  async getUserTournaments(username) {
+    if (!username) return [];
+    try {
+      const all = await this.getTournaments();
+      const cleanUser = username.trim().toLowerCase();
+      return all.filter(t => t.createdBy && t.createdBy.trim().toLowerCase() === cleanUser);
+    } catch (error) {
+      console.error("Error fetching user tournaments:", error);
+      return [];
+    }
   }
 };
 
+export async function hashPassword(password) {
+  if (!password) return '';
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password + "_omni_arena_salt_2026");
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 export const authService = {
-  async loginAdmin(username, password) {
-    // Artificial delay to simulate auth network request
-    await new Promise(resolve => setTimeout(resolve, 500));
-    if (username.toLowerCase() === 'sibaqadmin' && password === 'xrby2906') {
-      localStorage.setItem('isAdmin', 'true');
-      return true;
+  async register(username, password, displayName) {
+    const cleanUsername = (username || '').trim().toLowerCase();
+    const cleanDisplayName = (displayName || '').trim() || cleanUsername;
+    
+    if (cleanUsername.length < 3) {
+      throw new Error('Username must be at least 3 characters.');
     }
-    throw new Error('Invalid credentials');
+    if (!password || password.length < 4) {
+      throw new Error('Password must be at least 4 characters.');
+    }
+
+    try {
+      const userDocRef = doc(db, 'users', cleanUsername);
+      const userSnap = await getDoc(userDocRef);
+      if (userSnap.exists()) {
+        throw new Error('Username already exists. Please pick a different one or log in.');
+      }
+
+      const passwordHash = await hashPassword(password);
+      const isMasterAdmin = cleanUsername === 'sibaqadmin';
+      const userData = {
+        username: cleanUsername,
+        displayName: cleanDisplayName,
+        passwordHash,
+        role: isMasterAdmin ? 'admin' : 'user',
+        createdAt: new Date().toISOString()
+      };
+
+      await setDoc(userDocRef, userData);
+
+      const sessionUser = {
+        username: cleanUsername,
+        displayName: cleanDisplayName,
+        role: userData.role
+      };
+
+      localStorage.setItem('studentId', cleanDisplayName);
+      localStorage.setItem('user', JSON.stringify(sessionUser));
+      localStorage.setItem('isAdmin', userData.role === 'admin' ? 'true' : 'false');
+
+      return sessionUser;
+    } catch (error) {
+      console.error("Error registering user:", error);
+      throw error;
+    }
+  },
+
+  async login(username, password) {
+    const cleanUsername = (username || '').trim().toLowerCase();
+    if (!cleanUsername || !password) {
+      throw new Error('Please enter both username and password.');
+    }
+
+    // Default master admin fallback
+    if (cleanUsername === 'sibaqadmin' && password === 'xrby2906') {
+      const adminUser = {
+        username: 'sibaqadmin',
+        displayName: 'Admin',
+        role: 'admin'
+      };
+      localStorage.setItem('studentId', 'Admin');
+      localStorage.setItem('user', JSON.stringify(adminUser));
+      localStorage.setItem('isAdmin', 'true');
+      return adminUser;
+    }
+
+    try {
+      const userDocRef = doc(db, 'users', cleanUsername);
+      const userSnap = await getDoc(userDocRef);
+
+      if (!userSnap.exists()) {
+        throw new Error('Account not found. Please check your username or register a new account.');
+      }
+
+      const data = userSnap.data();
+      const passwordHash = await hashPassword(password);
+
+      if (data.passwordHash !== passwordHash && data.password !== password) {
+        throw new Error('Incorrect password. Please try again.');
+      }
+
+      const sessionUser = {
+        username: data.username || cleanUsername,
+        displayName: data.displayName || data.username || cleanUsername,
+        role: data.role || (cleanUsername === 'sibaqadmin' ? 'admin' : 'user')
+      };
+
+      localStorage.setItem('studentId', sessionUser.displayName);
+      localStorage.setItem('user', JSON.stringify(sessionUser));
+      localStorage.setItem('isAdmin', sessionUser.role === 'admin' ? 'true' : 'false');
+
+      return sessionUser;
+    } catch (error) {
+      console.error("Error logging in:", error);
+      throw error;
+    }
+  },
+
+  async loginAdmin(username, password) {
+    return this.login(username, password);
   },
   
   logout() {
+    localStorage.removeItem('studentId');
+    localStorage.removeItem('user');
     localStorage.removeItem('isAdmin');
   },
 
+  getCurrentUser() {
+    try {
+      const stored = localStorage.getItem('user');
+      if (stored) return JSON.parse(stored);
+    } catch (e) {}
+
+    const studentId = localStorage.getItem('studentId');
+    if (studentId) {
+      return {
+        username: studentId,
+        displayName: studentId,
+        role: localStorage.getItem('isAdmin') === 'true' ? 'admin' : 'user'
+      };
+    }
+    return null;
+  },
+
+  isAuthenticated() {
+    return !!this.getCurrentUser();
+  },
+
   isAdmin() {
-    return localStorage.getItem('isAdmin') === 'true';
+    const user = this.getCurrentUser();
+    return (user && user.role === 'admin') || localStorage.getItem('isAdmin') === 'true';
   }
 };

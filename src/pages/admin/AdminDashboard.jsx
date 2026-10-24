@@ -114,9 +114,18 @@ const AdminDashboard = () => {
                     alignItems: 'center',
                   }}>
                     <div>
-                      <div style={{ fontWeight: '600', fontSize: '1.05rem', color: 'var(--text-primary)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ fontWeight: '600', fontSize: '1.05rem', color: 'var(--text-primary)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                         {t.name}
-                        {t.isPrivate && <Lock size={14} color="var(--text-tertiary)" title={`Private: Code ${t.accessCode}`} />}
+                        {t.isPrivate && (
+                          <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', padding: '0.15rem 0.5rem', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <Lock size={12} /> {t.accessCode}
+                          </span>
+                        )}
+                        {t.creatorName && (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 'normal' }}>
+                            by {t.creatorName}
+                          </span>
+                        )}
                       </div>
                       <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>ID: {t.id.slice(0, 8)}...</div>
                     </div>

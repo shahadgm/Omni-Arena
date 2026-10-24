@@ -4,7 +4,7 @@ import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { dbService, authService } from '../../services/db';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Globe, Lock, Key, RefreshCw } from 'lucide-react';
 import clg from 'crossword-layout-generator';
 
 const CreateTournament = () => {
@@ -22,6 +22,15 @@ const CreateTournament = () => {
   const [isPrivate, setIsPrivate] = useState(false);
   const [accessCode, setAccessCode] = useState('');
   const [hideLeaderboard, setHideLeaderboard] = useState(false);
+  
+  const generateRandomCode = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setAccessCode(result);
+  };
   
   // Custom text option (Typing)
   const [useCustomText, setUseCustomText] = useState(false);
@@ -50,8 +59,9 @@ const CreateTournament = () => {
   const [crosswordPreview, setCrosswordPreview] = useState(null);
 
   useEffect(() => {
-    if (!authService.isAdmin()) {
-      navigate('/admin/login');
+    if (!authService.isAuthenticated()) {
+      navigate('/');
+      return;
     }
     if (id) {
       const fetchT = async () => {
@@ -248,7 +258,13 @@ const CreateTournament = () => {
       return;
     }
 
+    if (isPrivate && !accessCode.trim()) {
+      alert("Please enter a tournament access code for this private tournament, or click 'Generate Code'.");
+      return;
+    }
+
     try {
+      const currentUser = authService.getCurrentUser() || { username: 'user', displayName: 'User' };
       const tournament = {
         name,
         gameType,
@@ -256,9 +272,11 @@ const CreateTournament = () => {
         startTime: new Date(startTime).toISOString(),
         endTime: new Date(endTime).toISOString(),
         timeLimit: parseInt(timeLimit) || 0,
-        isPrivate,
-        accessCode: isPrivate ? accessCode : '',
-        hideLeaderboard
+        isPrivate: !!isPrivate,
+        accessCode: isPrivate ? accessCode.trim().toUpperCase() : '',
+        hideLeaderboard,
+        createdBy: currentUser.username,
+        creatorName: currentUser.displayName || currentUser.username
       };
 
       if (gameType === 'typing') {
@@ -352,7 +370,12 @@ const CreateTournament = () => {
       } else {
         await dbService.createTournament(tournament);
       }
-      navigate('/admin/dashboard');
+      
+      if (authService.isAdmin()) {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err) {
       alert("Error saving tournament: " + err.message);
       console.error(err);
@@ -403,28 +426,97 @@ const CreateTournament = () => {
             <p style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem', marginTop: '0.25rem' }}>Set to 0 for unlimited time.</p>
           </div>
 
-          <div style={{ marginTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-              <input 
-                type="checkbox" 
-                checked={isPrivate} 
-                onChange={(e) => setIsPrivate(e.target.checked)} 
-                style={{ width: '18px', height: '18px', accentColor: 'var(--accent-primary)' }}
-              />
-              <span style={{ fontWeight: '500' }}>Private Tournament</span>
-            </label>
+          <div style={{ marginTop: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <label style={{ fontSize: '0.95rem', fontWeight: '600', color: 'var(--text-primary)' }}>Visibility & Access</label>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+              <div 
+                onClick={() => setIsPrivate(false)}
+                style={{
+                  padding: '1.25rem',
+                  borderRadius: '12px',
+                  border: !isPrivate ? '2px solid var(--accent-primary)' : '1px solid var(--glass-border)',
+                  background: !isPrivate ? 'rgba(99, 102, 241, 0.1)' : 'rgba(255, 255, 255, 0.02)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: !isPrivate ? 'var(--accent-primary)' : 'var(--text-secondary)' }}>
+                  <Globe size={20} />
+                  <strong style={{ fontSize: '1rem' }}>Public Tournament</strong>
+                </div>
+                <p style={{ fontSize: '0.825rem', color: 'var(--text-tertiary)', lineHeight: 1.4 }}>
+                  Visible to everyone on the platform. Any participant can discover and join.
+                </p>
+              </div>
+
+              <div 
+                onClick={() => {
+                  setIsPrivate(true);
+                  if (!accessCode) generateRandomCode();
+                }}
+                style={{
+                  padding: '1.25rem',
+                  borderRadius: '12px',
+                  border: isPrivate ? '2px solid var(--accent-primary)' : '1px solid var(--glass-border)',
+                  background: isPrivate ? 'rgba(99, 102, 241, 0.1)' : 'rgba(255, 255, 255, 0.02)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: isPrivate ? 'var(--accent-primary)' : 'var(--text-secondary)' }}>
+                  <Lock size={20} />
+                  <strong style={{ fontSize: '1rem' }}>Private Tournament</strong>
+                </div>
+                <p style={{ fontSize: '0.825rem', color: 'var(--text-tertiary)', lineHeight: 1.4 }}>
+                  Hidden from public list. Only participants with the Tournament Code can enter.
+                </p>
+              </div>
+            </div>
+
             {isPrivate && (
-              <div style={{ marginLeft: '1.5rem' }}>
-                <Input 
-                  placeholder="Enter Access Code"
-                  value={accessCode} 
-                  onChange={(e) => setAccessCode(e.target.value)} 
-                />
-                <p style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem', marginTop: '0.25rem' }}>Contestants will need this code to enter.</p>
+              <div style={{ 
+                padding: '1.25rem', 
+                background: 'rgba(20, 20, 31, 0.6)', 
+                border: '1px solid var(--glass-border)', 
+                borderRadius: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.75rem'
+              }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <Key size={16} /> Tournament Access Code:
+                </label>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <Input 
+                    placeholder="e.g. ARENA-789 or 642910"
+                    value={accessCode} 
+                    onChange={(e) => setAccessCode(e.target.value.toUpperCase())} 
+                    style={{ fontFamily: 'monospace', fontSize: '1.1rem', letterSpacing: '2px', textTransform: 'uppercase' }}
+                  />
+                  <Button 
+                    type="button" 
+                    variant="secondary" 
+                    onClick={generateRandomCode}
+                    style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                    title="Generate Random Code"
+                  >
+                    <RefreshCw size={16} /> Generate Code
+                  </Button>
+                </div>
+                <p style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem' }}>
+                  Participants must enter this exact code on their dashboard to find and enter this tournament.
+                </p>
               </div>
             )}
             
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', marginTop: '0.5rem' }}>
               <input 
                 type="checkbox" 
                 checked={hideLeaderboard} 

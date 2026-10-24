@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { dbService } from '../services/db';
+import { dbService, authService } from '../services/db';
 import CompetitionArena from './CompetitionArena';
 import QuizArena from './QuizArena';
 import MultiPuzzleArena from './MultiPuzzleArena';
@@ -8,6 +8,8 @@ import MapArena from './MapArena';
 import CrosswordArena from './CrosswordArena';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import { Lock, Key, AlertCircle } from 'lucide-react';
 
 const ArenaRouter = () => {
   const { id } = useParams();
@@ -15,6 +17,10 @@ const ArenaRouter = () => {
   const [gameType, setGameType] = useState(null);
   const [hasStarted, setHasStarted] = useState(false);
   const [tournamentName, setTournamentName] = useState('Tournament');
+  const [tournamentObj, setTournamentObj] = useState(null);
+  const [isCodeLocked, setIsCodeLocked] = useState(false);
+  const [accessCodeInput, setAccessCodeInput] = useState('');
+  const [accessCodeError, setAccessCodeError] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(() => {
     return !!(
       document.fullscreenElement ||
@@ -65,8 +71,21 @@ const ArenaRouter = () => {
       
       const t = await dbService.getTournament(id);
       if (t) {
+        setTournamentObj(t);
         setGameType(t.gameType || 'typing');
         setTournamentName(t.name);
+
+        if (t.isPrivate) {
+          const currentUser = authService.getCurrentUser();
+          const isCreator = currentUser && t.createdBy === currentUser.username;
+          const isAdmin = authService.isAdmin();
+          const isUnlocked = sessionStorage.getItem(`unlocked_${id}`) === 'true';
+
+          if (!isCreator && !isAdmin && !isUnlocked) {
+            setIsCodeLocked(true);
+            return;
+          }
+        }
       } else {
         navigate('/dashboard');
         return;
@@ -108,6 +127,21 @@ const ArenaRouter = () => {
     fetchTournament();
   }, [id, navigate, studentId, antiCheatKey]);
   
+  const handleUnlockCode = (e) => {
+    e.preventDefault();
+    if (!tournamentObj?.accessCode) {
+      setIsCodeLocked(false);
+      return;
+    }
+    if (accessCodeInput.trim().toUpperCase() === tournamentObj.accessCode.trim().toUpperCase()) {
+      sessionStorage.setItem(`unlocked_${id}`, 'true');
+      setIsCodeLocked(false);
+      setAccessCodeError('');
+    } else {
+      setAccessCodeError('Incorrect tournament code. Please check and try again.');
+    }
+  };
+
   const handleStart = async () => {
     try {
       const el = document.documentElement;
@@ -128,6 +162,44 @@ const ArenaRouter = () => {
     }
     setHasStarted(true);
   };
+
+  if (isCodeLocked) {
+    return (
+      <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '70vh' }}>
+        <Card style={{ padding: '2.5rem', textAlign: 'center', maxWidth: '480px', width: '100%' }}>
+          <div style={{ display: 'inline-flex', padding: '1rem', background: 'rgba(99, 102, 241, 0.1)', borderRadius: '50%', marginBottom: '1.25rem' }}>
+            <Lock size={32} color="var(--accent-primary)" />
+          </div>
+          <h2 style={{ fontSize: '1.75rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Private Tournament</h2>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1.75rem', fontSize: '0.95rem' }}>
+            <strong>{tournamentName}</strong> is private. Please enter the tournament code to proceed.
+          </p>
+
+          <form onSubmit={handleUnlockCode} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <Input 
+              placeholder="ENTER TOURNAMENT CODE"
+              value={accessCodeInput}
+              onChange={e => { setAccessCodeInput(e.target.value.toUpperCase()); setAccessCodeError(''); }}
+              style={{ fontFamily: 'monospace', fontSize: '1.2rem', textAlign: 'center', letterSpacing: '2px', textTransform: 'uppercase' }}
+              error={accessCodeError}
+              autoFocus
+              required
+            />
+            <Button type="submit" style={{ width: '100%', padding: '0.85rem', fontSize: '1.1rem' }}>
+              Unlock Tournament
+            </Button>
+            <button 
+              type="button"
+              onClick={() => navigate('/dashboard')}
+              style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', marginTop: '0.5rem', cursor: 'pointer', textDecoration: 'underline' }}
+            >
+              Back to Dashboard
+            </button>
+          </form>
+        </Card>
+      </div>
+    );
+  }
 
   if (!gameType) return <div className="page-wrapper" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>Loading...</div>;
   

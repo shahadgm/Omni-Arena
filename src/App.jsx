@@ -35,6 +35,8 @@ const App = () => {
           <Route path="/leaderboard/:id" element={<LeaderboardPage />} />
           <Route path="/history" element={<StudentHistory />} />
           
+          <Route path="/tournament/create" element={<CreateTournament />} />
+          <Route path="/tournament/edit/:id" element={<CreateTournament />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/tournament/create" element={<CreateTournament />} />

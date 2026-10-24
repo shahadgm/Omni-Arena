@@ -14,8 +14,11 @@ const LeaderboardPage = () => {
   const [isHidden, setIsHidden] = useState(false);
   const [retakeInput, setRetakeInput] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [tournament, setTournament] = useState(null);
   
   const isAdmin = authService.isAdmin();
+  const currentUser = authService.getCurrentUser();
+  const isManager = isAdmin || (tournament && tournament.createdBy && tournament.createdBy.toLowerCase() === (currentUser?.username || '').toLowerCase());
 
   const handleAllowRetake = async (targetStudentId) => {
     if (!window.confirm(`Are you sure you want to give "${targetStudentId}" another chance? Their current score will be removed from the leaderboard and their attempt lock will be cleared.`)) {
@@ -65,9 +68,11 @@ const LeaderboardPage = () => {
       } else {
         const t = await dbService.getTournament(id);
         if (t) {
+          setTournament(t);
           setTitle(t.name);
           setGameType(t.gameType || 'typing');
-          if (t.hideLeaderboard && !isAdmin) {
+          const isUserCreator = currentUser && t.createdBy && t.createdBy.toLowerCase() === currentUser.username.toLowerCase();
+          if (t.hideLeaderboard && !isAdmin && !isUserCreator) {
             setIsHidden(true);
           }
         } else {
@@ -87,7 +92,7 @@ const LeaderboardPage = () => {
   const isMap = gameType === 'map';
 
   const handleGrantMarks = async (entryId, questionIndex) => {
-    if (!isAdmin) return;
+    if (!isManager) return;
     
     const entry = leaderboard.find(e => e.id === entryId);
     if (!entry || !entry.quizDetails) return;
@@ -135,10 +140,10 @@ const LeaderboardPage = () => {
   };
 
   const gridCols = isMap
-    ? (isAdmin ? '80px 1fr 130px 90px 90px 140px' : '80px 1fr 150px 100px 100px 40px')
+    ? (isManager ? '80px 1fr 130px 90px 90px 140px' : '80px 1fr 150px 100px 100px 40px')
     : (isQuiz || isCrossword || isPuzzle)
-      ? (isAdmin ? '80px 1fr 90px 90px 90px 90px 140px' : '80px 1fr 100px 100px 100px 100px 40px')
-      : (isAdmin ? '80px 1fr 80px 90px 90px 100px 90px 140px' : '80px 1fr 80px 100px 100px 120px 100px 40px');
+      ? (isManager ? '80px 1fr 90px 90px 90px 90px 140px' : '80px 1fr 100px 100px 100px 100px 40px')
+      : (isManager ? '80px 1fr 80px 90px 90px 100px 90px 140px' : '80px 1fr 80px 100px 100px 120px 100px 40px');
 
   return (
     <div className="container" style={{ maxWidth: '850px' }}>
@@ -152,7 +157,7 @@ const LeaderboardPage = () => {
         <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem' }}>{title}</p>
       </div>
 
-      {isAdmin && !id.startsWith('practice-') && (
+      {isManager && !id.startsWith('practice-') && (
         <Card style={{ marginBottom: '1.5rem', padding: '1.25rem', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
             <div>
@@ -234,7 +239,7 @@ const LeaderboardPage = () => {
                 <div style={{ textAlign: 'center' }}>Progress</div>
               </>
             )}
-            <div style={{ textAlign: 'right' }}>{isAdmin ? 'Actions' : ''}</div>
+            <div style={{ textAlign: 'right' }}>{isManager ? 'Actions' : ''}</div>
           </div>
           
           {loading ? (
@@ -253,9 +258,9 @@ const LeaderboardPage = () => {
                   alignItems: 'center',
                   background: idx === 0 ? 'linear-gradient(90deg, rgba(255, 215, 0, 0.1), transparent)' : idx === 1 ? 'linear-gradient(90deg, rgba(192, 192, 192, 0.1), transparent)' : idx === 2 ? 'linear-gradient(90deg, rgba(205, 127, 50, 0.1), transparent)' : 'transparent',
                   transition: 'background 0.2s ease',
-                  cursor: (entry.sectionDetails || (isAdmin && (entry.quizDetails || entry.mapDetails))) ? 'pointer' : 'default'
+                  cursor: (entry.sectionDetails || (isManager && (entry.quizDetails || entry.mapDetails))) ? 'pointer' : 'default'
                 }}
-                onClick={() => { if (entry.sectionDetails || (isAdmin && (entry.quizDetails || entry.mapDetails))) setExpandedId(expandedId === entry.id ? null : entry.id); }}
+                onClick={() => { if (entry.sectionDetails || (isManager && (entry.quizDetails || entry.mapDetails))) setExpandedId(expandedId === entry.id ? null : entry.id); }}
                 onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
                 onMouseOut={(e) => { 
                   e.currentTarget.style.background = idx === 0 ? 'linear-gradient(90deg, rgba(255, 215, 0, 0.1), transparent)' : idx === 1 ? 'linear-gradient(90deg, rgba(192, 192, 192, 0.1), transparent)' : idx === 2 ? 'linear-gradient(90deg, rgba(205, 127, 50, 0.1), transparent)' : 'transparent'; 
@@ -296,7 +301,7 @@ const LeaderboardPage = () => {
                     </>
                   )}
                   <div style={{ display: 'flex', justifyContent: 'flex-end', color: 'var(--text-tertiary)', alignItems: 'center', gap: '0.5rem' }}>
-                    {isAdmin && !id.startsWith('practice-') && (
+                    {isManager && !id.startsWith('practice-') && (
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
@@ -322,7 +327,7 @@ const LeaderboardPage = () => {
                         <RotateCcw size={12} /> Retake
                       </button>
                     )}
-                    {(entry.sectionDetails || (isAdmin && (entry.quizDetails || entry.mapDetails))) && (expandedId === entry.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />)}
+                    {(entry.sectionDetails || (isManager && (entry.quizDetails || entry.mapDetails))) && (expandedId === entry.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />)}
                   </div>
                 </div>
 
@@ -398,7 +403,7 @@ const LeaderboardPage = () => {
                   </div>
                 )}
 
-                {expandedId === entry.id && isAdmin && entry.quizDetails && (
+                {expandedId === entry.id && isManager && entry.quizDetails && (
                   <div style={{ 
                     padding: '1.5rem', 
                     background: 'rgba(0,0,0,0.2)', 
@@ -459,7 +464,7 @@ const LeaderboardPage = () => {
                   </div>
                 )}
 
-                {expandedId === entry.id && isAdmin && entry.mapDetails && (
+                {expandedId === entry.id && isManager && entry.mapDetails && (
                   <div style={{ 
                     padding: '1.5rem', 
                     background: 'rgba(0,0,0,0.2)', 
