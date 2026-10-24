@@ -297,7 +297,7 @@ export const authService = {
 
       const passwordHash = await hashPassword(password, cleanUsername);
       const isAdminAccount = cleanUsername === 'admin' || cleanUsername === 'sibaqadmin';
-      const role = isAdminAccount ? 'admin' : 'user';
+      const role = isAdminAccount ? 'admin' : 'student';
 
       const userData = {
         username: cleanUsername,
