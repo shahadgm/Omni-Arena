@@ -232,6 +232,47 @@ export const dbService = {
       console.error("Error fetching user tournaments:", error);
       return [];
     }
+  },
+
+  async submitFeedback(data) {
+    try {
+      const user = authService.getCurrentUser();
+      const newRef = doc(collection(db, 'feedback'));
+      const studentId = user?.username || localStorage.getItem('studentId') || 'anonymous';
+      const plainName = (data.name || user?.displayName || localStorage.getItem('displayName') || studentId).replace(/^guest:/, '');
+      const payload = {
+        type: data.type || 'suggestion',
+        category: data.category || 'general',
+        title: data.title ? data.title.trim() : '',
+        message: data.message.trim(),
+        rating: data.rating ? parseInt(data.rating, 10) : null,
+        submittedBy: studentId,
+        displayName: plainName || 'Anonymous',
+        status: 'new',
+        createdAt: new Date().toISOString(),
+        deviceInfo: typeof navigator !== 'undefined' ? navigator.userAgent.slice(0, 140) : ''
+      };
+      await setDoc(newRef, payload);
+      return { id: newRef.id, ...payload };
+    } catch (error) {
+      console.error("Error submitting feedback:", error);
+      throw error;
+    }
+  },
+
+  async getFeedbackList() {
+    try {
+      const q = query(collection(db, 'feedback'));
+      const snapshot = await getDocs(q);
+      const list = [];
+      snapshot.forEach(docSnap => {
+        list.push({ id: docSnap.id, ...docSnap.data() });
+      });
+      return list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    } catch (error) {
+      console.error("Error fetching feedback list:", error);
+      return [];
+    }
   }
 };
 

@@ -5,7 +5,8 @@ import Button from '../../components/ui/Button';
 import { dbService, authService } from '../../services/db';
 import { 
   Settings, Plus, Users, Calendar, Keyboard, Edit, Trash2, 
-  RotateCcw, Square, MapPin, Hash, Lock, Search, Copy, Check, Eye, EyeOff, Filter
+  RotateCcw, Square, MapPin, Hash, Lock, Search, Copy, Check, Eye, EyeOff, Filter,
+  MessageSquare, Star, Bug, Lightbulb
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -16,6 +17,10 @@ const AdminDashboard = () => {
   const [revealedCodes, setRevealedCodes] = useState({});
   const [copiedId, setCopiedId] = useState(null);
   const [activeTab, setActiveTab] = useState('typing');
+  const [feedbackList, setFeedbackList] = useState([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackTypeFilter, setFeedbackTypeFilter] = useState('all');
+  const [feedbackSearch, setFeedbackSearch] = useState('');
   const navigate = useNavigate();
 
   const fetchTournaments = async () => {
@@ -25,12 +30,20 @@ const AdminDashboard = () => {
     setLoading(false);
   };
 
+  const fetchFeedback = async () => {
+    setFeedbackLoading(true);
+    const data = await dbService.getFeedbackList();
+    setFeedbackList(data);
+    setFeedbackLoading(false);
+  };
+
   useEffect(() => {
     if (!authService.isAdmin()) {
       navigate(authService.isAuthenticated() ? '/dashboard' : '/');
       return;
     }
     fetchTournaments();
+    fetchFeedback();
   }, [navigate]);
 
   const handleDelete = async (id, name) => {
@@ -70,7 +83,8 @@ const AdminDashboard = () => {
     { id: 'logic-puzzle', label: 'Logic Puzzles' },
     { id: 'map', label: 'Map Spotting' },
     { id: 'crossword', label: 'Crossword' },
-    { id: 'practice', label: 'Practice Hub' }
+    { id: 'practice', label: 'Practice Hub' },
+    { id: 'feedback', label: 'Feedback & Reports' }
   ];
 
   const practiceModes = [
@@ -346,61 +360,8 @@ const AdminDashboard = () => {
         </Button>
       </div>
 
-      {/* Search and Status Filters */}
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
-        <div style={{ position: 'relative', flex: '1', minWidth: '240px', maxWidth: '400px' }}>
-          <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
-          <input 
-            type="text"
-            placeholder="Search tournament name, code, host..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '0.65rem 0.85rem 0.65rem 2.4rem',
-              borderRadius: '8px',
-              border: '1px solid var(--border)',
-              background: 'var(--surface-2)',
-              color: 'var(--text)',
-              fontSize: '0.875rem',
-              outline: 'none'
-            }}
-          />
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-            <Filter size={14} /> Status:
-          </span>
-          {[
-            { id: 'all', label: 'All' },
-            { id: 'active', label: 'Live' },
-            { id: 'upcoming', label: 'Scheduled' },
-            { id: 'ended', label: 'Ended' }
-          ].map(s => (
-            <button
-              key={s.id}
-              onClick={() => setStatusFilter(s.id)}
-              style={{
-                padding: '0.35rem 0.75rem',
-                borderRadius: '6px',
-                border: statusFilter === s.id ? '1px solid var(--primary)' : '1px solid var(--border)',
-                background: statusFilter === s.id ? 'var(--primary)' : 'var(--surface-2)',
-                color: statusFilter === s.id ? '#FFFFFF' : 'var(--text-secondary)',
-                fontSize: '0.8rem',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', borderBottom: '1px solid var(--border)', overflowX: 'auto', paddingBottom: '1px' }}>
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.75rem', borderBottom: '1px solid var(--border)', overflowX: 'auto', paddingBottom: '1px' }}>
         {tabs.map(tab => (
           <button
             key={tab.id}
@@ -411,6 +372,61 @@ const AdminDashboard = () => {
           </button>
         ))}
       </div>
+
+      {/* Search and Status Filters (for tournaments) */}
+      {activeTab !== 'practice' && activeTab !== 'feedback' && (
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ position: 'relative', flex: '1', minWidth: '240px', maxWidth: '400px' }}>
+            <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+            <input 
+              type="text"
+              placeholder="Search tournament name, code, host..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.65rem 0.85rem 0.65rem 2.4rem',
+                borderRadius: '8px',
+                border: '1px solid var(--border)',
+                background: 'var(--surface-2)',
+                color: 'var(--text)',
+                fontSize: '0.875rem',
+                outline: 'none'
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <Filter size={14} /> Status:
+            </span>
+            {[
+              { id: 'all', label: 'All' },
+              { id: 'active', label: 'Live' },
+              { id: 'upcoming', label: 'Scheduled' },
+              { id: 'ended', label: 'Ended' }
+            ].map(s => (
+              <button
+                key={s.id}
+                onClick={() => setStatusFilter(s.id)}
+                style={{
+                  padding: '0.35rem 0.75rem',
+                  borderRadius: '6px',
+                  border: statusFilter === s.id ? '1px solid var(--primary)' : '1px solid var(--border)',
+                  background: statusFilter === s.id ? 'var(--primary)' : 'var(--surface-2)',
+                  color: statusFilter === s.id ? '#FFFFFF' : 'var(--text-secondary)',
+                  fontSize: '0.8rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {activeTab === 'typing' && renderTournamentSection('typing', <Keyboard size={20} />, 'Typing Competitions')}
       {activeTab === 'quiz' && renderTournamentSection('quiz', <Calendar size={20} />, 'Quiz Competitions')}
@@ -446,6 +462,244 @@ const AdminDashboard = () => {
               </Card>
             ))}
           </div>
+        </div>
+      )}
+
+      {activeTab === 'feedback' && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ padding: '0.5rem', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                <MessageSquare color="var(--primary-text)" size={20} />
+              </div>
+              <div>
+                <h2 style={{ fontSize: '1.35rem', fontWeight: '700', margin: 0 }}>Feedback & Community Reports</h2>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
+                  User bug tickets, improvement suggestions, and platform reviews
+                </span>
+              </div>
+            </div>
+            <Button
+              variant="secondary"
+              onClick={fetchFeedback}
+              style={{ fontSize: '0.85rem', padding: '0.4rem 0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+            >
+              <RotateCcw size={14} /> Refresh
+            </Button>
+          </div>
+
+          {/* Stats Summary Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+            <Card padding="1.25rem" style={{ borderLeft: '4px solid var(--accent-primary)' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '600' }}>Total Submissions</span>
+              <div style={{ fontSize: '1.75rem', fontWeight: '800', color: 'var(--text)', marginTop: '0.25rem' }}>{feedbackList.length}</div>
+            </Card>
+
+            <Card padding="1.25rem" style={{ borderLeft: '4px solid var(--error)' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <Bug size={14} color="var(--error)" /> Bug Reports
+              </span>
+              <div style={{ fontSize: '1.75rem', fontWeight: '800', color: 'var(--error)', marginTop: '0.25rem' }}>
+                {feedbackList.filter(f => f.type === 'bug').length}
+              </div>
+            </Card>
+
+            <Card padding="1.25rem" style={{ borderLeft: '4px solid #8b5cf6' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <Lightbulb size={14} color="#8b5cf6" /> Suggestions
+              </span>
+              <div style={{ fontSize: '1.75rem', fontWeight: '800', color: '#8b5cf6', marginTop: '0.25rem' }}>
+                {feedbackList.filter(f => f.type === 'suggestion').length}
+              </div>
+            </Card>
+
+            <Card padding="1.25rem" style={{ borderLeft: '4px solid #f59e0b' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <Star size={14} color="#f59e0b" /> Avg Platform Rating
+              </span>
+              <div style={{ fontSize: '1.75rem', fontWeight: '800', color: '#f59e0b', marginTop: '0.25rem' }}>
+                {(() => {
+                  const revs = feedbackList.filter(f => f.type === 'review' && f.rating);
+                  if (revs.length === 0) return 'No reviews';
+                  const avg = revs.reduce((sum, r) => sum + r.rating, 0) / revs.length;
+                  return `★ ${avg.toFixed(1)} / 5`;
+                })()}
+              </div>
+            </Card>
+          </div>
+
+          {/* Feedback Filter Bar */}
+          <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ position: 'relative', flex: '1', minWidth: '240px', maxWidth: '380px' }}>
+              <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+              <input 
+                type="text"
+                placeholder="Search feedback message, user, or category..."
+                value={feedbackSearch}
+                onChange={(e) => setFeedbackSearch(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.65rem 0.85rem 0.65rem 2.4rem',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface-2)',
+                  color: 'var(--text)',
+                  fontSize: '0.875rem',
+                  outline: 'none'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <Filter size={14} /> Type:
+              </span>
+              {[
+                { id: 'all', label: `All (${feedbackList.length})` },
+                { id: 'bug', label: `Bugs (${feedbackList.filter(f => f.type === 'bug').length})` },
+                { id: 'suggestion', label: `Suggestions (${feedbackList.filter(f => f.type === 'suggestion').length})` },
+                { id: 'review', label: `Reviews (${feedbackList.filter(f => f.type === 'review').length})` }
+              ].map(s => (
+                <button
+                  key={s.id}
+                  onClick={() => setFeedbackTypeFilter(s.id)}
+                  style={{
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '6px',
+                    border: feedbackTypeFilter === s.id ? '1px solid var(--primary)' : '1px solid var(--border)',
+                    background: feedbackTypeFilter === s.id ? 'var(--primary)' : 'var(--surface-2)',
+                    color: feedbackTypeFilter === s.id ? '#FFFFFF' : 'var(--text-secondary)',
+                    fontSize: '0.8rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Feedback Items List */}
+          {feedbackLoading ? (
+            <div style={{ padding: '3.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              <div className="spinner" style={{ width: '28px', height: '28px', border: '3px solid var(--border)', borderTopColor: 'var(--primary)', borderRadius: '50%', margin: '0 auto 1rem', animation: 'spin 0.8s linear infinite' }} />
+              Loading feedback submissions...
+            </div>
+          ) : (() => {
+            const filteredFeedback = feedbackList.filter(fb => {
+              if (feedbackTypeFilter !== 'all' && fb.type !== feedbackTypeFilter) {
+                return false;
+              }
+              if (feedbackSearch.trim()) {
+                const q = feedbackSearch.toLowerCase();
+                const matchTitle = (fb.title || '').toLowerCase().includes(q);
+                const matchMessage = (fb.message || '').toLowerCase().includes(q);
+                const matchUser = (fb.displayName || '').toLowerCase().includes(q);
+                const matchCat = (fb.category || '').toLowerCase().includes(q);
+                return matchTitle || matchMessage || matchUser || matchCat;
+              }
+              return true;
+            });
+
+            if (filteredFeedback.length === 0) {
+              return (
+                <div style={{ padding: '3.5rem 1.5rem', textAlign: 'center', color: 'var(--text-secondary)', background: 'var(--surface)', borderRadius: '12px', border: '1px solid var(--border)' }}>
+                  <MessageSquare size={36} style={{ color: 'var(--text-tertiary)', margin: '0 auto 0.75rem', opacity: 0.7 }} />
+                  <p style={{ fontSize: '1.05rem', fontWeight: '600', marginBottom: '0.35rem', color: 'var(--text)' }}>No feedback items found</p>
+                  <p style={{ fontSize: '0.875rem', margin: 0 }}>
+                    {feedbackSearch || feedbackTypeFilter !== 'all' ? 'Try adjusting your search terms or filter.' : 'No feedback or reports have been submitted yet.'}
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {filteredFeedback.map(fb => (
+                  <Card key={fb.id} padding="1.25rem" style={{ border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                        {/* Type Badge */}
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          fontSize: '0.75rem',
+                          fontWeight: '700',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          padding: '0.2rem 0.55rem',
+                          borderRadius: '6px',
+                          background: fb.type === 'bug' ? 'rgba(239, 68, 68, 0.15)' : fb.type === 'suggestion' ? 'rgba(139, 92, 246, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                          color: fb.type === 'bug' ? 'var(--error)' : fb.type === 'suggestion' ? '#8b5cf6' : '#f59e0b',
+                          border: `1px solid ${fb.type === 'bug' ? 'rgba(239, 68, 68, 0.3)' : fb.type === 'suggestion' ? 'rgba(139, 92, 246, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`
+                        }}>
+                          {fb.type === 'bug' && <Bug size={12} />}
+                          {fb.type === 'suggestion' && <Lightbulb size={12} />}
+                          {fb.type === 'review' && <Star size={12} />}
+                          {fb.type}
+                        </span>
+
+                        {/* Category Badge */}
+                        {fb.category && (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '6px', padding: '0.2rem 0.55rem' }}>
+                            {fb.category}
+                          </span>
+                        )}
+
+                        {/* Star Rating if Review */}
+                        {fb.type === 'review' && fb.rating && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+                            {[1, 2, 3, 4, 5].map(star => (
+                              <Star 
+                                key={star} 
+                                size={14} 
+                                fill={star <= fb.rating ? '#f59e0b' : 'transparent'} 
+                                color={star <= fb.rating ? '#f59e0b' : 'var(--text-tertiary)'} 
+                              />
+                            ))}
+                            <span style={{ fontSize: '0.8rem', fontWeight: '700', color: '#f59e0b', marginLeft: '0.35rem' }}>
+                              {fb.rating}/5
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
+                        {fb.createdAt ? new Date(fb.createdAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'Unknown date'}
+                      </div>
+                    </div>
+
+                    {fb.title && (
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: '700', color: 'var(--text)', margin: '0 0 0.5rem 0' }}>
+                        {fb.title}
+                      </h3>
+                    )}
+
+                    <p style={{ color: 'var(--text-primary)', fontSize: '0.925rem', lineHeight: '1.5', margin: '0 0 0.85rem 0', whiteSpace: 'pre-wrap' }}>
+                      {fb.message}
+                    </p>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', paddingTop: '0.65rem', borderTop: '1px solid var(--border)', fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
+                      <div>
+                        Submitted by: <strong style={{ color: 'var(--text-secondary)' }}>{fb.displayName || 'Anonymous'}</strong>
+                        {fb.submittedBy && fb.submittedBy !== 'anonymous' && (
+                          <span style={{ opacity: 0.7, marginLeft: '0.35rem' }}>({fb.submittedBy})</span>
+                        )}
+                      </div>
+                      {fb.deviceInfo && (
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', maxWidth: '350px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={fb.deviceInfo}>
+                          {fb.deviceInfo}
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

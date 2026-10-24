@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../services/db';
-import { Keyboard, LogOut, Shield, Sun, Moon, PlusCircle, Trophy, User, Menu, X, Clock } from 'lucide-react';
+import { Keyboard, LogOut, Shield, Sun, Moon, PlusCircle, Trophy, User, Menu, X, Clock, MessageSquare } from 'lucide-react';
 
 const Navbar = ({ theme, toggleTheme }) => {
   const navigate = useNavigate();
@@ -116,6 +116,10 @@ const Navbar = ({ theme, toggleTheme }) => {
                 <Clock size={16} /> History
               </Link>
 
+              <Link to="/feedback" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
+                <MessageSquare size={16} /> Feedback
+              </Link>
+
               {isAdmin && (
                 <Link to="/admin/dashboard" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
                   <Shield size={16} /> Admin
@@ -155,9 +159,14 @@ const Navbar = ({ theme, toggleTheme }) => {
               </button>
             </>
           ) : (
-            <Link to="/" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
-              <User size={16} /> Enter Arena
-            </Link>
+            <>
+              <Link to="/feedback" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
+                <MessageSquare size={16} /> Feedback
+              </Link>
+              <Link to="/" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
+                <User size={16} /> Enter Arena
+              </Link>
+            </>
           )}
 
           {/* Hamburger toggle for small screens */}
@@ -212,6 +221,9 @@ const Navbar = ({ theme, toggleTheme }) => {
               <Link to="/history" style={mobileLinkItemStyle} onClick={() => setMobileMenuOpen(false)}>
                 <Clock size={18} color="var(--accent-primary)" /> My History
               </Link>
+              <Link to="/feedback" style={mobileLinkItemStyle} onClick={() => setMobileMenuOpen(false)}>
+                <MessageSquare size={18} color="var(--accent-primary)" /> Feedback & Reports
+              </Link>
               {isAdmin && (
                 <Link to="/admin/dashboard" style={mobileLinkItemStyle} onClick={() => setMobileMenuOpen(false)}>
                   <Shield size={18} color="var(--accent-primary)" /> Admin Console
@@ -233,9 +245,14 @@ const Navbar = ({ theme, toggleTheme }) => {
               </button>
             </>
           ) : (
-            <Link to="/" style={mobileLinkItemStyle} onClick={() => setMobileMenuOpen(false)}>
-              <User size={18} color="var(--accent-primary)" /> Enter Arena
-            </Link>
+            <>
+              <Link to="/" style={mobileLinkItemStyle} onClick={() => setMobileMenuOpen(false)}>
+                <User size={18} color="var(--accent-primary)" /> Enter Arena
+              </Link>
+              <Link to="/feedback" style={mobileLinkItemStyle} onClick={() => setMobileMenuOpen(false)}>
+                <MessageSquare size={18} color="var(--accent-primary)" /> Feedback & Reports
+              </Link>
+            </>
           )}
         </div>
       )}

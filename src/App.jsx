@@ -9,6 +9,7 @@ const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
 const StudentHistory = lazy(() => import('./pages/StudentHistory'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const CreateTournament = lazy(() => import('./pages/admin/CreateTournament'));
+const FeedbackPage = lazy(() => import('./pages/FeedbackPage'));
 
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', color: 'var(--text-secondary)' }}>
@@ -41,6 +42,7 @@ const App = () => {
             <Route path="/arena/:id" element={<ArenaRouter />} />
             <Route path="/leaderboard/:id" element={<LeaderboardPage />} />
             <Route path="/history" element={<StudentHistory />} />
+            <Route path="/feedback" element={<FeedbackPage />} />
             
             <Route path="/tournament/create" element={<CreateTournament />} />
             <Route path="/tournament/edit/:id" element={<CreateTournament />} />

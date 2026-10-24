@@ -53,5 +53,18 @@ service cloud.firestore {
       // Block delete
       allow delete: if false;
     }
+
+    // FEEDBACK COLLECTION
+    match /feedback/{feedbackId} {
+      allow read: if true;
+
+      // Allow creating bug reports, suggestions, and reviews with valid content
+      allow create: if request.resource.data.type in ['bug', 'suggestion', 'review']
+                    && isValidString(request.resource.data.message, 2, 3000);
+
+      // Block client updates and deletes
+      allow update: if false;
+      allow delete: if false;
+    }
   }
 }
