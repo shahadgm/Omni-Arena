@@ -119,7 +119,40 @@ const StudentDashboard = () => {
   };
 
   const handleDeleteTournament = async (id, name) => {
-    alert("Disabled until secure sign-in is enabled.");
+    try {
+      const tournament = myTournaments.find(t => t.id === id) || await dbService.getTournament(id);
+      if (!tournament) {
+        alert("Tournament not found.");
+        return;
+      }
+
+      const isAdmin = authService.isAdmin();
+      const isOwner = currentUser?.username && tournament.createdBy && tournament.createdBy.toLowerCase() === currentUser.username.toLowerCase();
+      const isUnlocked = sessionStorage.getItem(`managed_${id}`) === 'true';
+
+      if (!isAdmin && !isOwner && !isUnlocked) {
+        if (tournament.managePasswordHash) {
+          const pwd = window.prompt(`Enter management password to delete "${name}":`);
+          if (!pwd) return;
+          const valid = await dbService.verifyManagePassword(id, pwd);
+          if (!valid) {
+            alert("Incorrect management password. Deletion cancelled.");
+            return;
+          }
+        } else {
+          alert("You do not have permission to delete this tournament.");
+          return;
+        }
+      }
+
+      if (window.confirm(`Are you sure you want to permanently delete "${name}"? This action cannot be undone.`)) {
+        await dbService.deleteTournament(id);
+        sessionStorage.removeItem(`managed_${id}`);
+        fetchAllTournaments();
+      }
+    } catch (err) {
+      alert("Error deleting tournament: " + err.message);
+    }
   };
 
   const practiceList = [

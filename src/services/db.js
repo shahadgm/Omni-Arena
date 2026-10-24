@@ -40,14 +40,41 @@ export const dbService = {
     }
   },
 
-  async deleteTournament(_id) {
-    alert("Disabled until secure sign-in is enabled.");
-    throw new Error("Disabled until secure sign-in is enabled.");
+  async deleteTournament(id) {
+    try {
+      const docRef = doc(db, 'tournaments', id);
+      await deleteDoc(docRef);
+      // Delete associated leaderboard results if any
+      try {
+        const q = query(collection(db, 'results'), where('competitionId', '==', id));
+        const snapshot = await getDocs(q);
+        const deletePromises = [];
+        snapshot.forEach((document) => {
+          deletePromises.push(deleteDoc(doc(db, 'results', document.id)));
+        });
+        await Promise.all(deletePromises);
+      } catch (err) {
+        console.warn("Could not delete associated results:", err);
+      }
+    } catch (error) {
+      console.error("Error deleting tournament:", error);
+      throw error;
+    }
   },
 
-  async resetLeaderboard(_competitionId) {
-    alert("Disabled until secure sign-in is enabled.");
-    throw new Error("Disabled until secure sign-in is enabled.");
+  async resetLeaderboard(competitionId) {
+    try {
+      const q = query(collection(db, 'results'), where('competitionId', '==', competitionId));
+      const snapshot = await getDocs(q);
+      const deletePromises = [];
+      snapshot.forEach((document) => {
+        deletePromises.push(deleteDoc(doc(db, 'results', document.id)));
+      });
+      await Promise.all(deletePromises);
+    } catch (error) {
+      console.error("Error resetting leaderboard:", error);
+      throw error;
+    }
   },
 
   async allowStudentRetake(competitionId, studentId) {

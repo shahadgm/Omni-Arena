@@ -47,11 +47,25 @@ const AdminDashboard = () => {
   }, [navigate]);
 
   const handleDelete = async (id, name) => {
-    alert("Disabled until secure sign-in is enabled.");
+    if (window.confirm(`Are you sure you want to permanently delete "${name}"? This action cannot be undone.`)) {
+      try {
+        await dbService.deleteTournament(id);
+        fetchTournaments();
+      } catch (err) {
+        alert("Failed to delete tournament: " + err.message);
+      }
+    }
   };
 
   const handleResetLeaderboard = async (id, name) => {
-    alert("Disabled until secure sign-in is enabled.");
+    if (window.confirm(`Are you sure you want to reset the leaderboard for "${name}"? All candidate scores and submissions will be wiped.`)) {
+      try {
+        await dbService.resetLeaderboard(id);
+        alert(`Leaderboard for "${name}" has been reset.`);
+      } catch (err) {
+        alert("Failed to reset leaderboard: " + err.message);
+      }
+    }
   };
 
   const toggleRevealCode = (id) => {

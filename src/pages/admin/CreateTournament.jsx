@@ -442,6 +442,23 @@ const CreateTournament = () => {
     }
   };
 
+  const handleDeleteTournament = async () => {
+    if (!id) return;
+    if (window.confirm(`Are you sure you want to permanently delete "${name}"? This action cannot be undone.`)) {
+      try {
+        await dbService.deleteTournament(id);
+        sessionStorage.removeItem(`managed_${id}`);
+        if (authService.isAdmin()) {
+          navigate('/admin/dashboard');
+        } else {
+          navigate('/dashboard');
+        }
+      } catch (err) {
+        alert("Error deleting tournament: " + err.message);
+      }
+    }
+  };
+
   if (id && !isUnlocked) {
     return (
       <div className="container" style={{ maxWidth: '480px', margin: '4rem auto', padding: '1rem' }}>
@@ -1194,9 +1211,21 @@ const CreateTournament = () => {
           </Card>
         )}
 
-        <Button type="submit" style={{ width: '100%', fontSize: '1.1rem', padding: '1rem' }}>
-          {id ? 'Update Tournament' : 'Publish Tournament'}
-        </Button>
+        <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+          <Button type="submit" style={{ flex: 1, minWidth: '200px', fontSize: '1.1rem', padding: '1rem' }}>
+            {id ? 'Update Tournament' : 'Publish Tournament'}
+          </Button>
+          {id && (
+            <Button 
+              type="button" 
+              variant="danger" 
+              onClick={handleDeleteTournament} 
+              style={{ padding: '1rem 1.5rem', fontSize: '1.1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <Trash2 size={18} /> Delete Tournament
+            </Button>
+          )}
+        </div>
       </form>
     </div>
   );

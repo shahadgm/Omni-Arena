@@ -35,8 +35,8 @@ service cloud.firestore {
       // Updates may not change createdBy. Retake updates must still work.
       allow update: if (!('createdBy' in resource.data) || request.resource.data.createdBy == resource.data.createdBy);
 
-      // Block delete
-      allow delete: if false;
+      // Allow delete
+      allow delete: if true;
     }
 
     // RESULTS COLLECTION
@@ -50,8 +50,8 @@ service cloud.firestore {
       // Allow update only for the mark-grant fields (quizDetails, correctAnswers, score, accuracy)
       allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['quizDetails', 'correctAnswers', 'score', 'accuracy']);
 
-      // Block delete
-      allow delete: if false;
+      // Allow delete
+      allow delete: if true;
     }
 
     // FEEDBACK COLLECTION
