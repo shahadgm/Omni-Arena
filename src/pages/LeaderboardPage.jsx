@@ -33,8 +33,10 @@ const LeaderboardPage = () => {
 
   const isAdmin = authService.isAdmin();
   const currentUser = authService.getCurrentUser();
+  const isGuest = authService.isGuest();
   const myStudentId = (currentUser?.username || localStorage.getItem('studentId') || '').toLowerCase();
-  const isManager = isAdmin || isHostUnlocked || (tournament && !tournament.managePasswordHash && tournament.createdBy && tournament.createdBy.toLowerCase() === (currentUser?.username || '').toLowerCase());
+  const isRegisteredCreator = !isGuest && currentUser?.username && tournament?.createdBy && !tournament.createdBy.startsWith('guest:') && tournament.createdBy.toLowerCase() === currentUser.username.toLowerCase();
+  const isManager = isAdmin || isHostUnlocked || (tournament && !tournament.managePasswordHash && isRegisteredCreator);
 
   const handleUnlockHost = async (e) => {
     e.preventDefault();
@@ -116,7 +118,7 @@ const LeaderboardPage = () => {
           setTournament(t);
           setTitle(t.name);
           setGameType(t.gameType || 'typing');
-          const isUserCreator = currentUser && t.createdBy && t.createdBy.toLowerCase() === (currentUser?.username || '').toLowerCase();
+          const isUserCreator = !isGuest && currentUser && t.createdBy && !t.createdBy.startsWith('guest:') && t.createdBy.toLowerCase() === (currentUser?.username || '').toLowerCase();
           if (t.hideLeaderboard && !isAdmin && !isUserCreator) {
             setIsHidden(true);
           }

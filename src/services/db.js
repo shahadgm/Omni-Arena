@@ -474,6 +474,9 @@ export const authService = {
     localStorage.removeItem('displayName');
     localStorage.removeItem('user');
     localStorage.removeItem('isAdmin');
+    try {
+      sessionStorage.clear();
+    } catch (_e) {}
   },
 
   getCurrentUser() {

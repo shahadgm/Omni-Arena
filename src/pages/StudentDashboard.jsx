@@ -98,7 +98,7 @@ const StudentDashboard = () => {
     }
 
     if (target.isPrivate) {
-      const isCreator = (currentUser && target.createdBy && target.createdBy.toLowerCase() === currentUser.username.toLowerCase()) ||
+      const isCreator = (!authService.isGuest() && currentUser && target.createdBy && !target.createdBy.startsWith('guest:') && target.createdBy.toLowerCase() === currentUser.username.toLowerCase()) ||
                         sessionStorage.getItem(`managed_${target.id}`) === 'true';
       const isAdmin = authService.isAdmin();
       const isUnlocked = sessionStorage.getItem(`unlocked_${target.id}`) === 'true';
@@ -127,22 +127,26 @@ const StudentDashboard = () => {
       }
 
       const isAdmin = authService.isAdmin();
-      const isOwner = currentUser?.username && tournament.createdBy && tournament.createdBy.toLowerCase() === currentUser.username.toLowerCase();
-      const isUnlocked = sessionStorage.getItem(`managed_${id}`) === 'true';
+      const isGuest = authService.isGuest();
+      const isRegisteredOwner = !isGuest && currentUser?.username && tournament.createdBy && !tournament.createdBy.startsWith('guest:') && tournament.createdBy.toLowerCase() === currentUser.username.toLowerCase();
 
-      if (!isAdmin && !isOwner && !isUnlocked) {
-        if (tournament.managePasswordHash) {
-          const pwd = window.prompt(`Enter management password to delete "${name}":`);
-          if (!pwd) return;
-          const valid = await dbService.verifyManagePassword(id, pwd);
-          if (!valid) {
-            alert("Incorrect management password. Deletion cancelled.");
-            return;
-          }
-        } else {
-          alert("You do not have permission to delete this tournament.");
+      // If tournament is password-protected: ALWAYS require the management password to delete unless Master Admin
+      if (tournament.managePasswordHash && !isAdmin) {
+        const pwd = window.prompt(`Enter management password to delete "${name}":`);
+        if (pwd === null) return; // User pressed Cancel
+        if (!pwd.trim()) {
+          alert("Management password is required to delete this tournament.");
           return;
         }
+        const valid = await dbService.verifyManagePassword(id, pwd.trim());
+        if (!valid) {
+          alert("Incorrect management password. Deletion cancelled.");
+          return;
+        }
+      } else if (!tournament.managePasswordHash && !isAdmin && !isRegisteredOwner) {
+        // Unpassworded tournament: only the registered account creator or Master Admin can delete
+        alert("You do not have permission to delete this tournament.");
+        return;
       }
 
       if (window.confirm(`Are you sure you want to permanently delete "${name}"? This action cannot be undone.`)) {

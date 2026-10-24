@@ -57,6 +57,9 @@ const LandingPage = () => {
         role: 'guest'
       }));
       localStorage.setItem('isAdmin', 'false');
+      try {
+        sessionStorage.clear();
+      } catch (_e) {}
       navigate('/dashboard');
     } catch (err) {
       setError(err.message || 'Error verifying contestant name.');

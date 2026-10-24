@@ -82,13 +82,14 @@ const CreateTournament = () => {
 
         const currentUser = authService.getCurrentUser();
         const isAdmin = authService.isAdmin();
+        const isGuest = authService.isGuest();
         const isSessionUnlocked = sessionStorage.getItem(`managed_${id}`) === 'true';
-        const isOwner = currentUser && t.createdBy && t.createdBy.toLowerCase() === currentUser.username.toLowerCase();
+        const isRegisteredOwner = !isGuest && currentUser && t.createdBy && !t.createdBy.startsWith('guest:') && t.createdBy.toLowerCase() === currentUser.username.toLowerCase();
 
-        // If master admin, session unlocked, or legacy tournament without password where user is owner
-        if (isAdmin || isSessionUnlocked || (!t.managePasswordHash && isOwner)) {
+        // If master admin, session unlocked, or legacy tournament without password where user is registered owner
+        if (isAdmin || isSessionUnlocked || (!t.managePasswordHash && isRegisteredOwner)) {
           setIsUnlocked(true);
-        } else if (!t.managePasswordHash && !isOwner) {
+        } else if (!t.managePasswordHash && !isRegisteredOwner) {
           alert("You do not have permission to edit this tournament.");
           navigate('/dashboard');
           return;
@@ -444,8 +445,33 @@ const CreateTournament = () => {
 
   const handleDeleteTournament = async () => {
     if (!id) return;
-    if (window.confirm(`Are you sure you want to permanently delete "${name}"? This action cannot be undone.`)) {
-      try {
+    try {
+      const tournament = tournamentData || await dbService.getTournament(id);
+      if (!tournament) return;
+
+      const isAdmin = authService.isAdmin();
+      const isGuest = authService.isGuest();
+      const isRegisteredOwner = !isGuest && currentUser && tournament.createdBy && !tournament.createdBy.startsWith('guest:') && tournament.createdBy.toLowerCase() === currentUser.username.toLowerCase();
+
+      // If tournament is password-protected: ALWAYS require the management password to delete unless Master Admin
+      if (tournament.managePasswordHash && !isAdmin) {
+        const pwd = window.prompt(`Enter management password to confirm deletion of "${name}":`);
+        if (pwd === null) return;
+        if (!pwd.trim()) {
+          alert("Management password is required to delete this tournament.");
+          return;
+        }
+        const valid = await dbService.verifyManagePassword(id, pwd.trim());
+        if (!valid) {
+          alert("Incorrect management password. Deletion cancelled.");
+          return;
+        }
+      } else if (!tournament.managePasswordHash && !isAdmin && !isRegisteredOwner) {
+        alert("You do not have permission to delete this tournament.");
+        return;
+      }
+
+      if (window.confirm(`Are you sure you want to permanently delete "${name}"? This action cannot be undone.`)) {
         await dbService.deleteTournament(id);
         sessionStorage.removeItem(`managed_${id}`);
         if (authService.isAdmin()) {
@@ -453,9 +479,9 @@ const CreateTournament = () => {
         } else {
           navigate('/dashboard');
         }
-      } catch (err) {
-        alert("Error deleting tournament: " + err.message);
       }
+    } catch (err) {
+      alert("Error deleting tournament: " + err.message);
     }
   };
 
