@@ -27,9 +27,8 @@ const LeaderboardPage = () => {
 
   const isAdmin = authService.isAdmin();
   const currentUser = authService.getCurrentUser();
-  const isGuest = authService.isGuest();
   const myStudentId = (currentUser?.username || localStorage.getItem('studentId') || '').toLowerCase();
-  const isManager = !isGuest && (isAdmin || (tournament && tournament.createdBy && tournament.createdBy.toLowerCase() === (currentUser?.username || '').toLowerCase()));
+  const isManager = isAdmin || (tournament && tournament.createdBy && tournament.createdBy.toLowerCase() === (currentUser?.username || '').toLowerCase());
 
   const handleAllowRetake = async (targetStudentId) => {
     let resolvedId = targetStudentId;
@@ -93,7 +92,7 @@ const LeaderboardPage = () => {
           setTournament(t);
           setTitle(t.name);
           setGameType(t.gameType || 'typing');
-          const isUserCreator = !isGuest && currentUser && t.createdBy && t.createdBy.toLowerCase() === (currentUser?.username || '').toLowerCase();
+          const isUserCreator = currentUser && t.createdBy && t.createdBy.toLowerCase() === (currentUser?.username || '').toLowerCase();
           if (t.hideLeaderboard && !isAdmin && !isUserCreator) {
             setIsHidden(true);
           }

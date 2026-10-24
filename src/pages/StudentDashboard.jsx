@@ -37,8 +37,8 @@ const StudentDashboard = () => {
       const activePublic = data.filter(t => !t.isPrivate && new Date(t.startTime) <= now && new Date(t.endTime) >= now);
       setPublicTournaments(activePublic);
 
-      // 2. Fetch tournaments hosted by the current user (guests never own tournaments)
-      if (currentUser?.username && !authService.isGuest()) {
+      // 2. Fetch tournaments hosted by the current user
+      if (currentUser?.username) {
         const userCreated = data.filter(t => t.createdBy && t.createdBy.toLowerCase() === currentUser.username.toLowerCase());
         setMyTournaments(userCreated.sort((a, b) => new Date(b.startTime) - new Date(a.startTime)));
       } else {
@@ -99,8 +99,7 @@ const StudentDashboard = () => {
     }
 
     if (target.isPrivate) {
-      const isGuest = authService.isGuest();
-      const isCreator = !isGuest && currentUser && target.createdBy === currentUser.username;
+      const isCreator = currentUser && target.createdBy && target.createdBy.toLowerCase() === currentUser.username.toLowerCase();
       const isAdmin = authService.isAdmin();
       const isUnlocked = sessionStorage.getItem(`unlocked_${target.id}`) === 'true';
 
