@@ -4,7 +4,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { dbService, authService } from '../services/db';
-import { Trophy, ArrowLeft, RotateCcw, Search, Award } from 'lucide-react';
+import { Trophy, ArrowLeft, RotateCcw, Search, Award, Key } from 'lucide-react';
 
 const LeaderboardPage = () => {
   const { id } = useParams();
@@ -25,10 +25,34 @@ const LeaderboardPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 50;
 
+  // Host unlock state
+  const [isHostUnlocked, setIsHostUnlocked] = useState(() => sessionStorage.getItem(`managed_${id}`) === 'true');
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [unlockPassword, setUnlockPassword] = useState('');
+  const [unlockError, setUnlockError] = useState('');
+
   const isAdmin = authService.isAdmin();
   const currentUser = authService.getCurrentUser();
   const myStudentId = (currentUser?.username || localStorage.getItem('studentId') || '').toLowerCase();
-  const isManager = isAdmin || (tournament && tournament.createdBy && tournament.createdBy.toLowerCase() === (currentUser?.username || '').toLowerCase());
+  const isManager = isAdmin || isHostUnlocked || (tournament && !tournament.managePasswordHash && tournament.createdBy && tournament.createdBy.toLowerCase() === (currentUser?.username || '').toLowerCase());
+
+  const handleUnlockHost = async (e) => {
+    e.preventDefault();
+    setUnlockError('');
+    if (!unlockPassword.trim()) {
+      setUnlockError('Please enter the management password.');
+      return;
+    }
+    const ok = await dbService.verifyManagePassword(id, unlockPassword.trim());
+    if (ok) {
+      sessionStorage.setItem(`managed_${id}`, 'true');
+      setIsHostUnlocked(true);
+      setShowUnlockModal(false);
+      setActiveTab('manage');
+    } else {
+      setUnlockError('Incorrect management password. Please try again.');
+    }
+  };
 
   const handleAllowRetake = async (targetStudentId) => {
     let resolvedId = targetStudentId;
@@ -250,44 +274,126 @@ const LeaderboardPage = () => {
         </div>
       </div>
 
-      {/* Tabs if Manager */}
-      {isManager && !id.startsWith('practice-') && (
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
-          <button
-            type="button"
-            onClick={() => setActiveTab('standings')}
-            style={{
-              padding: '0.5rem 1rem',
-              background: activeTab === 'standings' ? 'var(--surface-2)' : 'transparent',
-              border: '1px solid ' + (activeTab === 'standings' ? 'var(--border)' : 'transparent'),
-              borderRadius: '8px',
-              color: activeTab === 'standings' ? 'var(--text-primary)' : 'var(--text-secondary)',
-              fontWeight: '600',
-              cursor: 'pointer',
-              fontSize: '0.9rem'
-            }}
-          >
-            🏆 Leaderboard Standings
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('manage')}
-            style={{
-              padding: '0.5rem 1rem',
-              background: activeTab === 'manage' ? 'var(--surface-2)' : 'transparent',
-              border: '1px solid ' + (activeTab === 'manage' ? 'var(--border)' : 'transparent'),
-              borderRadius: '8px',
-              color: activeTab === 'manage' ? 'var(--text-primary)' : 'var(--text-secondary)',
-              fontWeight: '600',
-              cursor: 'pointer',
-              fontSize: '0.9rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem'
-            }}
-          >
-            <RotateCcw size={15} /> Candidate Retake Management
-          </button>
+      {/* Tabs */}
+      {!id.startsWith('practice-') && (
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              type="button"
+              onClick={() => setActiveTab('standings')}
+              style={{
+                padding: '0.5rem 1rem',
+                background: activeTab === 'standings' ? 'var(--surface-2)' : 'transparent',
+                border: '1px solid ' + (activeTab === 'standings' ? 'var(--border)' : 'transparent'),
+                borderRadius: '8px',
+                color: activeTab === 'standings' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                fontWeight: '600',
+                cursor: 'pointer',
+                fontSize: '0.9rem'
+              }}
+            >
+              🏆 Leaderboard Standings
+            </button>
+            {isManager && (
+              <button
+                type="button"
+                onClick={() => setActiveTab('manage')}
+                style={{
+                  padding: '0.5rem 1rem',
+                  background: activeTab === 'manage' ? 'var(--surface-2)' : 'transparent',
+                  border: '1px solid ' + (activeTab === 'manage' ? 'var(--border)' : 'transparent'),
+                  borderRadius: '8px',
+                  color: activeTab === 'manage' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem'
+                }}
+              >
+                <RotateCcw size={15} /> Candidate Retake Management
+              </button>
+            )}
+          </div>
+
+          {!isManager && (
+            <button
+              type="button"
+              onClick={() => { setShowUnlockModal(true); setUnlockError(''); setUnlockPassword(''); }}
+              style={{
+                padding: '0.45rem 0.85rem',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                color: 'var(--text-secondary)',
+                fontWeight: '600',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem'
+              }}
+              title="Unlock Host Controls with Management Password"
+            >
+              <Key size={14} style={{ color: 'var(--primary-text)' }} /> Host Controls
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Unlock Host Management Modal */}
+      {showUnlockModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '1rem'
+        }}>
+          <Card style={{ maxWidth: '420px', width: '100%', padding: '2rem' }}>
+            <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--surface-2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.75rem' }}>
+                <Key size={22} style={{ color: 'var(--primary-text)' }} />
+              </div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.35rem', color: 'var(--text-primary)' }}>Unlock Host Controls</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+                Enter the tournament management password to manage retakes and grading.
+              </p>
+            </div>
+
+            {unlockError && (
+              <div style={{ padding: '0.65rem 0.85rem', background: 'rgba(239, 68, 68, 0.12)', border: '1px solid var(--danger)', borderRadius: '8px', color: 'var(--danger)', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                {unlockError}
+              </div>
+            )}
+
+            <form onSubmit={handleUnlockHost} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <Input 
+                type="password"
+                placeholder="Management password..."
+                value={unlockPassword}
+                onChange={e => { setUnlockPassword(e.target.value); setUnlockError(''); }}
+                autoFocus
+                required
+              />
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                <Button type="submit" variant="primary" style={{ flex: 1, padding: '0.65rem' }}>
+                  Unlock Controls
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => setShowUnlockModal(false)} style={{ padding: '0.65rem' }}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </Card>
         </div>
       )}
 
