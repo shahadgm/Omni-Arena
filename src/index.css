@@ -178,8 +178,9 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Responsive Navigation */
 @media (max-width: 768px) {
-  .desktop-nav-links a,
-  .desktop-nav-links div {
+  .desktop-nav-links > a,
+  .desktop-nav-links > div,
+  .desktop-nav-links > button:not(.mobile-menu-toggle):not(.theme-toggle-btn) {
     display: none !important;
   }
   .mobile-menu-toggle {

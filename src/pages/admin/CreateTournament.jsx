@@ -402,6 +402,25 @@ const CreateTournament = () => {
       <form onSubmit={handleCreate}>
         <Card style={{ marginBottom: '2rem' }}>
           <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>General Details</h2>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '1.25rem' }}>
+            <label style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-secondary)' }}>Format / Game Type</label>
+            <select 
+              value={gameType} 
+              onChange={e => setGameType(e.target.value)}
+              style={{
+                padding: '0.75rem 1rem', borderRadius: '8px', background: 'var(--surface-2)',
+                border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none',
+                fontSize: '1rem', fontFamily: 'inherit'
+              }}
+            >
+              <option value="typing">⌨️ Typing Competition</option>
+              <option value="quiz">❓ Quiz Competition (MCQ & Text)</option>
+              <option value="logic-puzzle">🧩 Logic Puzzles (Nonogram & Shikaku)</option>
+              <option value="crossword">📝 Crossword Puzzle</option>
+              <option value="map">🗺️ World Map Geography</option>
+            </select>
+          </div>
           
           <Input 
             label="Tournament Name" 
@@ -442,22 +461,32 @@ const CreateTournament = () => {
           <div style={{ marginTop: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <label style={{ fontSize: '0.95rem', fontWeight: '600', color: 'var(--text-primary)' }}>Visibility & Access</label>
             
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+            <div role="radiogroup" aria-label="Tournament Visibility" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
               <div 
+                role="radio"
+                aria-checked={!isPrivate}
+                tabIndex={0}
                 onClick={() => setIsPrivate(false)}
+                onKeyDown={(e) => {
+                  if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault();
+                    setIsPrivate(false);
+                  }
+                }}
                 style={{
                   padding: '1.25rem',
                   borderRadius: '12px',
-                  border: !isPrivate ? '2px solid var(--accent-primary)' : '1px solid var(--glass-border)',
-                  background: !isPrivate ? 'rgba(99, 102, 241, 0.1)' : 'rgba(255, 255, 255, 0.02)',
+                  border: !isPrivate ? '2px solid var(--primary)' : '1px solid var(--border)',
+                  background: !isPrivate ? 'rgba(79, 70, 229, 0.12)' : 'var(--surface-2)',
                   cursor: 'pointer',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '0.5rem',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  outline: 'none'
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: !isPrivate ? 'var(--accent-primary)' : 'var(--text-secondary)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: !isPrivate ? 'var(--primary-text)' : 'var(--text-secondary)' }}>
                   <Globe size={20} />
                   <strong style={{ fontSize: '1rem' }}>Public Tournament</strong>
                 </div>
@@ -467,23 +496,34 @@ const CreateTournament = () => {
               </div>
 
               <div 
+                role="radio"
+                aria-checked={isPrivate}
+                tabIndex={0}
                 onClick={() => {
                   setIsPrivate(true);
                   if (!accessCode) generateRandomCode();
                 }}
+                onKeyDown={(e) => {
+                  if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault();
+                    setIsPrivate(true);
+                    if (!accessCode) generateRandomCode();
+                  }
+                }}
                 style={{
                   padding: '1.25rem',
                   borderRadius: '12px',
-                  border: isPrivate ? '2px solid var(--accent-primary)' : '1px solid var(--glass-border)',
-                  background: isPrivate ? 'rgba(99, 102, 241, 0.1)' : 'rgba(255, 255, 255, 0.02)',
+                  border: isPrivate ? '2px solid var(--primary)' : '1px solid var(--border)',
+                  background: isPrivate ? 'rgba(79, 70, 229, 0.12)' : 'var(--surface-2)',
                   cursor: 'pointer',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '0.5rem',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  outline: 'none'
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: isPrivate ? 'var(--accent-primary)' : 'var(--text-secondary)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: isPrivate ? 'var(--primary-text)' : 'var(--text-secondary)' }}>
                   <Lock size={20} />
                   <strong style={{ fontSize: '1rem' }}>Private Tournament</strong>
                 </div>
@@ -496,8 +536,8 @@ const CreateTournament = () => {
             {isPrivate && (
               <div style={{ 
                 padding: '1.25rem', 
-                background: 'rgba(20, 20, 31, 0.6)', 
-                border: '1px solid var(--glass-border)', 
+                background: 'var(--surface-2)', 
+                border: '1px solid var(--border)', 
                 borderRadius: '12px',
                 display: 'flex',
                 flexDirection: 'column',
@@ -540,25 +580,6 @@ const CreateTournament = () => {
             </label>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1.5rem' }}>
-            <label style={{ fontSize: '0.875rem', fontWeight: '500', color: 'var(--text-secondary)' }}>Game Type</label>
-            <select 
-              value={gameType} 
-              onChange={e => setGameType(e.target.value)}
-              style={{
-                padding: '0.75rem 1rem', borderRadius: '8px', background: 'rgba(20, 20, 31, 0.5)',
-                border: '1px solid var(--glass-border)', color: 'var(--text-primary)', outline: 'none',
-                fontSize: '1rem', fontFamily: 'inherit'
-              }}
-            >
-              <option value="typing">Typing Competition</option>
-              <option value="quiz">Quiz Competition</option>
-              <option value="logic-puzzle">Logic Puzzles</option>
-              <option value="map">Map Spotting</option>
-              <option value="crossword">Crossword</option>
-            </select>
-          </div>
-
           {gameType === 'typing' && !useCustomText && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1.5rem' }}>
               <label style={{ fontSize: '0.875rem', fontWeight: '500', color: 'var(--text-secondary)' }}>Competition Language Type</label>
@@ -566,8 +587,8 @@ const CreateTournament = () => {
                 value={type} 
                 onChange={e => setType(e.target.value)}
                 style={{
-                  padding: '0.75rem 1rem', borderRadius: '8px', background: 'rgba(20, 20, 31, 0.5)',
-                  border: '1px solid var(--glass-border)', color: 'var(--text-primary)', outline: 'none',
+                  padding: '0.75rem 1rem', borderRadius: '8px', background: 'var(--surface-2)',
+                  border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none',
                   fontSize: '1rem', fontFamily: 'inherit'
                 }}
               >
@@ -827,8 +848,8 @@ const CreateTournament = () => {
                           setPuzzles(updated);
                         }}
                         style={{
-                          padding: '0.75rem 1rem', borderRadius: '8px', background: 'rgba(20, 20, 31, 0.5)',
-                          border: '1px solid var(--glass-border)', color: 'var(--text-primary)', outline: 'none'
+                          padding: '0.75rem 1rem', borderRadius: '8px', background: 'var(--surface-2)',
+                          border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none'
                         }}
                       >
                         <option value="nonogram">Nonogram</option>
@@ -846,8 +867,8 @@ const CreateTournament = () => {
                           setPuzzles(updated);
                         }}
                         style={{
-                          padding: '0.75rem 1rem', borderRadius: '8px', background: 'rgba(20, 20, 31, 0.5)',
-                          border: '1px solid var(--glass-border)', color: 'var(--text-primary)', outline: 'none'
+                          padding: '0.75rem 1rem', borderRadius: '8px', background: 'var(--surface-2)',
+                          border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none'
                         }}
                       >
                         <option value="5x5">5x5</option>
@@ -1009,8 +1030,8 @@ const CreateTournament = () => {
                 minHeight: '300px',
                 padding: '1rem',
                 borderRadius: '8px',
-                background: 'rgba(20, 20, 31, 0.5)',
-                border: '1px solid var(--glass-border)',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
                 color: 'var(--text-primary)',
                 outline: 'none',
                 resize: 'vertical',
@@ -1029,8 +1050,8 @@ const CreateTournament = () => {
                 <div style={{ 
                   marginTop: '1rem',
                   padding: '1rem',
-                  background: 'rgba(0,0,0,0.5)',
-                  border: '1px solid var(--glass-border)',
+                  background: 'var(--surface-2)',
+                  border: '1px solid var(--border)',
                   borderRadius: '8px',
                   display: 'flex',
                   justifyContent: 'center',

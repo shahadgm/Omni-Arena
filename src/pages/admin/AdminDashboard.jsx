@@ -3,11 +3,19 @@ import { useNavigate, Link } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import { dbService, authService } from '../../services/db';
-import { Settings, Plus, Users, Calendar, Keyboard, Edit, Trash2, RotateCcw, Square, MapPin, Hash, Lock } from 'lucide-react';
+import { 
+  Settings, Plus, Users, Calendar, Keyboard, Edit, Trash2, 
+  RotateCcw, Square, MapPin, Hash, Lock, Search, Copy, Check, Eye, EyeOff, Filter
+} from 'lucide-react';
 
 const AdminDashboard = () => {
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'active' | 'upcoming' | 'ended'
+  const [revealedCodes, setRevealedCodes] = useState({});
+  const [copiedId, setCopiedId] = useState(null);
+  const [activeTab, setActiveTab] = useState('typing');
   const navigate = useNavigate();
 
   const fetchTournaments = async () => {
@@ -26,147 +34,53 @@ const AdminDashboard = () => {
   }, [navigate]);
 
   const handleDelete = async (id, name) => {
-    if (window.confirm(`Are you sure you want to delete "${name}"? This will also delete its leaderboard.`)) {
+    const confirmInput = window.prompt(`To permanently delete "${name}" and all its participant data, please type "${name}" to confirm:`);
+    if (confirmInput === name) {
       await dbService.deleteTournament(id);
-      fetchTournaments(); // Refresh list
+      fetchTournaments();
+    } else if (confirmInput !== null) {
+      alert("Tournament name did not match. Deletion cancelled.");
     }
   };
 
   const handleResetLeaderboard = async (id, name) => {
-    if (window.confirm(`Are you sure you want to completely clear the leaderboard for "${name}"? This action cannot be undone.`)) {
+    if (window.confirm(`Are you sure you want to completely clear the leaderboard for "${name}"? This will wipe all participant scores and retakes.`)) {
       await dbService.resetLeaderboard(id);
       alert(`Leaderboard for "${name}" has been cleared.`);
     }
   };
 
-  const renderTournamentSection = (gameTypes, icon, title) => {
-    const typesArray = Array.isArray(gameTypes) ? gameTypes : [gameTypes];
-    const list = tournaments.filter(t => typesArray.includes(t.gameType || 'typing'));
-    
-    return (
-      <div key={typesArray[0]} style={{ marginBottom: '3rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-          <div style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
-            {React.cloneElement(icon, { color: 'var(--text-secondary)', size: 20 })}
-          </div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: '600' }}>{title}</h2>
-        </div>
-
-        <Card padding="0" style={{ overflow: 'hidden', border: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ 
-            padding: '1rem 1.5rem', 
-            background: 'rgba(0,0,0,0.2)', 
-            borderBottom: '1px solid var(--glass-border)', 
-            display: 'grid', 
-            gridTemplateColumns: '2fr 1fr 1fr 1fr auto', 
-            fontWeight: '600', 
-            fontSize: '0.85rem',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px',
-            color: 'var(--text-tertiary)' 
-          }}>
-            <div>Tournament Name</div>
-            <div>Format</div>
-            <div>Status</div>
-            <div>Start Date</div>
-            <div style={{ textAlign: 'right' }}>Actions</div>
-          </div>
-          
-          {loading ? (
-            <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-              <RotateCcw size={24} className="animate-spin" style={{ margin: '0 auto 1rem', display: 'block', opacity: 0.5 }} />
-              Loading tournaments...
-            </div>
-          ) : list.length === 0 ? (
-            <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-              <div style={{ background: 'rgba(255,255,255,0.02)', width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
-                <Calendar size={24} opacity={0.5} />
-              </div>
-              <p style={{ fontSize: '1.1rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>No active tournaments</p>
-              <p style={{ fontSize: '0.9rem' }}>You haven't created any {title.toLowerCase()} yet.</p>
-            </div>
-          ) : (
-            <div>
-              {list.map((t, idx) => {
-                const now = new Date();
-                const start = new Date(t.startTime);
-                const end = new Date(t.endTime);
-                let status = 'UPCOMING';
-                let statusColor = 'var(--warning)';
-                let statusBg = 'rgba(234, 179, 8, 0.1)';
-                
-                if (now >= start && now <= end) {
-                  status = 'ACTIVE';
-                  statusColor = 'var(--success)';
-                  statusBg = 'rgba(34, 197, 94, 0.1)';
-                } else if (now > end) {
-                  status = 'ENDED';
-                  statusColor = 'var(--text-tertiary)';
-                  statusBg = 'rgba(255,255,255,0.05)';
-                }
-
-                return (
-                  <div key={t.id} className="tournament-row" style={{ 
-                    padding: '1.25rem 1.5rem', 
-                    borderBottom: idx < list.length - 1 ? '1px solid var(--glass-border)' : 'none',
-                    display: 'grid', 
-                    gridTemplateColumns: '2fr 1fr 1fr 1fr auto',
-                    alignItems: 'center',
-                  }}>
-                    <div>
-                      <div style={{ fontWeight: '600', fontSize: '1.05rem', color: 'var(--text-primary)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                        {t.name}
-                        {t.isPrivate && (
-                          <span style={{ fontSize: '0.75rem', fontFamily: 'monospace', background: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', padding: '0.15rem 0.5rem', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
-                            <Lock size={12} /> {t.accessCode}
-                          </span>
-                        )}
-                        {t.creatorName && (
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: 'normal' }}>
-                            by {t.creatorName}
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>ID: {t.id.slice(0, 8)}...</div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-secondary)', background: 'var(--bg-tertiary)', padding: '0.25rem 0.75rem', borderRadius: '12px' }}>
-                        {t.gameType === 'logic-puzzle' ? 'Logic Puzzles' : (t.gameType ? t.gameType.charAt(0).toUpperCase() + t.gameType.slice(1) : 'Typing')}
-                      </span>
-                    </div>
-                    <div>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 'bold', padding: '0.35rem 0.75rem', background: statusBg, color: statusColor, borderRadius: '20px', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: statusColor }}></span>
-                        {status}
-                      </span>
-                    </div>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', display: 'flex', flexDirection: 'column' }}>
-                      <span>{start.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{start.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'flex-end' }}>
-                      <Button variant="secondary" onClick={() => navigate(`/leaderboard/${t.id}`)} style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', border: 'none' }} title="View Leaderboard">
-                        <Users size={16} color="var(--text-primary)" />
-                      </Button>
-                      <Button variant="secondary" onClick={() => handleResetLeaderboard(t.id, t.name)} style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', border: 'none' }} title="Reset Leaderboard">
-                        <RotateCcw size={16} color="var(--warning)" />
-                      </Button>
-                      <Button variant="secondary" onClick={() => navigate(`/admin/tournament/edit/${t.id}`)} style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', border: 'none' }} title="Edit">
-                        <Edit size={16} color="var(--accent-primary)" />
-                      </Button>
-                      <Button variant="secondary" onClick={() => handleDelete(t.id, t.name)} style={{ padding: '0.5rem', background: 'rgba(239, 68, 68, 0.1)', border: 'none' }} title="Delete">
-                        <Trash2 size={16} color="var(--error)" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </Card>
-      </div>
-    );
+  const toggleRevealCode = (id) => {
+    setRevealedCodes(prev => ({ ...prev, [id]: !prev[id] }));
   };
+
+  const handleCopyCode = (id, code, e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(code);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const getStatus = (startStr, endStr) => {
+    const now = new Date();
+    const start = new Date(startStr);
+    const end = new Date(endStr);
+    if (now >= start && now <= end) {
+      return { label: 'LIVE', color: 'var(--success)', bg: 'rgba(52, 211, 153, 0.12)' };
+    } else if (now < start) {
+      return { label: 'SCHEDULED', color: 'var(--warning)', bg: 'rgba(251, 191, 36, 0.12)' };
+    }
+    return { label: 'ENDED', color: 'var(--text-tertiary)', bg: 'var(--surface-2)' };
+  };
+
+  const tabs = [
+    { id: 'typing', label: 'Typing' },
+    { id: 'quiz', label: 'Quiz' },
+    { id: 'logic-puzzle', label: 'Logic Puzzles' },
+    { id: 'map', label: 'Map Spotting' },
+    { id: 'crossword', label: 'Crossword' },
+    { id: 'practice', label: 'Practice Hub' }
+  ];
 
   const practiceModes = [
     { id: 'practice-english', name: 'English Sprint (Typing)', desc: 'Standard English typing test.' },
@@ -183,111 +97,360 @@ const AdminDashboard = () => {
     { id: 'practice-crossword', name: 'Cryptic Crossword', desc: 'Crossword puzzle practice.' }
   ];
 
-  const [activeTab, setActiveTab] = useState('typing');
+  const renderTournamentSection = (gameTypes, icon, title) => {
+    const typesArray = Array.isArray(gameTypes) ? gameTypes : [gameTypes];
+    let list = tournaments.filter(t => typesArray.includes(t.gameType || 'typing'));
 
-  const tabs = [
-    { id: 'typing', label: 'Typing' },
-    { id: 'quiz', label: 'Quiz' },
-    { id: 'logic-puzzle', label: 'Logic Puzzles' },
-    { id: 'map', label: 'Map Spotting' },
-    { id: 'crossword', label: 'Crossword' },
-    { id: 'practice', label: 'Practice' }
-  ];
+    // Apply Search Query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(t => 
+        (t.name && t.name.toLowerCase().includes(q)) ||
+        (t.accessCode && t.accessCode.toLowerCase().includes(q)) ||
+        (t.creatorName && t.creatorName.toLowerCase().includes(q))
+      );
+    }
 
-  const now = new Date();
-  const activeCount = tournaments.filter(t => new Date(t.startTime) <= now && new Date(t.endTime) >= now).length;
-  const upcomingCount = tournaments.filter(t => new Date(t.startTime) > now).length;
+    // Apply Status Filter
+    if (statusFilter !== 'all') {
+      const now = new Date();
+      list = list.filter(t => {
+        const start = new Date(t.startTime);
+        const end = new Date(t.endTime);
+        if (statusFilter === 'active') return now >= start && now <= end;
+        if (statusFilter === 'upcoming') return now < start;
+        if (statusFilter === 'ended') return now > end;
+        return true;
+      });
+    }
+
+    return (
+      <div style={{ marginBottom: '2.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ padding: '0.5rem', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '8px' }}>
+              {React.cloneElement(icon, { color: 'var(--primary-text)', size: 20 })}
+            </div>
+            <div>
+              <h2 style={{ fontSize: '1.35rem', fontWeight: '700', margin: 0 }}>{title}</h2>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>{list.length} tournament{list.length === 1 ? '' : 's'} displayed</span>
+            </div>
+          </div>
+        </div>
+
+        <Card padding="0" style={{ overflow: 'hidden' }}>
+          <div style={{ 
+            padding: '0.875rem 1.25rem', 
+            background: 'var(--surface-2)', 
+            borderBottom: '1px solid var(--border)', 
+            display: 'grid', 
+            gridTemplateColumns: 'minmax(220px, 2.5fr) minmax(110px, 1fr) minmax(140px, 1.2fr) minmax(240px, 2fr)', 
+            fontWeight: '600', 
+            fontSize: '0.8rem',
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            color: 'var(--text-secondary)' 
+          }}>
+            <div>Tournament / Code</div>
+            <div>Status</div>
+            <div>Schedule</div>
+            <div style={{ textAlign: 'right' }}>Actions</div>
+          </div>
+          
+          {loading ? (
+            <div style={{ padding: '3.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              <div className="spinner" style={{ width: '28px', height: '28px', border: '3px solid var(--border)', borderTopColor: 'var(--primary)', borderRadius: '50%', margin: '0 auto 1rem', animation: 'spin 0.8s linear infinite' }} />
+              Loading tournament list...
+            </div>
+          ) : list.length === 0 ? (
+            <div style={{ padding: '3.5rem 1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              <Calendar size={32} style={{ color: 'var(--text-tertiary)', margin: '0 auto 0.75rem', opacity: 0.7 }} />
+              <p style={{ fontSize: '1.05rem', fontWeight: '600', marginBottom: '0.35rem', color: 'var(--text)' }}>No matching tournaments</p>
+              <p style={{ fontSize: '0.875rem', margin: 0 }}>
+                {searchQuery || statusFilter !== 'all' ? 'Try adjusting your filters or search terms.' : `No tournaments created for this format yet.`}
+              </p>
+            </div>
+          ) : (
+            <div>
+              {list.map((t, idx) => {
+                const status = getStatus(t.startTime, t.endTime);
+                const start = new Date(t.startTime);
+                const isRevealed = revealedCodes[t.id];
+                const isCopied = copiedId === t.id;
+
+                return (
+                  <div 
+                    key={t.id} 
+                    style={{ 
+                      padding: '1rem 1.25rem', 
+                      borderBottom: idx < list.length - 1 ? '1px solid var(--border)' : 'none',
+                      display: 'grid', 
+                      gridTemplateColumns: 'minmax(220px, 2.5fr) minmax(110px, 1fr) minmax(140px, 1.2fr) minmax(240px, 2fr)',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      fontSize: '0.9rem',
+                      transition: 'background 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-2)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div>
+                      <div style={{ fontWeight: '600', fontSize: '0.95rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        {t.name}
+                        {t.isPrivate ? (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '6px', padding: '0.15rem 0.45rem', fontSize: '0.75rem' }}>
+                            <Lock size={12} style={{ color: 'var(--primary-text)' }} />
+                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: '600', letterSpacing: '0.04em' }}>
+                              {isRevealed ? t.accessCode : '••••••'}
+                            </span>
+                            <button 
+                              type="button"
+                              onClick={() => toggleRevealCode(t.id)} 
+                              title={isRevealed ? "Hide code" : "Reveal code"}
+                              style={{ background: 'none', border: 'none', padding: '0 2px', cursor: 'pointer', color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center' }}
+                            >
+                              {isRevealed ? <EyeOff size={12} /> : <Eye size={12} />}
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={(e) => handleCopyCode(t.id, t.accessCode, e)} 
+                              title="Copy code"
+                              style={{ background: 'none', border: 'none', padding: '0 2px', cursor: 'pointer', color: isCopied ? 'var(--success)' : 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}
+                            >
+                              {isCopied ? <Check size={12} /> : <Copy size={12} />}
+                            </button>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', border: '1px solid var(--border)', borderRadius: '4px', padding: '0.1rem 0.4rem' }}>
+                            Public
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.2rem' }}>
+                        ID: {t.id.slice(0, 10)}... {t.creatorName ? `• Host: ${t.creatorName}` : ''}
+                      </div>
+                    </div>
+
+                    <div>
+                      <span style={{ 
+                        fontSize: '0.75rem', 
+                        fontWeight: '700', 
+                        padding: '0.25rem 0.6rem', 
+                        background: status.bg, 
+                        color: status.color, 
+                        borderRadius: '6px', 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        gap: '0.35rem',
+                        letterSpacing: '0.03em'
+                      }}>
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: status.color }}></span>
+                        {status.label}
+                      </span>
+                    </div>
+
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.825rem', fontVariantNumeric: 'tabular-nums' }}>
+                      <div>{start.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                        {start.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                      <Button 
+                        variant="secondary" 
+                        onClick={() => navigate(`/leaderboard/${t.id}`)} 
+                        style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                      >
+                        <Users size={14} /> Standings
+                      </Button>
+                      <Button 
+                        variant="secondary" 
+                        onClick={() => navigate(`/admin/tournament/edit/${t.id}`)} 
+                        style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                      >
+                        <Edit size={14} /> Edit
+                      </Button>
+                      <button 
+                        type="button"
+                        onClick={() => handleResetLeaderboard(t.id, t.name)} 
+                        title="Clear Leaderboard"
+                        style={{ 
+                          padding: '0.35rem 0.5rem', 
+                          background: 'transparent', 
+                          border: '1px solid var(--border)', 
+                          borderRadius: '8px', 
+                          color: 'var(--warning)', 
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <RotateCcw size={14} />
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => handleDelete(t.id, t.name)} 
+                        title="Delete Tournament"
+                        style={{ 
+                          padding: '0.35rem 0.5rem', 
+                          background: 'transparent', 
+                          border: '1px solid var(--border)', 
+                          borderRadius: '8px', 
+                          color: 'var(--danger)', 
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      </div>
+    );
+  };
 
   return (
-    <div className="container" style={{ maxWidth: '1100px', paddingBottom: '4rem' }}>
+    <div className="container" style={{ maxWidth: '1100px', margin: '0 auto', padding: '1rem', paddingBottom: '4rem' }}>
       <style>{`
-        .admin-tab {
-          padding: 0.75rem 1.5rem;
+        .admin-tab-btn {
+          padding: 0.65rem 1.25rem;
           color: var(--text-secondary);
           border: none;
           background: transparent;
           border-bottom: 2px solid transparent;
           cursor: pointer;
           font-weight: 600;
-          font-size: 1rem;
-          transition: all 0.2s;
+          font-size: 0.95rem;
+          transition: all 0.2s ease;
           white-space: nowrap;
         }
-        .admin-tab:hover {
-          color: var(--text-primary);
+        .admin-tab-btn:hover {
+          color: var(--text);
         }
-        .admin-tab.active {
-          color: var(--accent-primary);
-          border-bottom: 2px solid var(--accent-primary);
-        }
-        .tournament-row {
-          transition: background 0.2s;
-        }
-        .tournament-row:hover {
-          background: rgba(255, 255, 255, 0.02);
-        }
-        @media (max-width: 768px) {
-          .admin-header-flex {
-            flex-direction: column;
-            align-items: flex-start !important;
-          }
-          .admin-stats-flex {
-            width: 100%;
-            justify-content: space-between;
-            margin-top: 1rem;
-          }
+        .admin-tab-btn.active {
+          color: var(--primary-text);
+          border-bottom: 2px solid var(--primary);
         }
       `}</style>
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
-          <h1 style={{ fontSize: '2.5rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <Settings className="text-gradient" size={40} /> Admin Dashboard
+          <h1 style={{ fontSize: '2rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.75rem', fontWeight: '700' }}>
+            <Settings style={{ color: 'var(--primary-text)' }} size={32} /> Master Admin Hub
           </h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Manage tournaments and view leaderboards.</p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', marginTop: '0.35rem', marginBottom: 0 }}>
+            Create tournaments, oversee live competitions, and inspect leaderboards.
+          </p>
         </div>
-        <Button onClick={() => navigate('/admin/tournament/create')}>
+        <Button variant="primary" onClick={() => navigate('/admin/tournament/create')} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
           <Plus size={18} /> New Tournament
         </Button>
       </div>
 
+      {/* Search and Status Filters */}
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ position: 'relative', flex: '1', minWidth: '240px', maxWidth: '400px' }}>
+          <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+          <input 
+            type="text"
+            placeholder="Search tournament name, code, host..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '0.65rem 0.85rem 0.65rem 2.4rem',
+              borderRadius: '8px',
+              border: '1px solid var(--border)',
+              background: 'var(--surface-2)',
+              color: 'var(--text)',
+              fontSize: '0.875rem',
+              outline: 'none'
+            }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <Filter size={14} /> Status:
+          </span>
+          {[
+            { id: 'all', label: 'All' },
+            { id: 'active', label: 'Live' },
+            { id: 'upcoming', label: 'Scheduled' },
+            { id: 'ended', label: 'Ended' }
+          ].map(s => (
+            <button
+              key={s.id}
+              onClick={() => setStatusFilter(s.id)}
+              style={{
+                padding: '0.35rem 0.75rem',
+                borderRadius: '6px',
+                border: statusFilter === s.id ? '1px solid var(--primary)' : '1px solid var(--border)',
+                background: statusFilter === s.id ? 'var(--primary)' : 'var(--surface-2)',
+                color: statusFilter === s.id ? '#FFFFFF' : 'var(--text-secondary)',
+                fontSize: '0.8rem',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2.5rem', borderBottom: '1px solid var(--glass-border)', overflowX: 'auto', paddingBottom: '2px' }}>
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', borderBottom: '1px solid var(--border)', overflowX: 'auto', paddingBottom: '1px' }}>
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`admin-tab ${activeTab === tab.id ? 'active' : ''}`}
+            className={`admin-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
           >
             {tab.label}
           </button>
         ))}
       </div>
 
-      {activeTab === 'typing' && renderTournamentSection('typing', <Keyboard size={24} />, 'Typing Tournaments')}
-      {activeTab === 'quiz' && renderTournamentSection('quiz', <Calendar size={24} />, 'Quiz Tournaments')}
-      {activeTab === 'logic-puzzle' && renderTournamentSection(['logic-puzzle', 'nonogram', 'shikaku'], <Square size={24} />, 'Logic Puzzle Tournaments')}
-      {activeTab === 'map' && renderTournamentSection('map', <MapPin size={24} />, 'Map Spotting Tournaments')}
-      {activeTab === 'crossword' && renderTournamentSection('crossword', <Hash size={24} />, 'Crossword Tournaments')}
+      {activeTab === 'typing' && renderTournamentSection('typing', <Keyboard size={20} />, 'Typing Competitions')}
+      {activeTab === 'quiz' && renderTournamentSection('quiz', <Calendar size={20} />, 'Quiz Competitions')}
+      {activeTab === 'logic-puzzle' && renderTournamentSection(['logic-puzzle', 'nonogram', 'shikaku'], <Square size={20} />, 'Logic Puzzle Competitions')}
+      {activeTab === 'map' && renderTournamentSection('map', <MapPin size={20} />, 'Map Spotting Competitions')}
+      {activeTab === 'crossword' && renderTournamentSection('crossword', <Hash size={20} />, 'Crossword Competitions')}
 
       {activeTab === 'practice' && (
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-            <div style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '8px' }}>
-              <Keyboard color="var(--text-secondary)" size={20} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
+            <div style={{ padding: '0.5rem', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '8px' }}>
+              <Keyboard color="var(--primary-text)" size={20} />
             </div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: '600' }}>Practice Leaderboards</h2>
+            <div>
+              <h2 style={{ fontSize: '1.35rem', fontWeight: '700', margin: 0 }}>Practice Standings</h2>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>Inspect permanent global practice leaderboards</span>
+            </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
             {practiceModes.map(m => (
-              <Card key={m.id} hoverEffect={true} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <Card key={m.id} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '1.25rem' }}>
                 <div>
-                  <h3 style={{ fontSize: '1.15rem', marginBottom: '0.5rem', color: 'var(--text-primary)', fontWeight: '600' }}>{m.name}</h3>
-                  <p style={{ color: 'var(--text-tertiary)', fontSize: '0.9rem', lineHeight: '1.4' }}>{m.desc}</p>
+                  <h3 style={{ fontSize: '1.05rem', marginBottom: '0.35rem', color: 'var(--text)', fontWeight: '600' }}>{m.name}</h3>
+                  <p style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem', lineHeight: '1.4', margin: 0 }}>{m.desc}</p>
                 </div>
-                <Button onClick={() => navigate(`/leaderboard/${m.id}`)} style={{ width: '100%', marginTop: '1.5rem', background: 'rgba(99, 102, 241, 0.15)', color: 'var(--accent-primary)', border: '1px solid rgba(99, 102, 241, 0.3)', fontWeight: '600' }}>
-                  <Users size={16} /> View Standings
+                <Button 
+                  variant="secondary"
+                  onClick={() => navigate(`/leaderboard/${m.id}`)} 
+                  style={{ width: '100%', marginTop: '1.25rem', fontWeight: '600', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}
+                >
+                  <Users size={14} /> View Leaderboard
                 </Button>
               </Card>
             ))}

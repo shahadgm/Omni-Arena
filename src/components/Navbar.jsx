@@ -24,15 +24,13 @@ const Navbar = ({ theme, toggleTheme }) => {
   };
 
   const navStyle = {
-    padding: '0.85rem 1.5rem',
+    padding: '0 1.5rem',
+    height: '64px',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    background: 'var(--glass-bg)',
-    backdropFilter: 'blur(20px)',
-    WebkitBackdropFilter: 'blur(20px)',
-    borderBottom: '1px solid var(--glass-border)',
-    boxShadow: '0 4px 30px rgba(0, 0, 0, 0.3)',
+    background: 'var(--surface)',
+    borderBottom: '1px solid var(--border)',
     position: 'sticky',
     top: 0,
     zIndex: 100,
@@ -90,6 +88,7 @@ const Navbar = ({ theme, toggleTheme }) => {
         {/* Desktop Links */}
         <div className="desktop-nav-links" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
           <button 
+            className="theme-toggle-btn"
             onClick={toggleTheme}
             style={{
               background: 'none', border: 'none', color: 'var(--text-primary)',

@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
 import { dbService, authService } from '../services/db';
-import { Trophy, ArrowLeft, Medal, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
+import { Trophy, ArrowLeft, RotateCcw, Search, Award } from 'lucide-react';
 
 const LeaderboardPage = () => {
   const { id } = useParams();
@@ -16,9 +18,16 @@ const LeaderboardPage = () => {
   const [retakeInput, setRetakeInput] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [tournament, setTournament] = useState(null);
+  const [activeTab, setActiveTab] = useState('standings'); // 'standings' | 'manage'
   
+  // Search & Pagination
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
+
   const isAdmin = authService.isAdmin();
   const currentUser = authService.getCurrentUser();
+  const myStudentId = (currentUser?.username || localStorage.getItem('studentId') || '').toLowerCase();
   const isManager = isAdmin || (tournament && tournament.createdBy && tournament.createdBy.toLowerCase() === (currentUser?.username || '').toLowerCase());
 
   const handleAllowRetake = async (targetStudentId) => {
@@ -46,7 +55,6 @@ const LeaderboardPage = () => {
   };
 
   useEffect(() => {
-    // Ensure we are not in fullscreen on the leaderboard
     try {
       if (document.fullscreenElement && document.exitFullscreen) {
         document.exitFullscreen();
@@ -54,6 +62,7 @@ const LeaderboardPage = () => {
     } catch (e) {}
 
     const fetchLeaderboard = async () => {
+      setLoading(true);
       const data = await dbService.getLeaderboard(id);
       setLeaderboard(data);
       
@@ -72,7 +81,7 @@ const LeaderboardPage = () => {
           setTournament(t);
           setTitle(t.name);
           setGameType(t.gameType || 'typing');
-          const isUserCreator = currentUser && t.createdBy && t.createdBy.toLowerCase() === currentUser.username.toLowerCase();
+          const isUserCreator = currentUser && t.createdBy && t.createdBy.toLowerCase() === (currentUser?.username || '').toLowerCase();
           if (t.hideLeaderboard && !isAdmin && !isUserCreator) {
             setIsHidden(true);
           }
@@ -91,7 +100,6 @@ const LeaderboardPage = () => {
   const isPuzzle = gameType === 'nonogram' || gameType === 'shikaku' || gameType === 'logic-puzzle';
   const isCrossword = gameType === 'crossword';
   const isQuiz = gameType === 'quiz';
-  const isTyping = gameType === 'typing';
   const isMap = gameType === 'map';
 
   const handleGrantMarks = async (entryId, questionIndex) => {
@@ -102,16 +110,13 @@ const LeaderboardPage = () => {
     
     const qDetails = [...entry.quizDetails];
     const targetQ = qDetails[questionIndex];
-    
-    if (targetQ.isCorrect) return; // already correct
+    if (targetQ.isCorrect) return;
     
     if (!window.confirm('Are you sure you want to grant marks for this answer?')) return;
     
-    // Update the question
     targetQ.isCorrect = true;
     targetQ.pointsAwarded = targetQ.maxPoints;
     
-    // Recalculate totals
     const newCorrectAnswers = qDetails.filter(q => q.isCorrect).length;
     const newScore = qDetails.reduce((sum, q) => sum + (q.pointsAwarded || 0), 0);
     const totalQuestions = entry.totalQuestions || qDetails.length;
@@ -126,7 +131,6 @@ const LeaderboardPage = () => {
     
     try {
       await dbService.updateResult(entryId, updatedFields);
-      // Optimistically update the state
       setLeaderboard(prev => {
         const newBoard = prev.map(e => e.id === entryId ? { ...e, ...updatedFields } : e);
         return newBoard.sort((a, b) => {
@@ -142,23 +146,50 @@ const LeaderboardPage = () => {
     }
   };
 
+  // Filtered and Paginated Leaderboard
+  const filtered = useMemo(() => {
+    if (!searchQuery.trim()) return leaderboard;
+    const q = searchQuery.toLowerCase().trim();
+    return leaderboard.filter(e => 
+      (e.displayName && e.displayName.toLowerCase().includes(q)) ||
+      (e.studentId && e.studentId.toLowerCase().includes(q))
+    );
+  }, [leaderboard, searchQuery]);
+
+  const totalPages = Math.ceil(filtered.length / pageSize) || 1;
+  const paginated = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, currentPage]);
+
+  const myRankIndex = useMemo(() => {
+    if (!myStudentId) return -1;
+    return leaderboard.findIndex(e => e.studentId.toLowerCase() === myStudentId);
+  }, [leaderboard, myStudentId]);
+
+  const top3 = useMemo(() => {
+    return leaderboard.slice(0, 3);
+  }, [leaderboard]);
+
   const gridCols = isMap
-    ? (isManager ? '80px 1fr 130px 90px 90px 140px' : '80px 1fr 150px 100px 100px 40px')
+    ? (isManager ? '60px 1fr 110px 90px 90px 110px' : '60px 1fr 120px 100px 90px')
     : (isQuiz || isCrossword || isPuzzle)
-      ? (isManager ? '80px 1fr 90px 90px 90px 90px 140px' : '80px 1fr 100px 100px 100px 100px 40px')
-      : (isManager ? '80px 1fr 80px 90px 90px 100px 90px 140px' : '80px 1fr 80px 100px 100px 120px 100px 40px');
+      ? (isManager ? '60px 1fr 90px 90px 80px 80px 110px' : '60px 1fr 100px 90px 90px 80px')
+      : (isManager ? '60px 1fr 80px 80px 80px 90px 80px 110px' : '60px 1fr 90px 90px 90px 100px 80px');
 
   if (notFound) {
     return (
-      <div className="container" style={{ maxWidth: '650px', textAlign: 'center', paddingTop: '4rem' }}>
-        <Card padding="3rem">
-          <Trophy size={48} style={{ color: 'var(--text-secondary)', marginBottom: '1rem', opacity: 0.5 }} />
-          <h2 style={{ fontSize: '1.75rem', marginBottom: '0.75rem' }}>Tournament Not Found</h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-            The requested tournament does not exist or may have been removed.
+      <div className="container" style={{ maxWidth: '600px', textAlign: 'center', paddingTop: '4rem' }}>
+        <Card padding="2.5rem">
+          <Trophy size={48} style={{ color: 'var(--text-tertiary)', margin: '0 auto 1rem', opacity: 0.5 }} />
+          <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Tournament Not Found</h2>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
+            The requested tournament does not exist or may have been deleted.
           </p>
-          <Link to={isAdmin ? "/admin/dashboard" : "/dashboard"} className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}>
-            <ArrowLeft size={16} /> Return to Dashboard
+          <Link to={isAdmin ? "/admin/dashboard" : "/dashboard"} style={{ textDecoration: 'none' }}>
+            <Button variant="secondary" style={{ display: 'inline-flex', gap: '0.5rem' }}>
+              <ArrowLeft size={16} /> Return to Dashboard
+            </Button>
           </Link>
         </Card>
       </div>
@@ -166,363 +197,452 @@ const LeaderboardPage = () => {
   }
 
   return (
-    <div className="container" style={{ maxWidth: '850px' }}>
+    <div className="container" style={{ maxWidth: '960px', paddingBottom: '4rem' }}>
+      
+      {/* Header Bar */}
       <div style={{ marginBottom: '2rem' }}>
-        <Link to={isAdmin ? "/admin/dashboard" : "/dashboard"} style={{ color: 'var(--text-secondary)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+        <Link to={isAdmin ? "/admin/dashboard" : "/dashboard"} style={{ color: 'var(--text-secondary)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', marginBottom: '1rem' }}>
           <ArrowLeft size={16} /> Back to Dashboard
         </Link>
-        <h1 style={{ fontSize: '2.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <Trophy className="text-gradient" size={40} /> Leaderboard
-        </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem' }}>{title}</p>
+        
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0.65rem', borderRadius: '6px', background: 'var(--surface-2)', border: '1px solid var(--border)', fontSize: '0.75rem', fontWeight: '700', color: 'var(--primary-text)', marginBottom: '0.5rem', letterSpacing: '0.04em' }}>
+              {(gameType || 'competition').toUpperCase()} • {leaderboard.length} CANDIDATES
+            </div>
+            <h1 style={{ fontSize: '2.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-primary)' }}>
+              <Trophy size={32} color="var(--primary)" /> {title || 'Tournament Standings'}
+            </h1>
+          </div>
+
+          {/* User's Current Rank Chip */}
+          {myRankIndex !== -1 && (
+            <div style={{ 
+              background: 'var(--surface)', 
+              border: '1px solid var(--border)', 
+              borderRadius: '10px', 
+              padding: '0.75rem 1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+            }}>
+              <Award size={24} color="var(--primary)" />
+              <div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', fontWeight: '600' }}>Your Standing</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                  Rank #{myRankIndex + 1} <span style={{ fontSize: '0.85rem', color: 'var(--primary-text)', fontWeight: '600' }}>({leaderboard[myRankIndex].score} pts)</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
+      {/* Tabs if Manager */}
       {isManager && !id.startsWith('practice-') && (
-        <Card style={{ marginBottom: '1.5rem', padding: '1.25rem', background: 'rgba(99, 102, 241, 0.08)', border: '1px solid rgba(99, 102, 241, 0.2)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-            <div>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)' }}>
-                <RotateCcw size={16} color="var(--accent-primary)" /> Candidate Retake Management
-              </h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.2rem' }}>
-                Give any candidate another chance to join this tournament, clearing their attempt lock.
-              </p>
-            </div>
-            <form onSubmit={handleManualRetake} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <input 
-                type="text" 
-                placeholder="Student ID / Name..." 
-                value={retakeInput}
-                onChange={(e) => setRetakeInput(e.target.value)}
-                style={{
-                  padding: '0.5rem 0.75rem',
-                  background: 'var(--bg-primary)',
-                  border: '1px solid var(--glass-border)',
-                  borderRadius: '8px',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.85rem',
-                  outline: 'none'
-                }}
-              />
-              <button 
-                type="submit" 
-                disabled={actionLoading}
-                style={{
-                  padding: '0.5rem 0.9rem',
-                  background: 'var(--accent-primary)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontWeight: '600',
-                  fontSize: '0.85rem',
-                  cursor: 'pointer'
-                }}
-              >
-                Give Chance
-              </button>
-            </form>
-          </div>
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+          <button
+            type="button"
+            onClick={() => setActiveTab('standings')}
+            style={{
+              padding: '0.5rem 1rem',
+              background: activeTab === 'standings' ? 'var(--surface-2)' : 'transparent',
+              border: '1px solid ' + (activeTab === 'standings' ? 'var(--border)' : 'transparent'),
+              borderRadius: '8px',
+              color: activeTab === 'standings' ? 'var(--text-primary)' : 'var(--text-secondary)',
+              fontWeight: '600',
+              cursor: 'pointer',
+              fontSize: '0.9rem'
+            }}
+          >
+            🏆 Leaderboard Standings
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('manage')}
+            style={{
+              padding: '0.5rem 1rem',
+              background: activeTab === 'manage' ? 'var(--surface-2)' : 'transparent',
+              border: '1px solid ' + (activeTab === 'manage' ? 'var(--border)' : 'transparent'),
+              borderRadius: '8px',
+              color: activeTab === 'manage' ? 'var(--text-primary)' : 'var(--text-secondary)',
+              fontWeight: '600',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem'
+            }}
+          >
+            <RotateCcw size={15} /> Candidate Retake Management
+          </button>
+        </div>
+      )}
+
+      {/* MANAGER TAB CONTENT */}
+      {activeTab === 'manage' && isManager && !id.startsWith('practice-') && (
+        <Card style={{ marginBottom: '2rem', padding: '1.5rem' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '0.4rem' }}>
+            Give Candidate Another Chance
+          </h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+            Clear any participant's attempt lock so they can re-enter this tournament and record a new score.
+          </p>
+
+          <form onSubmit={handleManualRetake} style={{ display: 'flex', gap: '0.75rem', maxWidth: '450px' }}>
+            <Input 
+              placeholder="Candidate Name or Admission No..."
+              value={retakeInput}
+              onChange={(e) => setRetakeInput(e.target.value)}
+              style={{ fontSize: '0.9rem', padding: '0.65rem 0.85rem' }}
+            />
+            <Button type="submit" disabled={actionLoading} style={{ whiteSpace: 'nowrap', padding: '0.65rem 1.1rem' }}>
+              Grant Retake
+            </Button>
+          </form>
         </Card>
       )}
 
-      {isHidden ? (
-        <Card padding="3rem">
-          <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-            <h2 style={{ marginBottom: '1rem' }}>Leaderboard is Hidden</h2>
-            <p>The results for this tournament are hidden by the administrator.</p>
-          </div>
-        </Card>
-      ) : (
-        <Card padding="0">
-          <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'grid', gridTemplateColumns: gridCols, fontWeight: '600', color: 'var(--text-secondary)' }}>
-            <div>Rank</div>
-            <div>Student</div>
-            {isMap ? (
-              <>
-                <div style={{ textAlign: 'center', color: 'var(--accent-primary)' }}>Score</div>
-                <div style={{ textAlign: 'center' }}>Time Elapsed</div>
-                <div style={{ textAlign: 'center' }}>Accuracy</div>
-              </>
-            ) : (isQuiz || isCrossword || isPuzzle) ? (
-              <>
-                <div style={{ textAlign: 'center', color: 'var(--accent-primary)' }}>Score</div>
-                <div style={{ textAlign: 'center' }}>{isCrossword || isPuzzle ? 'Time' : 'Correct'}</div>
-                <div style={{ textAlign: 'center' }}>Accuracy</div>
-                <div style={{ textAlign: 'center' }}>Progress</div>
-              </>
-            ) : (
-              <>
-                <div style={{ textAlign: 'center', color: 'var(--accent-primary)' }}>Score</div>
-                <div style={{ textAlign: 'center' }}>Net Speed</div>
-                <div style={{ textAlign: 'center' }}>Accuracy</div>
-                <div style={{ textAlign: 'center' }}>Chars Typed</div>
-                <div style={{ textAlign: 'center' }}>Progress</div>
-              </>
-            )}
-            <div style={{ textAlign: 'right' }}>{isManager ? 'Actions' : ''}</div>
-          </div>
-          
-          {loading ? (
-            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading scores...</div>
-          ) : leaderboard.length === 0 ? (
-            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>No scores yet. Be the first to compete!</div>
+      {/* STANDINGS TAB */}
+      {activeTab === 'standings' && (
+        <>
+          {isHidden ? (
+            <Card padding="3rem">
+              <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+                <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Leaderboard is Hidden</h2>
+                <p style={{ fontSize: '0.95rem' }}>The results for this tournament are hidden by the organizer until grading is completed.</p>
+              </div>
+            </Card>
           ) : (
             <div>
-            {leaderboard.map((entry, idx) => (
-              <React.Fragment key={entry.id}>
-                <div style={{ 
-                  padding: '1.5rem', 
-                  borderBottom: idx < leaderboard.length - 1 && expandedId !== entry.id ? '1px solid var(--glass-border)' : 'none',
-                  display: 'grid', 
-                  gridTemplateColumns: gridCols,
-                  alignItems: 'center',
-                  background: idx === 0 ? 'linear-gradient(90deg, rgba(255, 215, 0, 0.1), transparent)' : idx === 1 ? 'linear-gradient(90deg, rgba(192, 192, 192, 0.1), transparent)' : idx === 2 ? 'linear-gradient(90deg, rgba(205, 127, 50, 0.1), transparent)' : 'transparent',
-                  transition: 'background 0.2s ease',
-                  cursor: (entry.sectionDetails || (isManager && (entry.quizDetails || entry.mapDetails))) ? 'pointer' : 'default'
-                }}
-                onClick={() => { if (entry.sectionDetails || (isManager && (entry.quizDetails || entry.mapDetails))) setExpandedId(expandedId === entry.id ? null : entry.id); }}
-                onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
-                onMouseOut={(e) => { 
-                  e.currentTarget.style.background = idx === 0 ? 'linear-gradient(90deg, rgba(255, 215, 0, 0.1), transparent)' : idx === 1 ? 'linear-gradient(90deg, rgba(192, 192, 192, 0.1), transparent)' : idx === 2 ? 'linear-gradient(90deg, rgba(205, 127, 50, 0.1), transparent)' : 'transparent'; 
-                }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: '800', fontSize: '1.25rem', color: idx === 0 ? '#FFD700' : idx === 1 ? '#C0C0C0' : idx === 2 ? '#CD7F32' : 'var(--text-primary)', textShadow: idx < 3 ? '0 0 10px currentColor' : 'none' }}>
-                    #{idx + 1}
-                    {idx < 3 && <Medal size={20} />}
+              {/* Top 3 Podium Cards (when 3+ participants exist and no search filter) */}
+              {top3.length >= 3 && !searchQuery && currentPage === 1 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '1.75rem' }}>
+                  {/* 1st Place */}
+                  <div style={{ 
+                    background: 'var(--surface)', 
+                    border: '1px solid var(--border)', 
+                    borderTop: '4px solid var(--gold)',
+                    borderRadius: '12px', 
+                    padding: '1.25rem',
+                    textAlign: 'center',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                  }}>
+                    <div style={{ fontSize: '1.75rem', marginBottom: '0.25rem' }}>🥇</div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--gold)', letterSpacing: '0.05em' }}>1ST PLACE</div>
+                    <div style={{ fontSize: '1.15rem', fontWeight: '700', margin: '0.4rem 0 0.2rem', color: 'var(--text-primary)' }}>
+                      {top3[0].displayName || top3[0].studentId}
+                    </div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--primary-text)' }} className="tabular-nums">
+                      {top3[0].displayScore !== undefined ? top3[0].displayScore : top3[0].score} pts
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                      Accuracy: {top3[0].accuracy}%
+                    </div>
                   </div>
-                  <div style={{ fontWeight: '500', fontSize: '1.1rem' }}>
-                    {entry.displayName || entry.studentId}
-                    {entry.displayName && entry.displayName !== entry.studentId && (
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginLeft: '0.4rem', fontWeight: '400' }}>
-                        (@{entry.studentId})
-                      </span>
-                    )}
+
+                  {/* 2nd Place */}
+                  <div style={{ 
+                    background: 'var(--surface)', 
+                    border: '1px solid var(--border)', 
+                    borderTop: '4px solid var(--silver)',
+                    borderRadius: '12px', 
+                    padding: '1.25rem',
+                    textAlign: 'center',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                  }}>
+                    <div style={{ fontSize: '1.75rem', marginBottom: '0.25rem' }}>🥈</div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--silver)', letterSpacing: '0.05em' }}>2ND PLACE</div>
+                    <div style={{ fontSize: '1.15rem', fontWeight: '700', margin: '0.4rem 0 0.2rem', color: 'var(--text-primary)' }}>
+                      {top3[1].displayName || top3[1].studentId}
+                    </div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--primary-text)' }} className="tabular-nums">
+                      {top3[1].displayScore !== undefined ? top3[1].displayScore : top3[1].score} pts
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                      Accuracy: {top3[1].accuracy}%
+                    </div>
                   </div>
-                  
-                  {isMap ? (
-                    <>
-                      <div style={{ textAlign: 'center', fontWeight: '700', color: 'var(--accent-primary)', fontSize: '1.25rem' }}>{entry.score}</div>
-                      <div style={{ textAlign: 'center', color: 'var(--success)' }}>{entry.timeElapsed}s</div>
-                      <div style={{ textAlign: 'center', color: 'var(--accent-secondary)' }}>{entry.accuracy}%</div>
-                    </>
-                  ) : (isQuiz || isCrossword || isPuzzle) ? (
-                    <>
-                      <div style={{ textAlign: 'center', fontWeight: '700', color: 'var(--accent-primary)', fontSize: '1.25rem' }}>
-                        {isPuzzle
-                          ? `${entry.displayScore !== undefined ? entry.displayScore : (entry.score > 100000 ? Math.floor(entry.score / 100000) : entry.score)} pts`
-                          : (entry.displayScore !== undefined ? entry.displayScore : entry.score)}
-                      </div>
-                      <div style={{ textAlign: 'center', fontWeight: '500', fontSize: '1.1rem' }}>
-                        {isCrossword || isPuzzle ? `${entry.timeElapsed}s` : `${entry.correctAnswers}/${entry.totalQuestions}`}
-                      </div>
-                      <div style={{ textAlign: 'center', color: 'var(--success)' }}>{entry.accuracy}%</div>
-                      <div style={{ textAlign: 'center', color: 'var(--accent-secondary)' }}>{entry.progress || 0}%</div>
-                    </>
-                  ) : (
-                    <>
-                      <div style={{ textAlign: 'center', fontWeight: '700', color: 'var(--accent-primary)', fontSize: '1.25rem' }}>{entry.score ? Number(entry.score).toFixed(2) : ((entry.wpm * entry.accuracy) / 100).toFixed(2)}</div>
-                      <div style={{ textAlign: 'center', fontWeight: '500', fontSize: '1.1rem' }}>{entry.wpm}</div>
-                      <div style={{ textAlign: 'center', color: 'var(--success)' }}>{entry.accuracy}%</div>
-                      <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>{entry.charsTyped || 0}</div>
-                      <div style={{ textAlign: 'center', color: 'var(--accent-secondary)' }}>{entry.progress || 0}%</div>
-                    </>
-                  )}
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', color: 'var(--text-tertiary)', alignItems: 'center', gap: '0.5rem' }}>
-                    {isManager && !id.startsWith('practice-') && (
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleAllowRetake(entry.studentId);
-                        }}
-                        disabled={actionLoading}
-                        style={{
-                          background: 'rgba(239, 68, 68, 0.12)',
-                          color: '#ef4444',
-                          border: '1px solid rgba(239, 68, 68, 0.3)',
-                          padding: '0.35rem 0.65rem',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                          fontSize: '0.75rem',
-                          fontWeight: '600',
-                          whiteSpace: 'nowrap'
-                        }}
-                        title={`Give ${entry.studentId} another chance to play`}
-                      >
-                        <RotateCcw size={12} /> Retake
-                      </button>
-                    )}
-                    {(entry.sectionDetails || (isManager && (entry.quizDetails || entry.mapDetails))) && (expandedId === entry.id ? <ChevronUp size={20} /> : <ChevronDown size={20} />)}
+
+                  {/* 3rd Place */}
+                  <div style={{ 
+                    background: 'var(--surface)', 
+                    border: '1px solid var(--border)', 
+                    borderTop: '4px solid var(--bronze)',
+                    borderRadius: '12px', 
+                    padding: '1.25rem',
+                    textAlign: 'center',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                  }}>
+                    <div style={{ fontSize: '1.75rem', marginBottom: '0.25rem' }}>🥉</div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--bronze)', letterSpacing: '0.05em' }}>3RD PLACE</div>
+                    <div style={{ fontSize: '1.15rem', fontWeight: '700', margin: '0.4rem 0 0.2rem', color: 'var(--text-primary)' }}>
+                      {top3[2].displayName || top3[2].studentId}
+                    </div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--primary-text)' }} className="tabular-nums">
+                      {top3[2].displayScore !== undefined ? top3[2].displayScore : top3[2].score} pts
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                      Accuracy: {top3[2].accuracy}%
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Table Card with Search & Pagination */}
+              <Card padding="0">
+                {/* Search Bar Bar */}
+                <div style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                  <div style={{ position: 'relative', width: '100%', maxWidth: '320px' }}>
+                    <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+                    <Input 
+                      placeholder="Search participant name or ID..."
+                      value={searchQuery}
+                      onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
+                      style={{ paddingLeft: '2.25rem', padding: '0.5rem 0.75rem 0.5rem 2.25rem', fontSize: '0.875rem' }}
+                    />
+                  </div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                    Showing {paginated.length} of {filtered.length} entries
                   </div>
                 </div>
 
-                {expandedId === entry.id && entry.sectionDetails && (
-                  <div style={{ 
-                    padding: '1rem 1.5rem', 
-                    background: 'rgba(0,0,0,0.2)', 
-                    borderBottom: idx < leaderboard.length - 1 ? '1px solid var(--glass-border)' : 'none' 
-                  }}>
-                    {isQuiz ? (
-                      <>
-                        <div style={{ 
-                          display: 'grid', 
-                          gridTemplateColumns: '1fr 1fr', 
-                          gap: '1rem',
-                          padding: '0.5rem 0',
-                          borderBottom: '1px solid rgba(255,255,255,0.05)',
-                          color: 'var(--text-secondary)',
-                          fontSize: '0.875rem'
-                        }}>
-                          <div>Section</div>
-                          <div style={{ textAlign: 'center' }}>Points</div>
-                        </div>
-                        {entry.sectionDetails.map((sec, i) => (
-                          <div key={i} style={{ 
-                            display: 'grid', 
-                            gridTemplateColumns: '1fr 1fr', 
-                            gap: '1rem',
-                            padding: '0.75rem 0',
-                            borderBottom: i < entry.sectionDetails.length - 1 ? '1px dashed rgba(255,255,255,0.05)' : 'none',
-                            alignItems: 'center'
-                          }}>
-                            <div style={{ fontWeight: '500', color: 'var(--text-primary)' }}>{sec.section}</div>
-                            <div style={{ textAlign: 'center', fontWeight: '600', color: 'var(--accent-primary)' }}>{sec.score} / {sec.max}</div>
-                          </div>
-                        ))}
-                      </>
-                    ) : (
-                      <>
-                        <div style={{ 
-                          display: 'grid', 
-                          gridTemplateColumns: '150px 1fr 1fr 1fr 1fr', 
-                          gap: '1rem',
-                          padding: '0.5rem 0',
-                          borderBottom: '1px solid rgba(255,255,255,0.05)',
-                          color: 'var(--text-secondary)',
-                          fontSize: '0.875rem'
-                        }}>
-                          <div>Language</div>
-                          <div style={{ textAlign: 'center' }}>Net Speed</div>
-                          <div style={{ textAlign: 'center' }}>Accuracy</div>
-                          <div style={{ textAlign: 'center' }}>Progress</div>
-                          <div style={{ textAlign: 'center' }}>Section Score</div>
-                        </div>
-                        {entry.sectionDetails.map((sec, i) => (
-                          <div key={i} style={{ 
-                            display: 'grid', 
-                            gridTemplateColumns: '150px 1fr 1fr 1fr 1fr', 
-                            gap: '1rem',
-                            padding: '0.75rem 0',
-                            borderBottom: i < entry.sectionDetails.length - 1 ? '1px dashed rgba(255,255,255,0.05)' : 'none',
-                            alignItems: 'center'
-                          }}>
-                            <div style={{ fontWeight: '500', color: 'var(--text-primary)' }}>{sec.language}</div>
-                            <div style={{ textAlign: 'center' }}>{sec.wpm}</div>
-                            <div style={{ textAlign: 'center', color: 'var(--success)' }}>{sec.accuracy}%</div>
-                            <div style={{ textAlign: 'center', color: 'var(--accent-secondary)' }}>{sec.progress}%</div>
-                            <div style={{ textAlign: 'center', fontWeight: '600', color: 'var(--accent-primary)' }}>{sec.score ? Number(sec.score).toFixed(2) : 0}</div>
-                          </div>
-                        ))}
-                      </>
-                    )}
-                  </div>
-                )}
+                {/* Table Header */}
+                <div style={{ 
+                  padding: '0.85rem 1.25rem', 
+                  borderBottom: '1px solid var(--border)', 
+                  display: 'grid', 
+                  gridTemplateColumns: gridCols, 
+                  fontWeight: '600', 
+                  fontSize: '0.8rem',
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                  color: 'var(--text-tertiary)',
+                  background: 'var(--surface-2)'
+                }}>
+                  <div>Rank</div>
+                  <div>Candidate</div>
+                  {isMap ? (
+                    <>
+                      <div style={{ textAlign: 'center' }}>Score</div>
+                      <div style={{ textAlign: 'center' }}>Time</div>
+                      <div style={{ textAlign: 'center' }}>Accuracy</div>
+                    </>
+                  ) : (isQuiz || isCrossword || isPuzzle) ? (
+                    <>
+                      <div style={{ textAlign: 'center' }}>Score</div>
+                      <div style={{ textAlign: 'center' }}>{isCrossword || isPuzzle ? 'Time' : 'Correct'}</div>
+                      <div style={{ textAlign: 'center' }}>Accuracy</div>
+                      <div style={{ textAlign: 'center' }}>Progress</div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ textAlign: 'center' }}>Score</div>
+                      <div style={{ textAlign: 'center' }}>WPM</div>
+                      <div style={{ textAlign: 'center' }}>Accuracy</div>
+                      <div style={{ textAlign: 'center' }}>Chars</div>
+                      <div style={{ textAlign: 'center' }}>Progress</div>
+                    </>
+                  )}
+                  {isManager && <div style={{ textAlign: 'right' }}>Actions</div>}
+                </div>
 
-                {expandedId === entry.id && isManager && entry.quizDetails && (
-                  <div style={{ 
-                    padding: '1.5rem', 
-                    background: 'rgba(0,0,0,0.2)', 
-                    borderBottom: idx < leaderboard.length - 1 ? '1px solid var(--glass-border)' : 'none' 
-                  }}>
-                    <h4 style={{ marginBottom: '1rem', fontSize: '1.1rem', color: 'var(--text-secondary)' }}>Contestant's Answers</h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      {entry.quizDetails.map((q, i) => (
-                        <div key={i} style={{ 
-                          padding: '1rem',
-                          background: 'rgba(255,255,255,0.02)',
-                          borderLeft: `3px solid ${q.isCorrect ? 'var(--success)' : 'var(--error)'}`,
-                          borderRadius: '0 8px 8px 0'
-                        }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                            <div>
-                              {q.section && <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--accent-primary)', letterSpacing: '0.5px', marginBottom: '0.25rem' }}>{q.section}</div>}
-                              <div style={{ fontWeight: '600' }}>Q{i+1}: {q.question}</div>
+                {/* Table Body */}
+                {loading ? (
+                  <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading leaderboard scores...</div>
+                ) : filtered.length === 0 ? (
+                  <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                    {searchQuery ? `No candidates found matching "${searchQuery}".` : 'No scores recorded yet. Be the first to compete!'}
+                  </div>
+                ) : (
+                  <div>
+                    {paginated.map((entry, idx) => {
+                      const absoluteRank = (currentPage - 1) * pageSize + idx + 1;
+                      const isMyRow = myStudentId && entry.studentId.toLowerCase() === myStudentId;
+
+                      return (
+                        <React.Fragment key={entry.id}>
+                          <div 
+                            style={{ 
+                              padding: '0.9rem 1.25rem', 
+                              borderBottom: idx < paginated.length - 1 && expandedId !== entry.id ? '1px solid var(--border)' : 'none',
+                              display: 'grid', 
+                              gridTemplateColumns: gridCols,
+                              alignItems: 'center',
+                              background: isMyRow ? 'rgba(79, 70, 229, 0.08)' : 'transparent',
+                              borderLeft: isMyRow ? '4px solid var(--primary)' : '4px solid transparent',
+                              transition: 'background-color 0.15s ease',
+                              cursor: (entry.sectionDetails || (isManager && (entry.quizDetails || entry.mapDetails))) ? 'pointer' : 'default',
+                              fontSize: '0.95rem'
+                            }}
+                            onClick={() => {
+                              if (entry.sectionDetails || (isManager && (entry.quizDetails || entry.mapDetails))) {
+                                setExpandedId(expandedId === entry.id ? null : entry.id);
+                              }
+                            }}
+                            onMouseOver={(e) => { e.currentTarget.style.backgroundColor = 'var(--surface-2)'; }}
+                            onMouseOut={(e) => { e.currentTarget.style.backgroundColor = isMyRow ? 'rgba(79, 70, 229, 0.08)' : 'transparent'; }}
+                          >
+                            <div style={{ 
+                              fontWeight: '700', 
+                              fontSize: '0.95rem',
+                              color: absoluteRank === 1 ? 'var(--gold)' : absoluteRank === 2 ? 'var(--silver)' : absoluteRank === 3 ? 'var(--bronze)' : 'var(--text-secondary)'
+                            }} className="tabular-nums">
+                              #{absoluteRank}
                             </div>
-                            <div style={{ fontSize: '0.85rem', color: q.isCorrect ? 'var(--success)' : 'var(--error)' }}>
-                              {q.pointsAwarded} / {q.maxPoints} pts
+
+                            <div style={{ fontWeight: isMyRow ? '700' : '500', color: 'var(--text-primary)' }}>
+                              {entry.displayName || entry.studentId}
+                              {entry.displayName && entry.displayName !== entry.studentId && (
+                                <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginLeft: '0.35rem' }}>
+                                  (@{entry.studentId})
+                                </span>
+                              )}
+                              {isMyRow && (
+                                <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', padding: '0.15rem 0.45rem', borderRadius: '4px', background: 'var(--primary)', color: 'white', fontWeight: '700' }}>
+                                  YOU
+                                </span>
+                              )}
                             </div>
-                          </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.9rem' }}>
-                            <div>
-                              <span style={{ color: 'var(--text-tertiary)' }}>User Answer: </span>
-                              <span style={{ color: q.isCorrect ? 'var(--success)' : 'var(--error)' }}>{q.userAnswer}</span>
-                            </div>
-                            {!q.isCorrect && (
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div>
-                                  <span style={{ color: 'var(--text-tertiary)' }}>Correct Answer: </span>
-                                  <span style={{ color: 'var(--success)' }}>{q.correctAnswer}</span>
+
+                            {/* Format-Specific Columns */}
+                            {isMap ? (
+                              <>
+                                <div style={{ textAlign: 'center', fontWeight: '700', color: 'var(--text-primary)' }} className="tabular-nums">{entry.score}</div>
+                                <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }} className="tabular-nums">{entry.timeElapsed}s</div>
+                                <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }} className="tabular-nums">{entry.accuracy}%</div>
+                              </>
+                            ) : (isQuiz || isCrossword || isPuzzle) ? (
+                              <>
+                                <div style={{ textAlign: 'center', fontWeight: '700', color: 'var(--text-primary)' }} className="tabular-nums">
+                                  {isPuzzle
+                                    ? `${entry.displayScore !== undefined ? entry.displayScore : (entry.score > 100000 ? Math.floor(entry.score / 100000) : entry.score)} pts`
+                                    : (entry.displayScore !== undefined ? entry.displayScore : entry.score)}
                                 </div>
-                                <button 
-                                  onClick={(e) => { e.stopPropagation(); handleGrantMarks(entry.id, i); }}
-                                  style={{
-                                    padding: '0.25rem 0.75rem',
-                                    fontSize: '0.75rem',
-                                    background: 'rgba(34, 197, 94, 0.1)',
-                                    color: 'var(--success)',
-                                    border: '1px solid rgba(34, 197, 94, 0.3)',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
-                                    fontWeight: '500'
-                                  }}
-                                  onMouseOver={(e) => e.target.style.background = 'rgba(34, 197, 94, 0.2)'}
-                                  onMouseOut={(e) => e.target.style.background = 'rgba(34, 197, 94, 0.1)'}
-                                >
-                                  Override Marks
-                                </button>
+                                <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }} className="tabular-nums">
+                                  {isCrossword || isPuzzle ? `${entry.timeElapsed}s` : `${entry.correctAnswers}/${entry.totalQuestions}`}
+                                </div>
+                                <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }} className="tabular-nums">{entry.accuracy}%</div>
+                                <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }} className="tabular-nums">{entry.progress || 0}%</div>
+                              </>
+                            ) : (
+                              <>
+                                <div style={{ textAlign: 'center', fontWeight: '700', color: 'var(--text-primary)' }} className="tabular-nums">
+                                  {entry.score ? Number(entry.score).toFixed(1) : ((entry.wpm * entry.accuracy) / 100).toFixed(1)}
+                                </div>
+                                <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }} className="tabular-nums">{entry.wpm}</div>
+                                <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }} className="tabular-nums">{entry.accuracy}%</div>
+                                <div style={{ textAlign: 'center', color: 'var(--text-tertiary)' }} className="tabular-nums">{entry.charsTyped || 0}</div>
+                                <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }} className="tabular-nums">{entry.progress || 0}%</div>
+                              </>
+                            )}
+
+                            {/* Manager Actions */}
+                            {isManager && (
+                              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem' }}>
+                                {!id.startsWith('practice-') && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleAllowRetake(entry.studentId);
+                                    }}
+                                    disabled={actionLoading}
+                                    style={{
+                                      background: 'rgba(239, 68, 68, 0.1)',
+                                      color: 'var(--danger)',
+                                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                                      padding: '0.3rem 0.6rem',
+                                      borderRadius: '6px',
+                                      fontSize: '0.75rem',
+                                      fontWeight: '600',
+                                      cursor: 'pointer'
+                                    }}
+                                    title="Reset attempt"
+                                  >
+                                    Reset
+                                  </button>
+                                )}
                               </div>
                             )}
                           </div>
-                        </div>
-                      ))}
-                    </div>
+
+                          {/* Expanded Detail Rows */}
+                          {expandedId === entry.id && (
+                            <div style={{ padding: '1.25rem', background: 'var(--surface-2)', borderBottom: '1px solid var(--border)' }}>
+                              {/* Typing Sections */}
+                              {entry.sectionDetails && (
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem' }}>
+                                  {entry.sectionDetails.map((sec, sIdx) => (
+                                    <div key={sIdx} style={{ background: 'var(--surface)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                                      <div style={{ fontWeight: '700', fontSize: '0.85rem' }}>{sec.language || `Part ${sIdx + 1}`}</div>
+                                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                                        Speed: <strong>{sec.wpm} WPM</strong> • Acc: <strong>{sec.accuracy}%</strong>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Quiz Breakdown with Grant Marks for Managers */}
+                              {isManager && entry.quizDetails && (
+                                <div>
+                                  <div style={{ fontWeight: '700', fontSize: '0.9rem', marginBottom: '0.75rem' }}>Question-by-Question Grading:</div>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    {entry.quizDetails.map((qd, qIdx) => (
+                                      <div key={qIdx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                                        <div style={{ fontSize: '0.85rem', flex: 1 }}>
+                                          <strong>Q{qIdx + 1}:</strong> {qd.question}
+                                          <div style={{ color: qd.isCorrect ? 'var(--success)' : 'var(--danger)', fontSize: '0.8rem', marginTop: '0.1rem' }}>
+                                            Answer: "{qd.userAnswer}" {qd.isCorrect ? '✓ Correct' : `✗ (Expected: "${qd.correctAnswer}")`}
+                                          </div>
+                                        </div>
+                                        {!qd.isCorrect && (
+                                          <Button onClick={() => handleGrantMarks(entry.id, qIdx)} style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}>
+                                            Grant Mark
+                                          </Button>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
                   </div>
                 )}
 
-                {expandedId === entry.id && isManager && entry.mapDetails && (
-                  <div style={{ 
-                    padding: '1.5rem', 
-                    background: 'rgba(0,0,0,0.2)', 
-                    borderBottom: idx < leaderboard.length - 1 ? '1px solid var(--glass-border)' : 'none' 
-                  }}>
-                    <h4 style={{ marginBottom: '1rem', fontSize: '1.1rem', color: 'var(--text-secondary)' }}>Contestant's Map Spottings</h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      {entry.mapDetails.map((loc, i) => (
-                        <div key={i} style={{ 
-                          padding: '1rem',
-                          background: 'rgba(255,255,255,0.02)',
-                          borderLeft: `3px solid ${loc.isCorrect ? 'var(--success)' : 'var(--error)'}`,
-                          borderRadius: '0 8px 8px 0',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center'
-                        }}>
-                          <div style={{ fontWeight: '600' }}>{loc.prompt}</div>
-                          <div style={{ fontSize: '0.9rem', color: loc.isCorrect ? 'var(--success)' : 'var(--error)' }}>
-                            {loc.isCorrect ? 'Found' : 'Missed'} ({Math.round(loc.distanceKm)} km away)
-                          </div>
-                        </div>
-                      ))}
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div style={{ padding: '1rem 1.25rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Button 
+                      variant="secondary"
+                      onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                      disabled={currentPage === 1}
+                      style={{ padding: '0.45rem 0.85rem', fontSize: '0.85rem' }}
+                    >
+                      ← Previous
+                    </Button>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      Page {currentPage} of {totalPages}
                     </div>
+                    <Button 
+                      variant="secondary"
+                      onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      style={{ padding: '0.45rem 0.85rem', fontSize: '0.85rem' }}
+                    >
+                      Next →
+                    </Button>
                   </div>
                 )}
-              </React.Fragment>
-            ))}
-          </div>
-        )}
-        </Card>
+              </Card>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import Card from '../components/ui/Card';
+import Button from '../components/ui/Button';
 import { dbService } from '../services/db';
-import { History, ArrowLeft } from 'lucide-react';
+import { Clock, ArrowLeft, Trophy } from 'lucide-react';
 
 const StudentHistory = () => {
   const [history, setHistory] = useState([]);
@@ -24,7 +25,12 @@ const StudentHistory = () => {
           dbService.getTournaments()
         ]);
         const map = {};
-        tournaments.forEach(t => { map[t.id] = t.name; });
+        tournaments.forEach(t => { 
+          map[t.id] = {
+            name: t.name,
+            gameType: t.gameType || 'typing'
+          }; 
+        });
         setTournamentsMap(map);
         setHistory(data);
       } catch (err) {
@@ -37,84 +43,243 @@ const StudentHistory = () => {
     fetchHistory();
   }, [navigate, studentId]);
 
+  const getFormatLabel = (entry) => {
+    const tInfo = tournamentsMap[entry.competitionId];
+    if (tInfo?.gameType) {
+      const type = tInfo.gameType;
+      if (type === 'typing') return 'Typing';
+      if (type === 'quiz') return 'Quiz';
+      if (type === 'logic-puzzle') return 'Logic Puzzle';
+      if (type === 'crossword') return 'Crossword';
+      if (type === 'map') return 'Map Spotting';
+      return type;
+    }
+    if (entry.competitionId.startsWith('practice-')) {
+      const pName = entry.competitionId.replace('practice-', '');
+      return `${pName.charAt(0).toUpperCase() + pName.slice(1)} Practice`;
+    }
+    if (entry.wpm !== undefined) return 'Typing';
+    if (entry.puzzlesSolved !== undefined) return 'Logic Puzzle';
+    if (entry.wordsFound !== undefined) return 'Crossword';
+    return 'Competition';
+  };
+
+  const getTournamentTitle = (entry) => {
+    const tInfo = tournamentsMap[entry.competitionId];
+    if (tInfo?.name) return tInfo.name;
+    if (entry.competitionId.startsWith('practice-')) {
+      const pName = entry.competitionId.replace('practice-', '');
+      return `${pName.charAt(0).toUpperCase() + pName.slice(1)} Solo Practice`;
+    }
+    return `Match #${entry.competitionId.slice(0, 6)}`;
+  };
+
   const getScoreDisplay = (entry) => {
-    if (entry.abandoned) return '0.0 (Abandoned)';
-    if (entry.displayScore !== undefined) return `${entry.displayScore} pts`;
-    if (entry.score !== undefined && !entry.wpm) return `${entry.score} pts`;
-    if (entry.wpm !== undefined) return ((entry.wpm * (entry.accuracy || 0)) / 100).toFixed(1);
-    return entry.score || 0;
+    if (entry.abandoned) return { main: '0.0', sub: 'Abandoned', isDanger: true };
+    if (entry.displayScore !== undefined) return { main: `${entry.displayScore}`, sub: 'pts' };
+    if (entry.score !== undefined && !entry.wpm) return { main: `${entry.score}`, sub: 'pts' };
+    if (entry.wpm !== undefined) {
+      const net = ((entry.wpm * (entry.accuracy || 0)) / 100).toFixed(1);
+      return { main: net, sub: 'Net WPM' };
+    }
+    return { main: `${entry.score || 0}`, sub: 'pts' };
   };
 
   return (
-    <div className="container" style={{ maxWidth: '900px' }}>
+    <div className="container" style={{ maxWidth: '960px', margin: '0 auto', padding: '1rem' }}>
       <div style={{ marginBottom: '2rem' }}>
-        <Link to="/dashboard" style={{ color: 'var(--text-secondary)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+        <Link 
+          to="/dashboard" 
+          style={{ 
+            color: 'var(--text-secondary)', 
+            textDecoration: 'none', 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: '0.5rem', 
+            marginBottom: '1rem',
+            fontSize: '0.9rem',
+            fontWeight: '500'
+          }}
+        >
           <ArrowLeft size={16} /> Back to Dashboard
         </Link>
-        <h1 style={{ fontSize: '2.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <History className="text-gradient" size={40} /> My History
-        </h1>
-        <p style={{ color: 'var(--text-secondary)', fontSize: '1.25rem' }}>Track your performance across all competitions and practice tests.</p>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h1 style={{ fontSize: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem', margin: 0, fontWeight: '700' }}>
+              <Clock style={{ color: 'var(--primary-text)' }} size={32} /> Competition History
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', marginTop: '0.4rem', marginBottom: 0 }}>
+              Performance summary across your tournament matches and practice drills.
+            </p>
+          </div>
+          {history.length > 0 && (
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.5rem 1rem',
+              background: 'var(--surface-2)',
+              border: '1px solid var(--border)',
+              borderRadius: '9999px',
+              fontSize: '0.85rem',
+              color: 'var(--text-secondary)'
+            }}>
+              <Trophy size={16} style={{ color: 'var(--gold)' }} />
+              <span><strong>{history.length}</strong> total matches</span>
+            </div>
+          )}
+        </div>
       </div>
 
-      <Card padding="0" style={{ overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto', width: '100%' }}>
-          <div style={{ minWidth: '700px' }}>
-            <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--glass-border)', display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr 1fr 1fr', fontWeight: '600', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-              <div>Competition</div>
-              <div>Date</div>
-              <div style={{ textAlign: 'center', color: 'var(--accent-primary)' }}>Score</div>
-              <div style={{ textAlign: 'center' }}>WPM</div>
-              <div style={{ textAlign: 'center' }}>Accuracy</div>
-              <div style={{ textAlign: 'center' }}>Chars</div>
-              <div style={{ textAlign: 'center' }}>Progress</div>
-            </div>
-            
-            {loading ? (
-              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Loading history...</div>
-            ) : history.length === 0 ? (
-              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>You haven't participated in any competitions yet.</div>
-            ) : (
-              <div>
-                {history.map((entry, idx) => (
-                  <div key={idx} style={{ 
-                    padding: '1.25rem 1.5rem', 
-                    borderBottom: idx < history.length - 1 ? '1px solid var(--glass-border)' : 'none',
-                    display: 'grid', 
-                    gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr 1fr 1fr',
-                    alignItems: 'center',
-                    fontSize: '0.95rem'
-                  }}>
-                    <div style={{ fontWeight: '600', fontSize: '1rem', color: 'var(--text-primary)' }}>
-                      {tournamentsMap[entry.competitionId] || (entry.competitionId.startsWith('practice-') ? 
-                        entry.competitionId.replace('practice-', '').charAt(0).toUpperCase() + entry.competitionId.replace('practice-', '').slice(1) + ' Practice' 
-                        : 'Tournament ' + entry.competitionId.substring(0, 6))}
-                    </div>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                      {new Date(entry.date).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                    <div style={{ textAlign: 'center', fontWeight: '700', color: 'var(--accent-primary)', fontSize: '1.15rem' }}>
-                      {getScoreDisplay(entry)}
-                    </div>
-                    <div style={{ textAlign: 'center', fontWeight: '500' }}>
-                      {entry.wpm !== undefined ? entry.wpm : '-'}
-                    </div>
-                    <div style={{ textAlign: 'center', color: 'var(--success)' }}>
-                      {entry.accuracy !== undefined ? `${entry.accuracy}%` : '-'}
-                    </div>
-                    <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
-                      {entry.charsTyped || entry.correctAnswers || '-'}
-                    </div>
-                    <div style={{ textAlign: 'center', color: 'var(--accent-secondary)' }}>
-                      {entry.progress || 0}%
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+      {loading ? (
+        <Card style={{ padding: '3.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+            <div className="spinner" style={{ width: '32px', height: '32px', border: '3px solid var(--border)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            <span>Loading match history...</span>
           </div>
-        </div>
-      </Card>
+        </Card>
+      ) : history.length === 0 ? (
+        <Card style={{ padding: '3.5rem 2rem', textAlign: 'center' }}>
+          <div style={{ maxWidth: '420px', margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ 
+              width: '56px', 
+              height: '56px', 
+              borderRadius: '16px', 
+              background: 'var(--surface-2)', 
+              border: '1px solid var(--border)',
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              color: 'var(--text-secondary)' 
+            }}>
+              <Clock size={28} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.35rem' }}>No match records yet</h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.5', margin: 0 }}>
+                Jump into an active tournament or sharpen your skills in the Solo Practice Hub. Your scores will appear here automatically.
+              </p>
+            </div>
+            <Button variant="primary" onClick={() => navigate('/dashboard')} style={{ marginTop: '0.5rem' }}>
+              Browse Tournaments
+            </Button>
+          </div>
+        </Card>
+      ) : (
+        <Card padding="0" style={{ overflow: 'hidden' }}>
+          {/* Desktop Table View */}
+          <div className="desktop-history-table" style={{ width: '100%', overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: '640px' }}>
+              <thead>
+                <tr style={{ background: 'var(--surface-2)', borderBottom: '1px solid var(--border)', fontSize: '0.825rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <th style={{ padding: '0.875rem 1.25rem', fontWeight: '600' }}>Competition / Match</th>
+                  <th style={{ padding: '0.875rem 1rem', fontWeight: '600' }}>Format</th>
+                  <th style={{ padding: '0.875rem 1rem', fontWeight: '600' }}>Date</th>
+                  <th style={{ padding: '0.875rem 1rem', fontWeight: '600', textAlign: 'right' }}>Score</th>
+                  <th style={{ padding: '0.875rem 1.25rem', fontWeight: '600', textAlign: 'right' }}>Key Metrics</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((entry, idx) => {
+                  const score = getScoreDisplay(entry);
+                  const isLast = idx === history.length - 1;
+                  return (
+                    <tr 
+                      key={idx} 
+                      style={{ 
+                        borderBottom: isLast ? 'none' : '1px solid var(--border)',
+                        transition: 'background 0.15s ease'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-2)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <td style={{ padding: '1rem 1.25rem' }}>
+                        <div style={{ fontWeight: '600', color: 'var(--text)', fontSize: '0.95rem' }}>
+                          {getTournamentTitle(entry)}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.2rem' }}>
+                          ID: {entry.competitionId.slice(0, 14)}
+                        </div>
+                      </td>
+
+                      <td style={{ padding: '1rem 1rem' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '0.25rem 0.65rem',
+                          borderRadius: '6px',
+                          background: 'var(--surface-2)',
+                          border: '1px solid var(--border)',
+                          fontSize: '0.775rem',
+                          fontWeight: '600',
+                          color: 'var(--text-secondary)'
+                        }}>
+                          {getFormatLabel(entry)}
+                        </span>
+                      </td>
+
+                      <td style={{ padding: '1rem 1rem', color: 'var(--text-secondary)', fontSize: '0.85rem', fontVariantNumeric: 'tabular-nums' }}>
+                        {new Date(entry.date).toLocaleString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </td>
+
+                      <td style={{ padding: '1rem 1rem', textAlign: 'right' }}>
+                        <div style={{
+                          fontWeight: '700',
+                          fontSize: '1.1rem',
+                          fontVariantNumeric: 'tabular-nums',
+                          color: score.isDanger ? 'var(--danger)' : 'var(--primary-text)'
+                        }}>
+                          {score.main}
+                        </div>
+                        <div style={{ fontSize: '0.725rem', color: 'var(--text-tertiary)' }}>
+                          {score.sub}
+                        </div>
+                      </td>
+
+                      <td style={{ padding: '1rem 1.25rem', textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', gap: '0.75rem', justifyContent: 'flex-end', fontSize: '0.825rem', fontVariantNumeric: 'tabular-nums' }}>
+                          {entry.wpm !== undefined && (
+                            <span title="Raw WPM">
+                              <span style={{ color: 'var(--text-tertiary)' }}>Raw: </span>
+                              <strong>{entry.wpm}</strong>
+                            </span>
+                          )}
+                          {entry.accuracy !== undefined && (
+                            <span title="Accuracy" style={{ color: 'var(--success)' }}>
+                              <strong>{entry.accuracy}%</strong>
+                            </span>
+                          )}
+                          {entry.correctAnswers !== undefined && (
+                            <span title="Correct Answers">
+                              <span style={{ color: 'var(--text-tertiary)' }}>Correct: </span>
+                              <strong>{entry.correctAnswers}</strong>
+                            </span>
+                          )}
+                          {entry.puzzlesSolved !== undefined && (
+                            <span title="Puzzles Solved">
+                              <span style={{ color: 'var(--text-tertiary)' }}>Solved: </span>
+                              <strong>{entry.puzzlesSolved}</strong>
+                            </span>
+                          )}
+                          {entry.progress !== undefined && (
+                            <span title="Completion Progress" style={{ color: 'var(--text-secondary)' }}>
+                              {entry.progress}%
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
     </div>
   );
 };
