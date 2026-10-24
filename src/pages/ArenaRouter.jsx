@@ -224,24 +224,38 @@ const ArenaRouter = () => {
   if (!gameType) return <div className="page-wrapper" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>Loading...</div>;
   
   if (!hasStarted) {
+    const isPractice = id.startsWith('practice-');
     return (
       <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '70vh' }}>
-        <Card style={{ padding: '3rem', textAlign: 'center', maxWidth: '500px', width: '100%' }}>
-          <h2 style={{ fontSize: '2rem', marginBottom: '1rem', color: 'var(--text-primary)' }}>Ready to begin?</h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', fontSize: '1.1rem' }}>
+        <Card style={{ padding: '2.5rem 2rem', textAlign: 'center', maxWidth: '480px', width: '100%' }}>
+          <h2 style={{ fontSize: '1.75rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+            Ready to begin?
+          </h2>
+          <div style={{ display: 'inline-block', padding: '0.25rem 0.75rem', borderRadius: '20px', background: 'var(--surface-2)', border: '1px solid var(--border)', fontSize: '0.85rem', fontWeight: '600', color: 'var(--primary-text)', margin: '0 auto 1.25rem' }}>
+            {(gameType || 'competition').toUpperCase()}
+          </div>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '1rem', lineHeight: '1.6' }}>
             You are about to enter <strong>{tournamentName}</strong>.
-            <br/><br/>
-            <strong>Important:</strong> Once you start, you must complete the tournament. Exiting full screen, switching tabs, or leaving the page will automatically submit your score or disqualify you.
           </p>
-          <Button onClick={handleStart} style={{ fontSize: '1.25rem', padding: '1rem 2rem', width: '100%' }}>
-            Enter Full Screen & Start
-          </Button>
-          <button 
-            onClick={() => navigate('/dashboard')}
-            style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', marginTop: '1.5rem', cursor: 'pointer', textDecoration: 'underline' }}
-          >
-            Cancel and return to Dashboard
-          </button>
+
+          {isPractice ? (
+            <div style={{ padding: '0.85rem 1rem', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem', textAlign: 'left' }}>
+              🎯 <strong>Practice Mode:</strong> No anti-cheat or disqualification rules apply. Take your time to train and explore.
+            </div>
+          ) : (
+            <div style={{ padding: '0.85rem 1rem', background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '8px', color: 'var(--warning)', fontSize: '0.85rem', marginBottom: '1.5rem', textAlign: 'left' }}>
+              ⚠️ <strong>Competition Rules:</strong> Full screen is required. Exiting fullscreen or switching tabs will automatically lock and submit your attempt.
+            </div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <Button onClick={handleStart} style={{ fontSize: '1.05rem', padding: '0.85rem', width: '100%' }}>
+              {isPractice ? 'Start Practice' : 'Enter Full Screen & Start'}
+            </Button>
+            <Button variant="secondary" onClick={() => navigate('/dashboard')} style={{ width: '100%' }}>
+              Return to Dashboard
+            </Button>
+          </div>
         </Card>
       </div>
     );

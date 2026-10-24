@@ -1,15 +1,18 @@
 import React from 'react';
 
-const Card = ({ children, className = '', padding = '2rem', hoverEffect = false, style: externalStyle = {}, ...props }) => {
+const Card = ({ children, className = '', padding = '1.75rem', hoverEffect = false, style: externalStyle = {}, ...props }) => {
   const style = {
     padding: padding,
     display: 'flex',
     flexDirection: 'column',
-    gap: '1.5rem',
-    transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+    gap: '1.25rem',
+    borderRadius: '12px',
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    transition: 'border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease',
     position: 'relative',
     overflow: 'hidden',
-    ...externalStyle, // Merge external styles correctly
+    ...externalStyle,
   };
 
   return (
@@ -17,22 +20,21 @@ const Card = ({ children, className = '', padding = '2rem', hoverEffect = false,
       className={`glass-panel animate-fade-in ${className}`} 
       style={style} 
       onMouseOver={(e) => {
-        if(hoverEffect) {
-          e.currentTarget.style.transform = 'translateY(-4px)';
-          e.currentTarget.style.boxShadow = '0 20px 40px -10px rgba(99,102,241,0.2), var(--glass-shadow)';
-          e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)';
+        if (hoverEffect) {
+          e.currentTarget.style.transform = 'translateY(-2px)';
+          e.currentTarget.style.borderColor = 'var(--accent-primary)';
+          e.currentTarget.style.boxShadow = '0 12px 24px -10px rgba(0, 0, 0, 0.2)';
         }
       }}
       onMouseOut={(e) => {
-        if(hoverEffect) {
+        if (hoverEffect) {
           e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.borderColor = 'var(--border)';
           e.currentTarget.style.boxShadow = 'var(--glass-shadow)';
-          e.currentTarget.style.borderColor = 'var(--glass-border)';
         }
       }}
       {...props}
     >
-      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)' }} />
       {children}
     </div>
   );

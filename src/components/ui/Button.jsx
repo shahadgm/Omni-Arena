@@ -1,38 +1,43 @@
 import React from 'react';
 
-const Button = ({ children, variant = 'primary', className = '', style = {}, ...props }) => {
+const Button = ({ children, variant = 'primary', className = '', style = {}, disabled = false, ...props }) => {
   const baseStyle = {
-    padding: '0.75rem 1.5rem',
+    padding: '0.75rem 1.25rem',
     borderRadius: '8px',
     fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    opacity: disabled ? 0.6 : 1,
+    transition: 'background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease',
     border: 'none',
     outline: 'none',
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
     gap: '0.5rem',
+    fontFamily: 'inherit',
+    fontSize: '0.95rem',
   };
 
   const variants = {
     primary: {
-      background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))',
-      color: 'white',
-      boxShadow: '0 4px 14px 0 rgba(99, 102, 241, 0.39), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
-      textShadow: '0 1px 2px rgba(0,0,0,0.2)',
+      background: 'var(--primary)',
+      color: '#ffffff',
+      border: '1px solid transparent',
     },
     secondary: {
-      background: 'rgba(255, 255, 255, 0.05)',
+      background: 'var(--surface-2)',
       color: 'var(--text-primary)',
-      border: '1px solid rgba(255, 255, 255, 0.08)',
-      boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+      border: '1px solid var(--border)',
+    },
+    ghost: {
+      background: 'transparent',
+      color: 'var(--text-primary)',
+      border: '1px solid transparent',
     },
     danger: {
-      background: 'rgba(239, 68, 68, 0.1)',
-      color: 'var(--error)',
-      border: '1px solid rgba(239, 68, 68, 0.2)',
-      boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+      background: 'rgba(239, 68, 68, 0.12)',
+      color: 'var(--danger)',
+      border: '1px solid rgba(239, 68, 68, 0.3)',
     }
   };
 
@@ -40,13 +45,18 @@ const Button = ({ children, variant = 'primary', className = '', style = {}, ...
     <button 
       style={{ ...baseStyle, ...variants[variant], ...style }} 
       className={className}
+      disabled={disabled}
       onMouseOver={(e) => {
-        if(variant === 'primary') e.currentTarget.style.transform = 'translateY(-2px)';
-        if(variant === 'secondary') e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+        if (disabled) return;
+        if (variant === 'primary') e.currentTarget.style.backgroundColor = 'var(--primary-hover)';
+        if (variant === 'secondary') e.currentTarget.style.backgroundColor = 'var(--border)';
+        if (variant === 'ghost') e.currentTarget.style.backgroundColor = 'var(--surface-2)';
       }}
       onMouseOut={(e) => {
-        if(variant === 'primary') e.currentTarget.style.transform = 'translateY(0)';
-        if(variant === 'secondary') e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+        if (disabled) return;
+        if (variant === 'primary') e.currentTarget.style.backgroundColor = 'var(--primary)';
+        if (variant === 'secondary') e.currentTarget.style.backgroundColor = 'var(--surface-2)';
+        if (variant === 'ghost') e.currentTarget.style.backgroundColor = 'transparent';
       }}
       {...props}
     >

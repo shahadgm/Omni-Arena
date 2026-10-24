@@ -1,6 +1,6 @@
 import React, { forwardRef, useId } from 'react';
 
-const Input = forwardRef(({ label, error, id, className = '', ...props }, ref) => {
+const Input = forwardRef(({ label, error, id, className = '', style: externalStyle = {}, ...props }, ref) => {
   const generatedId = useId();
   const inputId = id || (label ? `input-${generatedId}` : undefined);
   const errorId = error && inputId ? `error-${inputId}` : undefined;
@@ -8,7 +8,7 @@ const Input = forwardRef(({ label, error, id, className = '', ...props }, ref) =
   const containerStyle = {
     display: 'flex',
     flexDirection: 'column',
-    gap: '0.5rem',
+    gap: '0.4rem',
     width: '100%',
   };
 
@@ -20,21 +20,22 @@ const Input = forwardRef(({ label, error, id, className = '', ...props }, ref) =
 
   const inputStyle = {
     padding: '0.75rem 1rem',
-    borderRadius: '10px',
-    background: 'rgba(10, 10, 15, 0.5)',
-    border: `1px solid ${error ? 'var(--error)' : 'rgba(255,255,255,0.08)'}`,
+    borderRadius: '8px',
+    background: 'var(--surface-2)',
+    border: `1px solid ${error ? 'var(--error)' : 'var(--border)'}`,
     color: 'var(--text-primary)',
     fontSize: '1rem',
     outline: 'none',
-    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
     fontFamily: 'inherit',
     width: '100%',
-    boxShadow: 'inset 0 2px 5px rgba(0,0,0,0.2)',
+    ...externalStyle, // Merged cleanly so base input attributes are preserved
   };
 
   const errorStyle = {
     fontSize: '0.75rem',
     color: 'var(--error)',
+    marginTop: '0.2rem',
   };
 
   return (
@@ -47,15 +48,15 @@ const Input = forwardRef(({ label, error, id, className = '', ...props }, ref) =
         aria-invalid={Boolean(error)}
         aria-describedby={errorId}
         onFocus={(e) => {
-          if(!error) {
+          if (!error) {
             e.target.style.borderColor = 'var(--accent-primary)';
-            e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.2), inset 0 2px 5px rgba(0,0,0,0.2)';
+            e.target.style.boxShadow = '0 0 0 3px var(--accent-glow)';
           }
         }}
         onBlur={(e) => {
-          if(!error) {
-            e.target.style.borderColor = 'rgba(255,255,255,0.08)';
-            e.target.style.boxShadow = 'inset 0 2px 5px rgba(0,0,0,0.2)';
+          if (!error) {
+            e.target.style.borderColor = 'var(--border)';
+            e.target.style.boxShadow = 'none';
           }
         }}
         {...props} 

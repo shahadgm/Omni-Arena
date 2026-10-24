@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../services/db';
-import { Keyboard, LogOut, Shield, Sun, Moon, PlusCircle, Trophy, User, Menu, X } from 'lucide-react';
+import { Keyboard, LogOut, Shield, Sun, Moon, PlusCircle, Trophy, User, Menu, X, Clock } from 'lucide-react';
 
 const Navbar = ({ theme, toggleTheme }) => {
   const navigate = useNavigate();
@@ -113,7 +113,7 @@ const Navbar = ({ theme, toggleTheme }) => {
               </Link>
 
               <Link to="/history" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
-                <Keyboard size={16} /> History
+                <Clock size={16} /> History
               </Link>
 
               {isAdmin && (
@@ -210,7 +210,7 @@ const Navbar = ({ theme, toggleTheme }) => {
                 <PlusCircle size={18} color="var(--accent-primary)" /> Host Tournament
               </Link>
               <Link to="/history" style={mobileLinkItemStyle} onClick={() => setMobileMenuOpen(false)}>
-                <Keyboard size={18} color="var(--accent-primary)" /> My History
+                <Clock size={18} color="var(--accent-primary)" /> My History
               </Link>
               {isAdmin && (
                 <Link to="/admin/dashboard" style={mobileLinkItemStyle} onClick={() => setMobileMenuOpen(false)}>
