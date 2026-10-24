@@ -63,13 +63,19 @@ const CreateTournament = () => {
       navigate('/');
       return;
     }
+    if (!id && authService.isGuest()) {
+      alert("Guests cannot host tournaments. Please sign in with an account.");
+      navigate('/dashboard');
+      return;
+    }
     if (id) {
       const fetchT = async () => {
         const t = await dbService.getTournament(id);
         if (t) {
           const currentUser = authService.getCurrentUser();
           const isAdmin = authService.isAdmin();
-          const isOwner = currentUser && t.createdBy && t.createdBy.toLowerCase() === currentUser.username.toLowerCase();
+          const isGuest = authService.isGuest();
+          const isOwner = !isGuest && currentUser && t.createdBy && t.createdBy.toLowerCase() === currentUser.username.toLowerCase();
           if (!isAdmin && !isOwner) {
             alert("You do not have permission to edit this tournament.");
             navigate('/dashboard');

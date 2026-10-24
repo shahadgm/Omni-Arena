@@ -10,7 +10,8 @@ const Navbar = ({ theme, toggleTheme }) => {
   const isAdmin = authService.isAdmin();
   const currentUser = authService.getCurrentUser();
   const isAuthenticated = authService.isAuthenticated();
-  const displayName = currentUser?.displayName || currentUser?.username || localStorage.getItem('displayName') || localStorage.getItem('studentId');
+  const rawDisplayName = currentUser?.displayName || localStorage.getItem('displayName') || currentUser?.username || localStorage.getItem('studentId');
+  const displayName = rawDisplayName ? rawDisplayName.replace(/^guest:/, '') : 'Contestant';
 
   // Close mobile menu on route change
   useEffect(() => {

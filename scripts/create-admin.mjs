@@ -1,17 +1,37 @@
-import { initializeApp } from 'firebase/app';
-import { getFirestore, doc, setDoc } from 'firebase/firestore';
+import admin from 'firebase-admin';
+import fs from 'fs';
 
-const firebaseConfig = {
-  apiKey: 'AIzaSyA-LCfXc-65kxzcO0Bz3sDL4qFSBVbtlQc',
-  authDomain: 'mr-typist.firebaseapp.com',
-  projectId: 'mr-typist',
-  storageBucket: 'mr-typist.firebasestorage.app',
-  messagingSenderId: '940929482305',
-  appId: '1:940929482305:web:ce75770ebafc86e69510c0'
-};
+// Read service account key from environment variable
+const keyEnv = process.env.FIREBASE_SERVICE_ACCOUNT_KEY || process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+if (!keyEnv) {
+  console.error('Error: Service account key environment variable not set.');
+  console.error('Please set FIREBASE_SERVICE_ACCOUNT_KEY or GOOGLE_APPLICATION_CREDENTIALS to your service account key path or JSON string.');
+  console.error('\nPowerShell Example:');
+  console.error('  $env:FIREBASE_SERVICE_ACCOUNT_KEY = "C:\\path\\to\\serviceAccountKey.json"');
+  console.error('  node scripts/create-admin.mjs <username> <password> [displayName]\n');
+  process.exit(1);
+}
+
+let serviceAccount;
+try {
+  if (keyEnv.trim().startsWith('{')) {
+    serviceAccount = JSON.parse(keyEnv);
+  } else {
+    serviceAccount = JSON.parse(fs.readFileSync(keyEnv, 'utf-8'));
+  }
+} catch (err) {
+  console.error('Failed to parse service account key:', err.message);
+  process.exit(1);
+}
+
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+}
+
+const db = admin.firestore();
 
 async function hashPassword(password, salt) {
   const enc = new TextEncoder();
@@ -53,8 +73,8 @@ async function createAdmin() {
     process.exit(1);
   }
 
-  if (password.length < 6) {
-    console.error('Error: Password must be at least 6 characters.');
+  if (password.length < 4) {
+    console.error('Error: Password must be at least 4 characters.');
     process.exit(1);
   }
 
@@ -62,8 +82,8 @@ async function createAdmin() {
     console.log(`Generating PBKDF2 hash for admin "${cleanUsername}"...`);
     const passwordHash = await hashPassword(password, cleanUsername);
 
-    const userDocRef = doc(db, 'users', cleanUsername);
-    await setDoc(userDocRef, {
+    const userDocRef = db.collection('users').doc(cleanUsername);
+    await userDocRef.set({
       username: cleanUsername,
       displayName,
       passwordHash,
@@ -76,7 +96,7 @@ async function createAdmin() {
     console.log(`Username: ${cleanUsername}`);
     console.log(`Display Name: ${displayName}`);
     console.log(`Role: admin`);
-    console.log(`\nYou can now log in at: /admin/login`);
+    console.log(`\nYou can now log in at the Admin Login tab on the main page (/)`);
     process.exit(0);
   } catch (err) {
     console.error('Failed to create admin account:', err);

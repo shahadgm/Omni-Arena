@@ -24,7 +24,7 @@ const StudentDashboard = () => {
 
   const navigate = useNavigate();
   const currentUser = authService.getCurrentUser();
-  const studentId = currentUser?.displayName || currentUser?.username || localStorage.getItem('studentId') || 'Contestant';
+  const studentId = (currentUser?.displayName || localStorage.getItem('displayName') || currentUser?.username || localStorage.getItem('studentId') || 'Contestant').replace(/^guest:/, '');
   const practiceRef = useRef(null);
 
   const fetchAllTournaments = async () => {
@@ -37,10 +37,12 @@ const StudentDashboard = () => {
       const activePublic = data.filter(t => !t.isPrivate && new Date(t.startTime) <= now && new Date(t.endTime) >= now);
       setPublicTournaments(activePublic);
 
-      // 2. Fetch tournaments hosted by the current user
-      if (currentUser?.username) {
+      // 2. Fetch tournaments hosted by the current user (guests never own tournaments)
+      if (currentUser?.username && !authService.isGuest()) {
         const userCreated = data.filter(t => t.createdBy && t.createdBy.toLowerCase() === currentUser.username.toLowerCase());
         setMyTournaments(userCreated.sort((a, b) => new Date(b.startTime) - new Date(a.startTime)));
+      } else {
+        setMyTournaments([]);
       }
     } catch (err) {
       console.error('Error fetching tournaments:', err);
@@ -97,7 +99,8 @@ const StudentDashboard = () => {
     }
 
     if (target.isPrivate) {
-      const isCreator = currentUser && target.createdBy === currentUser.username;
+      const isGuest = authService.isGuest();
+      const isCreator = !isGuest && currentUser && target.createdBy === currentUser.username;
       const isAdmin = authService.isAdmin();
       const isUnlocked = sessionStorage.getItem(`unlocked_${target.id}`) === 'true';
 
@@ -117,10 +120,7 @@ const StudentDashboard = () => {
   };
 
   const handleDeleteTournament = async (id, name) => {
-    if (window.confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
-      await dbService.deleteTournament(id);
-      fetchAllTournaments();
-    }
+    alert("Disabled until secure sign-in is enabled.");
   };
 
   const practiceList = [

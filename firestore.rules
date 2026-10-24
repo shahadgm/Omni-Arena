@@ -10,56 +10,48 @@ service cloud.firestore {
     // USERS COLLECTION
     // Documents are keyed by lowercase username.
     match /users/{username} {
-      // Anyone can query/read public user metadata or authenticate
       allow read: if true;
 
-      // Allow creating an account with required fields
+      // Allow creating an account with role 'student' only
       allow create: if request.resource.data.username == username
                     && isValidString(request.resource.data.username, 3, 30)
                     && isValidString(request.resource.data.displayName, 1, 50)
-                    && request.resource.data.role in ['student', 'user', 'admin']
+                    && request.resource.data.role == 'student'
                     && request.resource.data.passwordHash is string;
 
-      // Allow updating existing account (e.g. password change, display name update)
-      // Prevent changing role to admin arbitrarily
-      allow update: if resource.data.username == username
-                    && request.resource.data.username == username
-                    && (request.resource.data.role == resource.data.role || resource.data.role == 'admin');
-
-      // Prevent unauthorized deletion of user accounts
+      // Block update and delete
+      allow update: if false;
       allow delete: if false;
     }
 
     // TOURNAMENTS COLLECTION
     match /tournaments/{tournamentId} {
-      // Tournaments are readable by candidates to participate
       allow read: if true;
 
       // Allow creating tournaments with proper structure
       allow create: if isValidString(request.resource.data.name, 1, 100)
                     && request.resource.data.createdBy is string;
 
-      // Allow updating tournaments (e.g. updating tournament details or settings)
-      allow update: if isValidString(request.resource.data.name, 1, 100);
+      // Updates may not change createdBy. Retake updates must still work.
+      allow update: if (!('createdBy' in resource.data) || request.resource.data.createdBy == resource.data.createdBy);
 
-      // Allow deleting tournaments
-      allow delete: if true;
+      // Block delete
+      allow delete: if false;
     }
 
     // RESULTS COLLECTION
     match /results/{resultId} {
-      // Results are readable for leaderboards
       allow read: if true;
 
-      // Candidates can submit their own tournament result
-      allow create: if request.resource.data.tournamentId is string
+      // Require competitionId (not tournamentId) on create, so scores save again
+      allow create: if request.resource.data.competitionId is string
                     && request.resource.data.studentId is string;
 
-      // Updates allowed for manager mark adjustments or retake resets
-      allow update: if true;
+      // Allow update only for the mark-grant fields (quizDetails, correctAnswers, score, accuracy)
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['quizDetails', 'correctAnswers', 'score', 'accuracy']);
 
-      // Allow deletion when a tournament is deleted or retake is granted
-      allow delete: if true;
+      // Block delete
+      allow delete: if false;
     }
   }
 }

@@ -34,20 +34,11 @@ const AdminDashboard = () => {
   }, [navigate]);
 
   const handleDelete = async (id, name) => {
-    const confirmInput = window.prompt(`To permanently delete "${name}" and all its participant data, please type "${name}" to confirm:`);
-    if (confirmInput === name) {
-      await dbService.deleteTournament(id);
-      fetchTournaments();
-    } else if (confirmInput !== null) {
-      alert("Tournament name did not match. Deletion cancelled.");
-    }
+    alert("Disabled until secure sign-in is enabled.");
   };
 
   const handleResetLeaderboard = async (id, name) => {
-    if (window.confirm(`Are you sure you want to completely clear the leaderboard for "${name}"? This will wipe all participant scores and retakes.`)) {
-      await dbService.resetLeaderboard(id);
-      alert(`Leaderboard for "${name}" has been cleared.`);
-    }
+    alert("Disabled until secure sign-in is enabled.");
   };
 
   const toggleRevealCode = (id) => {

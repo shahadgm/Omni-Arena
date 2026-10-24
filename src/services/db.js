@@ -30,61 +30,44 @@ export const dbService = {
 
   async updateTournament(id, updatedData) {
     try {
+      // Security: Never allow updating or overwriting createdBy, creatorName, or createdAt
+      const { createdBy: _createdBy, creatorName: _creatorName, createdAt: _createdAt, ...safeData } = updatedData;
       const docRef = doc(db, 'tournaments', id);
-      await updateDoc(docRef, updatedData);
+      await updateDoc(docRef, safeData);
     } catch (error) {
       console.error("Error updating tournament:", error);
       throw error;
     }
   },
 
-  async deleteTournament(id) {
-    try {
-      const docRef = doc(db, 'tournaments', id);
-      await deleteDoc(docRef);
-      // Delete associated leaderboard results
-      const q = query(collection(db, 'results'), where('competitionId', '==', id));
-      const snapshot = await getDocs(q);
-      const deletePromises = [];
-      snapshot.forEach((document) => {
-        deletePromises.push(deleteDoc(doc(db, 'results', document.id)));
-      });
-      await Promise.all(deletePromises);
-    } catch (error) {
-      console.error("Error deleting tournament:", error);
-      throw error;
-    }
+  async deleteTournament(_id) {
+    alert("Disabled until secure sign-in is enabled.");
+    throw new Error("Disabled until secure sign-in is enabled.");
   },
 
-  async resetLeaderboard(competitionId) {
-    try {
-      const q = query(collection(db, 'results'), where('competitionId', '==', competitionId));
-      const snapshot = await getDocs(q);
-      const deletePromises = [];
-      snapshot.forEach((document) => {
-        deletePromises.push(deleteDoc(doc(db, 'results', document.id)));
-      });
-      await Promise.all(deletePromises);
-    } catch (error) {
-      console.error("Error resetting leaderboard:", error);
-      throw error;
-    }
+  async resetLeaderboard(_competitionId) {
+    alert("Disabled until secure sign-in is enabled.");
+    throw new Error("Disabled until secure sign-in is enabled.");
   },
 
   async allowStudentRetake(competitionId, studentId) {
     try {
-      // 1. Delete any existing results for this student in this tournament
-      const q = query(
-        collection(db, 'results'),
-        where('competitionId', '==', competitionId),
-        where('studentId', '==', studentId)
-      );
-      const snapshot = await getDocs(q);
-      const deletePromises = [];
-      snapshot.forEach((document) => {
-        deletePromises.push(deleteDoc(doc(db, 'results', document.id)));
-      });
-      await Promise.all(deletePromises);
+      // 1. Attempt to delete existing results if allowed; ignore error if blocked by firestore rules
+      try {
+        const q = query(
+          collection(db, 'results'),
+          where('competitionId', '==', competitionId),
+          where('studentId', '==', studentId)
+        );
+        const snapshot = await getDocs(q);
+        const deletePromises = [];
+        snapshot.forEach((document) => {
+          deletePromises.push(deleteDoc(doc(db, 'results', document.id)));
+        });
+        await Promise.all(deletePromises);
+      } catch (_delErr) {
+        // Result deletion is blocked by security rules; continue with retake authorization
+      }
 
       // 2. Authorize retake in tournament document
       const tournamentRef = doc(db, 'tournaments', competitionId);
@@ -137,10 +120,13 @@ export const dbService = {
     try {
       const user = authService.getCurrentUser();
       const newRef = doc(collection(db, 'results'));
+      const studentId = result.studentId || user?.username || localStorage.getItem('studentId') || 'unknown';
+      const plainName = (result.displayName || user?.displayName || localStorage.getItem('displayName') || studentId).replace(/^guest:/, '');
       const resultData = {
         ...result,
+        studentId,
         competitionId,
-        displayName: result.displayName || user?.displayName || result.studentId,
+        displayName: plainName,
         date: new Date().toISOString()
       };
       await setDoc(newRef, resultData);
@@ -296,8 +282,7 @@ export const authService = {
       }
 
       const passwordHash = await hashPassword(password, cleanUsername);
-      const isAdminAccount = cleanUsername === 'admin' || cleanUsername === 'sibaqadmin';
-      const role = isAdminAccount ? 'admin' : 'student';
+      const role = 'student';
 
       const userData = {
         username: cleanUsername,
@@ -316,11 +301,11 @@ export const authService = {
         role
       };
 
-      // F-01 fix: Key studentId on unique cleanUsername, NOT displayName
+      // Key studentId on unique cleanUsername, NOT displayName
       localStorage.setItem('studentId', cleanUsername);
       localStorage.setItem('displayName', cleanDisplayName);
       localStorage.setItem('user', JSON.stringify(sessionUser));
-      localStorage.setItem('isAdmin', isAdminAccount ? 'true' : 'false');
+      localStorage.setItem('isAdmin', 'false');
 
       return sessionUser;
     } catch (error) {
@@ -350,11 +335,9 @@ export const authService = {
 
       let isMatch = (data.passwordHash === modernHash);
       
-      // Check legacy hash fallback if modern hash didn't match
+      // Check legacy hash fallback if modern hash didn't match (user updates now blocked)
       if (!isMatch && data.passwordHash === legacyHash) {
         isMatch = true;
-        // Upgrade legacy hash to modern PBKDF2 in background
-        updateDoc(userDocRef, { passwordHash: modernHash }).catch(() => {});
       }
 
       if (!isMatch) {
@@ -364,10 +347,9 @@ export const authService = {
       const sessionUser = {
         username: data.username || cleanUsername,
         displayName: data.displayName || data.username || cleanUsername,
-        role: data.role || 'user'
+        role: data.role || 'student'
       };
 
-      // F-01 fix: Key studentId on unique cleanUsername, NOT displayName
       localStorage.setItem('studentId', sessionUser.username);
       localStorage.setItem('displayName', sessionUser.displayName);
       localStorage.setItem('user', JSON.stringify(sessionUser));
@@ -377,6 +359,19 @@ export const authService = {
     } catch (error) {
       console.error("Error logging in:", error);
       throw error;
+    }
+  },
+
+  async checkUsernameExists(username) {
+    const clean = (username || '').trim().toLowerCase();
+    if (!clean) return false;
+    try {
+      const userDocRef = doc(db, 'users', clean);
+      const snap = await getDoc(userDocRef);
+      return snap.exists();
+    } catch (error) {
+      console.error("Error checking username existence:", error);
+      return false;
     }
   },
 
@@ -399,18 +394,33 @@ export const authService = {
   getCurrentUser() {
     try {
       const stored = localStorage.getItem('user');
-      if (stored) return JSON.parse(stored);
+      if (stored) {
+        const u = JSON.parse(stored);
+        if (u) {
+          u.displayName = (u.displayName || u.username || '').replace(/^guest:/, '');
+          return u;
+        }
+      }
     } catch (e) {}
 
     const studentId = localStorage.getItem('studentId');
     if (studentId) {
+      const isGuest = studentId.startsWith('guest:');
+      const plain = (localStorage.getItem('displayName') || studentId).replace(/^guest:/, '');
       return {
         username: studentId,
-        displayName: localStorage.getItem('displayName') || studentId,
-        role: localStorage.getItem('isAdmin') === 'true' ? 'admin' : 'user'
+        displayName: plain,
+        role: localStorage.getItem('isAdmin') === 'true' ? 'admin' : (isGuest ? 'guest' : 'student')
       };
     }
     return null;
+  },
+
+  isGuest() {
+    const user = this.getCurrentUser();
+    if (!user) return false;
+    const studentId = localStorage.getItem('studentId') || '';
+    return user.role === 'guest' || (user.username && user.username.startsWith('guest:')) || studentId.startsWith('guest:');
   },
 
   isAuthenticated() {
@@ -418,6 +428,7 @@ export const authService = {
   },
 
   isAdmin() {
+    if (this.isGuest()) return false;
     const user = this.getCurrentUser();
     return (user && user.role === 'admin') || localStorage.getItem('isAdmin') === 'true';
   }

@@ -28,7 +28,7 @@ const LandingPage = () => {
     }
   }, [navigate]);
 
-  const handleContestantEnter = (e) => {
+  const handleContestantEnter = async (e) => {
     e.preventDefault();
     setError('');
     const cleanId = contestantId.trim();
@@ -37,16 +37,32 @@ const LandingPage = () => {
       return;
     }
 
-    // Store student identity for tournament participation
-    localStorage.setItem('studentId', cleanId);
-    localStorage.setItem('displayName', cleanId);
-    localStorage.setItem('user', JSON.stringify({
-      username: cleanId,
-      displayName: cleanId,
-      role: 'student'
-    }));
-    localStorage.setItem('isAdmin', 'false');
-    navigate('/dashboard');
+    setLoading(true);
+    try {
+      // Block names that match an existing account username
+      const exists = await authService.checkUsernameExists(cleanId);
+      if (exists) {
+        setError('This name belongs to a registered account. Please log in with your password.');
+        setLoading(false);
+        return;
+      }
+
+      // Save contestants as guest:<name> so they can never match a username
+      const guestId = `guest:${cleanId}`;
+      localStorage.setItem('studentId', guestId);
+      localStorage.setItem('displayName', cleanId);
+      localStorage.setItem('user', JSON.stringify({
+        username: guestId,
+        displayName: cleanId,
+        role: 'guest'
+      }));
+      localStorage.setItem('isAdmin', 'false');
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message || 'Error verifying contestant name.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAdminLogin = async (e) => {

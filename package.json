@@ -12,6 +12,7 @@
   "dependencies": {
     "crossword-layout-generator": "^0.1.1",
     "firebase": "^12.19.0",
+    "firebase-admin": "^14.5.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.46.0",
     "react": "^19.2.8",
