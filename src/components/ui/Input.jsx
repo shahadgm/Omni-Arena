@@ -1,6 +1,10 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useId } from 'react';
 
-const Input = forwardRef(({ label, error, className = '', ...props }, ref) => {
+const Input = forwardRef(({ label, error, id, className = '', ...props }, ref) => {
+  const generatedId = useId();
+  const inputId = id || (label ? `input-${generatedId}` : undefined);
+  const errorId = error && inputId ? `error-${inputId}` : undefined;
+
   const containerStyle = {
     display: 'flex',
     flexDirection: 'column',
@@ -35,10 +39,13 @@ const Input = forwardRef(({ label, error, className = '', ...props }, ref) => {
 
   return (
     <div style={containerStyle} className={className}>
-      {label && <label style={labelStyle}>{label}</label>}
+      {label && <label htmlFor={inputId} style={labelStyle}>{label}</label>}
       <input 
+        id={inputId}
         ref={ref}
         style={inputStyle}
+        aria-invalid={Boolean(error)}
+        aria-describedby={errorId}
         onFocus={(e) => {
           if(!error) {
             e.target.style.borderColor = 'var(--accent-primary)';
@@ -53,7 +60,7 @@ const Input = forwardRef(({ label, error, className = '', ...props }, ref) => {
         }}
         {...props} 
       />
-      {error && <span style={errorStyle}>{error}</span>}
+      {error && <span id={errorId} style={errorStyle}>{error}</span>}
     </div>
   );
 });

@@ -91,6 +91,7 @@ const MultiPuzzleArena = () => {
   const [puzzleScores, setPuzzleScores] = useState([]);
   const [finalStats, setFinalStats] = useState(null);
   const solvedIndicesRef = useRef(new Set());
+  const isSubmitting = useRef(false);
 
   const handleSolve = async (puzzleScore) => {
     if (solvedIndicesRef.current.has(currentIdx)) return;
@@ -104,6 +105,12 @@ const MultiPuzzleArena = () => {
       setCurrentIdx(prev => prev + 1);
     } else {
       // Completed all puzzles
+      if (isSubmitting.current) return;
+      isSubmitting.current = true;
+      try {
+        localStorage.removeItem(`started_${id}_${studentId}`);
+      } catch (e) {}
+
       setCompleted(true);
       const avgPoints = Math.round(updatedScores.reduce((sum, p) => sum + (p.points ?? 100), 0) / puzzles.length);
       const avgAccuracy = Math.round(updatedScores.reduce((sum, p) => sum + (p.accuracy ?? 100), 0) / puzzles.length);
@@ -113,16 +120,20 @@ const MultiPuzzleArena = () => {
       setFinalStats({ points: avgPoints, accuracy: avgAccuracy, time: timeElapsed });
       
       if (!id.startsWith('practice-')) {
-        await dbService.saveResult(id, {
-          studentId,
-          score,
-          displayScore,
-          accuracy: avgAccuracy,
-          timeElapsed,
-          progress: 100,
-          puzzleDetails: updatedScores,
-          wpm: 0
-        });
+        try {
+          await dbService.saveResult(id, {
+            studentId,
+            score,
+            displayScore,
+            accuracy: avgAccuracy,
+            timeElapsed,
+            progress: 100,
+            puzzleDetails: updatedScores,
+            wpm: 0
+          });
+        } catch (err) {
+          console.error('Failed to save puzzle result:', err);
+        }
       }
       
       setTimeout(() => navigate(`/leaderboard/${id}`), 2500);
@@ -134,7 +145,12 @@ const MultiPuzzleArena = () => {
   };
 
   useAntiCheat(() => {
-    if (!completed) {
+    if (!completed && !isSubmitting.current) {
+      isSubmitting.current = true;
+      try {
+        localStorage.removeItem(`started_${id}_${studentId}`);
+      } catch (e) {}
+
       setCompleted(true);
       dbService.saveResult(id, {
         studentId,
@@ -142,9 +158,12 @@ const MultiPuzzleArena = () => {
         displayScore: 0,
         accuracy: 0,
         timeElapsed,
-        progress: Math.round((currentIdx / puzzles.length) * 100),
+        progress: Math.round((currentIdx / (puzzles.length || 1)) * 100),
         wpm: 0
       }).then(() => {
+        navigate(`/leaderboard/${id}`);
+      }).catch(err => {
+        console.error('Failed to save puzzle anti-cheat result:', err);
         navigate(`/leaderboard/${id}`);
       });
     }

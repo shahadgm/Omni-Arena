@@ -23,6 +23,7 @@ const CompetitionArena = () => {
   const [completed, setCompleted] = useState(false);
   
   const inputRef = useRef(null);
+  const isSubmitting = useRef(false);
 
   useEffect(() => {
     if (!studentId) {
@@ -177,25 +178,35 @@ const CompetitionArena = () => {
   };
 
   const saveResult = async (end) => {
+    if (isSubmitting.current) return;
+    isSubmitting.current = true;
+    try {
+      localStorage.removeItem(`started_${id}_${studentId}`);
+    } catch (e) {}
+
     const stats = calculateStats(end);
 
-    await dbService.saveResult(id, {
-      studentId,
-      wpm: stats.wpm,
-      accuracy: stats.accuracy,
-      netSpeed: stats.wpm,
-      charsTyped: stats.chars,
-      progress: stats.progress,
-      score: stats.finalScore,
-      sectionDetails: stats.sectionDetails
-    });
+    try {
+      await dbService.saveResult(id, {
+        studentId,
+        wpm: stats.wpm,
+        accuracy: stats.accuracy,
+        netSpeed: stats.wpm,
+        charsTyped: stats.chars,
+        progress: stats.progress,
+        score: stats.finalScore,
+        sectionDetails: stats.sectionDetails
+      });
+    } catch (err) {
+      console.error('Failed to save result:', err);
+    }
     setTimeout(() => {
       navigate(`/leaderboard/${id}`);
     }, 2000);
   };
   
   useAntiCheat(() => {
-    if (!completed) {
+    if (!completed && !isSubmitting.current) {
       setCompleted(true);
       setEndTime(Date.now());
       if (!id.startsWith('practice-')) {

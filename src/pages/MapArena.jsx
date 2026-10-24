@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { dbService } from '../services/db';
 import Card from '../components/ui/Card';
@@ -7,6 +7,7 @@ import { Trophy, MapPin, Navigation, Clock } from 'lucide-react';
 import { useAntiCheat } from '../hooks/useAntiCheat';
 import { MapContainer, TileLayer, Marker, useMapEvents, Circle } from 'react-leaflet';
 import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 // Fix for default Leaflet marker icons not loading in React
 delete L.Icon.Default.prototype._getIconUrl;
@@ -45,6 +46,7 @@ const MapArena = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const studentId = localStorage.getItem('studentId') || 'PracticeUser';
+  const isSubmitting = useRef(false);
 
   const [tournament, setTournament] = useState(null);
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -78,10 +80,38 @@ const MapArena = () => {
     fetchT();
   }, [id]);
 
-  if (!tournament) return <div className="page-wrapper">Loading Map Data...</div>;
-
-  const locations = tournament.mapLocations || [];
+  const locations = tournament?.mapLocations || [];
   const currentLoc = locations[currentIdx];
+
+  useAntiCheat(() => {
+    if (!completed && !isSubmitting.current) {
+      isSubmitting.current = true;
+      try {
+        localStorage.removeItem(`started_${id}_${studentId}`);
+      } catch (e) {}
+
+      setCompleted(true);
+      const timeElapsed = globalStartTime ? Math.floor((Date.now() - globalStartTime) / 1000) : 0;
+      if (!id.startsWith('practice-')) {
+        dbService.saveResult(id, {
+          studentId,
+          score: results.filter(r => r.isCorrect).length,
+          accuracy: Math.round((results.filter(r => r.isCorrect).length / (locations.length || 1)) * 100) || 0,
+          timeElapsed,
+          mapDetails: results
+        }).then(() => {
+          navigate(`/leaderboard/${id}`);
+        }).catch(err => {
+          console.error('Failed to save map anti-cheat result:', err);
+          navigate(`/leaderboard/${id}`);
+        });
+      } else {
+        navigate(`/leaderboard/${id}`);
+      }
+    }
+  }, id.startsWith('practice-'));
+
+  if (!tournament) return <div className="page-wrapper">Loading Map Data...</div>;
 
   const handleSubmit = () => {
     if (!markerPosition) return;
@@ -113,6 +143,12 @@ const MapArena = () => {
     const newResults = [...results, detail];
     
     if (currentIdx + 1 >= locations.length) {
+      if (isSubmitting.current) return;
+      isSubmitting.current = true;
+      try {
+        localStorage.removeItem(`started_${id}_${studentId}`);
+      } catch (e) {}
+
       setResults(newResults);
       setCompleted(true);
       
@@ -120,13 +156,17 @@ const MapArena = () => {
       const score = newResults.filter(r => r.isCorrect).length;
       
       if (!id.startsWith('practice-')) {
-        await dbService.saveResult(id, {
-          studentId,
-          score,
-          accuracy: Math.round((score / locations.length) * 100),
-          timeElapsed,
-          mapDetails: newResults
-        });
+        try {
+          await dbService.saveResult(id, {
+            studentId,
+            score,
+            accuracy: Math.round((score / locations.length) * 100),
+            timeElapsed,
+            mapDetails: newResults
+          });
+        } catch (err) {
+          console.error('Failed to save map result:', err);
+        }
       }
     } else {
       setResults(newResults);
@@ -135,25 +175,6 @@ const MapArena = () => {
       setFeedback(null);
     }
   };
-
-  useAntiCheat(() => {
-    if (!completed) {
-      setCompleted(true);
-      if (!id.startsWith('practice-')) {
-        dbService.saveResult(id, {
-          studentId,
-          score: results.filter(r => r.isCorrect).length,
-          accuracy: Math.round((results.filter(r => r.isCorrect).length / locations.length) * 100) || 0,
-          timeElapsed,
-          mapDetails: results
-        }).then(() => {
-          navigate(`/leaderboard/${id}`);
-        });
-      } else {
-        navigate(`/leaderboard/${id}`);
-      }
-    }
-  }, id.startsWith('practice-'));
 
   if (completed) {
     const score = results.filter(r => r.isCorrect).length;

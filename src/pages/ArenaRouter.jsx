@@ -1,15 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { dbService, authService } from '../services/db';
-import CompetitionArena from './CompetitionArena';
-import QuizArena from './QuizArena';
-import MultiPuzzleArena from './MultiPuzzleArena';
-import MapArena from './MapArena';
-import CrosswordArena from './CrosswordArena';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { Lock, Key, AlertCircle } from 'lucide-react';
+
+const CompetitionArena = lazy(() => import('./CompetitionArena'));
+const QuizArena = lazy(() => import('./QuizArena'));
+const MultiPuzzleArena = lazy(() => import('./MultiPuzzleArena'));
+const MapArena = lazy(() => import('./MapArena'));
+const CrosswordArena = lazy(() => import('./CrosswordArena'));
 
 const ArenaRouter = () => {
   const { id } = useParams();
@@ -86,6 +87,23 @@ const ArenaRouter = () => {
             return;
           }
         }
+
+        // S-14 fix: Enforce tournament time window
+        if (!id.startsWith('practice-') && t.startTime && t.endTime) {
+          const now = new Date();
+          const start = new Date(t.startTime);
+          const end = new Date(t.endTime);
+          if (now < start) {
+            alert(`This tournament has not started yet. Starts on: ${start.toLocaleString()}`);
+            navigate('/dashboard');
+            return;
+          }
+          if (now > end) {
+            alert(`This tournament has already ended on: ${end.toLocaleString()}`);
+            navigate(`/leaderboard/${id}`);
+            return;
+          }
+        }
       } else {
         navigate('/dashboard');
         return;
@@ -101,12 +119,14 @@ const ArenaRouter = () => {
         } else {
           const participated = await dbService.hasParticipated(id, studentId);
           if (participated) {
+            localStorage.removeItem(antiCheatKey);
             alert('You have already participated in this tournament! You can only play once.');
             navigate(`/leaderboard/${id}`);
             return;
           }
           
           if (localStorage.getItem(antiCheatKey)) {
+            localStorage.removeItem(antiCheatKey);
             alert('You left the tournament before finishing. Your attempt is void and has been submitted with a score of 0.');
             // Auto-submit 0 score so hasParticipated becomes true for future
             await dbService.saveResult(id, {
@@ -276,7 +296,9 @@ const ArenaRouter = () => {
       
       {/* Render the arena but hide it completely if they are not in full screen */}
       <div style={{ display: !isFullscreen && hasStarted ? 'none' : 'flex', width: '100%', flex: 1, flexDirection: 'column' }}>
-        {renderArena()}
+        <Suspense fallback={<div className="page-wrapper" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>Loading arena components...</div>}>
+          {renderArena()}
+        </Suspense>
       </div>
     </>
   );

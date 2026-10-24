@@ -45,9 +45,11 @@ export const dbService = {
       // Delete associated leaderboard results
       const q = query(collection(db, 'results'), where('competitionId', '==', id));
       const snapshot = await getDocs(q);
-      snapshot.forEach(async (document) => {
-        await deleteDoc(doc(db, 'results', document.id));
+      const deletePromises = [];
+      snapshot.forEach((document) => {
+        deletePromises.push(deleteDoc(doc(db, 'results', document.id)));
       });
+      await Promise.all(deletePromises);
     } catch (error) {
       console.error("Error deleting tournament:", error);
       throw error;
@@ -133,10 +135,12 @@ export const dbService = {
 
   async saveResult(competitionId, result) {
     try {
+      const user = authService.getCurrentUser();
       const newRef = doc(collection(db, 'results'));
       const resultData = {
         ...result,
         competitionId,
+        displayName: result.displayName || user?.displayName || result.studentId,
         date: new Date().toISOString()
       };
       await setDoc(newRef, resultData);
@@ -237,13 +241,38 @@ export const dbService = {
   }
 };
 
-export async function hashPassword(password) {
+export async function hashPassword(password, salt = 'omni_arena_default_salt') {
   if (!password) return '';
+  const encoder = new TextEncoder();
+  const saltBuffer = encoder.encode(salt);
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(password),
+    { name: "PBKDF2" },
+    false,
+    ["deriveBits"]
+  );
+  const derivedBits = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt: saltBuffer,
+      iterations: 100000,
+      hash: "SHA-256"
+    },
+    keyMaterial,
+    256
+  );
+  return Array.from(new Uint8Array(derivedBits))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+// Legacy SHA-256 hash for backward compatibility
+async function legacySha256(password) {
   const encoder = new TextEncoder();
   const data = encoder.encode(password + "_omni_arena_salt_2026");
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 export const authService = {
@@ -251,27 +280,27 @@ export const authService = {
     const cleanUsername = (username || '').trim().toLowerCase();
     const cleanDisplayName = (displayName || '').trim() || cleanUsername;
     
-    if (cleanUsername.length < 3) {
-      throw new Error('Username must be at least 3 characters.');
+    // Strict username validation: alphanumeric + underscores/hyphens, min 3 chars
+    if (!/^[a-zA-Z0-9_-]{3,30}$/.test(cleanUsername)) {
+      throw new Error('Username must be 3-30 characters long and can only contain letters, numbers, hyphens, and underscores.');
     }
-    if (!password || password.length < 4) {
-      throw new Error('Password must be at least 4 characters.');
+    if (!password || password.length < 6) {
+      throw new Error('Password must be at least 6 characters long.');
     }
 
     try {
       const userDocRef = doc(db, 'users', cleanUsername);
       const userSnap = await getDoc(userDocRef);
       if (userSnap.exists()) {
-        throw new Error('Username already exists. Please pick a different one or log in.');
+        throw new Error('Username already exists. Please pick a different one.');
       }
 
-      const passwordHash = await hashPassword(password);
-      const isMasterAdmin = cleanUsername === 'sibaqadmin';
+      const passwordHash = await hashPassword(password, cleanUsername);
       const userData = {
         username: cleanUsername,
         displayName: cleanDisplayName,
         passwordHash,
-        role: isMasterAdmin ? 'admin' : 'user',
+        role: 'user', // Default role. Admin roles must be assigned in database
         createdAt: new Date().toISOString()
       };
 
@@ -283,9 +312,11 @@ export const authService = {
         role: userData.role
       };
 
-      localStorage.setItem('studentId', cleanDisplayName);
+      // F-01 fix: Key studentId on unique cleanUsername, NOT displayName
+      localStorage.setItem('studentId', cleanUsername);
+      localStorage.setItem('displayName', cleanDisplayName);
       localStorage.setItem('user', JSON.stringify(sessionUser));
-      localStorage.setItem('isAdmin', userData.role === 'admin' ? 'true' : 'false');
+      localStorage.setItem('isAdmin', 'false');
 
       return sessionUser;
     } catch (error) {
@@ -300,41 +331,41 @@ export const authService = {
       throw new Error('Please enter both username and password.');
     }
 
-    // Default master admin fallback
-    if (cleanUsername === 'sibaqadmin' && password === 'xrby2906') {
-      const adminUser = {
-        username: 'sibaqadmin',
-        displayName: 'Admin',
-        role: 'admin'
-      };
-      localStorage.setItem('studentId', 'Admin');
-      localStorage.setItem('user', JSON.stringify(adminUser));
-      localStorage.setItem('isAdmin', 'true');
-      return adminUser;
-    }
-
     try {
       const userDocRef = doc(db, 'users', cleanUsername);
       const userSnap = await getDoc(userDocRef);
 
+      // S-10 fix: Generic error message to prevent username enumeration
       if (!userSnap.exists()) {
-        throw new Error('Account not found. Please check your username or register a new account.');
+        throw new Error('Invalid username or password.');
       }
 
       const data = userSnap.data();
-      const passwordHash = await hashPassword(password);
+      const modernHash = await hashPassword(password, cleanUsername);
+      const legacyHash = await legacySha256(password);
 
-      if (data.passwordHash !== passwordHash && data.password !== password) {
-        throw new Error('Incorrect password. Please try again.');
+      let isMatch = (data.passwordHash === modernHash);
+      
+      // Check legacy hash fallback if modern hash didn't match
+      if (!isMatch && data.passwordHash === legacyHash) {
+        isMatch = true;
+        // Upgrade legacy hash to modern PBKDF2 in background
+        updateDoc(userDocRef, { passwordHash: modernHash }).catch(() => {});
+      }
+
+      if (!isMatch) {
+        throw new Error('Invalid username or password.');
       }
 
       const sessionUser = {
         username: data.username || cleanUsername,
         displayName: data.displayName || data.username || cleanUsername,
-        role: data.role || (cleanUsername === 'sibaqadmin' ? 'admin' : 'user')
+        role: data.role || 'user'
       };
 
-      localStorage.setItem('studentId', sessionUser.displayName);
+      // F-01 fix: Key studentId on unique cleanUsername, NOT displayName
+      localStorage.setItem('studentId', sessionUser.username);
+      localStorage.setItem('displayName', sessionUser.displayName);
       localStorage.setItem('user', JSON.stringify(sessionUser));
       localStorage.setItem('isAdmin', sessionUser.role === 'admin' ? 'true' : 'false');
 
@@ -346,11 +377,17 @@ export const authService = {
   },
 
   async loginAdmin(username, password) {
-    return this.login(username, password);
+    const user = await this.login(username, password);
+    if (user.role !== 'admin') {
+      this.logout();
+      throw new Error('Administrator privileges required.');
+    }
+    return user;
   },
   
   logout() {
     localStorage.removeItem('studentId');
+    localStorage.removeItem('displayName');
     localStorage.removeItem('user');
     localStorage.removeItem('isAdmin');
   },
@@ -365,7 +402,7 @@ export const authService = {
     if (studentId) {
       return {
         username: studentId,
-        displayName: studentId,
+        displayName: localStorage.getItem('displayName') || studentId,
         role: localStorage.getItem('isAdmin') === 'true' ? 'admin' : 'user'
       };
     }

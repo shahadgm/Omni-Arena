@@ -67,6 +67,14 @@ const CreateTournament = () => {
       const fetchT = async () => {
         const t = await dbService.getTournament(id);
         if (t) {
+          const currentUser = authService.getCurrentUser();
+          const isAdmin = authService.isAdmin();
+          const isOwner = currentUser && t.createdBy && t.createdBy.toLowerCase() === currentUser.username.toLowerCase();
+          if (!isAdmin && !isOwner) {
+            alert("You do not have permission to edit this tournament.");
+            navigate('/dashboard');
+            return;
+          }
           setName(t.name);
           setGameType(t.gameType || 'typing');
           setType(t.type || 'English');
@@ -275,9 +283,14 @@ const CreateTournament = () => {
         isPrivate: !!isPrivate,
         accessCode: isPrivate ? accessCode.trim().toUpperCase() : '',
         hideLeaderboard,
-        createdBy: currentUser.username,
-        creatorName: currentUser.displayName || currentUser.username
       };
+
+      if (!id) {
+        // Only set creator for new tournaments; never overwrite original creator on edit
+        tournament.createdBy = currentUser.username;
+        tournament.creatorName = currentUser.displayName || currentUser.username;
+        tournament.createdAt = new Date().toISOString();
+      }
 
       if (gameType === 'typing') {
         if (useCustomText) {

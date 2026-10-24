@@ -25,6 +25,7 @@ const CrosswordArena = () => {
   const [cellSize, setCellSize] = useState(36);
 
   const inputRefs = useRef({});
+  const isSubmitting = useRef(false);
 
   const handleZoomIn = () => setCellSize(prev => Math.min(prev + 4, 52));
   const handleZoomOut = () => setCellSize(prev => Math.max(prev - 4, 22));
@@ -264,38 +265,51 @@ const CrosswordArena = () => {
       }
     });
 
+    if (isSubmitting.current) return;
+
     if (!force && (filled < total || correctLetters < total)) {
       if (!window.confirm(`You have filled ${filled} out of ${total} letters. ${correctLetters < total ? 'Some answers might be incomplete or incorrect. ' : ''}Are you sure you want to submit?`)) {
         return;
       }
     }
     
+    isSubmitting.current = true;
     const timeElapsed = Math.floor((Date.now() - startTime) / 1000);
     setFinalTime(timeElapsed);
     setFinalScoreWords(correctWords);
     setIsFinished(true);
     
     const studentId = localStorage.getItem('studentId');
+    if (studentId) {
+      try {
+        localStorage.removeItem(`started_${id}_${studentId}`);
+      } catch (e) {}
+    }
+
     if (studentId && !id.startsWith('practice-')) {
       const accuracy = Math.round((correctLetters / total) * 100);
       const score = (correctWords * 100000) - timeElapsed;
       
-      await dbService.saveResult(id, {
-        studentId,
-        accuracy,
-        timeElapsed,
-        progress: Math.round((correctWords / allWords.length) * 100),
-        score,
-        displayScore: correctWords,
-        correctCount: correctWords,
-        totalQuestions: allWords.length,
-        timestamp: new Date().toISOString()
-      });
+      try {
+        await dbService.saveResult(id, {
+          studentId,
+          accuracy,
+          timeElapsed,
+          progress: Math.round((correctWords / allWords.length) * 100),
+          score,
+          displayScore: correctWords,
+          correctCount: correctWords,
+          totalQuestions: allWords.length,
+          timestamp: new Date().toISOString()
+        });
+      } catch (err) {
+        console.error('Failed to save crossword result:', err);
+      }
     }
   };
 
   useAntiCheat(() => {
-    if (!isFinished) handleSubmit(true); // Call with force = true
+    if (!isFinished && !isSubmitting.current) handleSubmit(true); // Call with force = true
   }, id.startsWith('practice-'));
 
   if (!tournament || grid.length === 0) return <div className="container" style={{ padding: '2rem' }}>Loading...</div>;

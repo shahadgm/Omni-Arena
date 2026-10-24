@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
@@ -10,6 +10,7 @@ const QuizArena = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const studentId = localStorage.getItem('studentId');
+  const isSubmitting = useRef(false);
   
   const [tournament, setTournament] = useState(null);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
@@ -113,6 +114,12 @@ const QuizArena = () => {
   const [quizDetails, setQuizDetails] = useState([]);
 
   const handleFinish = async () => {
+    if (isSubmitting.current) return;
+    isSubmitting.current = true;
+    try {
+      localStorage.removeItem(`started_${id}_${studentId}`);
+    } catch (e) {}
+
     setCompleted(true);
     
     // Calculate Score
@@ -179,21 +186,25 @@ const QuizArena = () => {
     setFinalScore(totalScore);
     setQuizDetails(details);
 
-    await dbService.saveResult(id, {
-      studentId,
-      score: totalScore,
-      accuracy,
-      correctAnswers: correctCount,
-      totalQuestions: tournament.quizQuestions.length,
-      progress: 100, // completed
-      wpm: 0, // to satisfy leaderboard tiebreakers gracefully
-      quizDetails: details,
-      sectionDetails
-    });
+    try {
+      await dbService.saveResult(id, {
+        studentId,
+        score: totalScore,
+        accuracy,
+        correctAnswers: correctCount,
+        totalQuestions: tournament.quizQuestions.length,
+        progress: 100, // completed
+        wpm: 0, // to satisfy leaderboard tiebreakers gracefully
+        quizDetails: details,
+        sectionDetails
+      });
+    } catch (err) {
+      console.error('Failed to save quiz result:', err);
+    }
   };
 
   useAntiCheat(() => {
-    if (!completed) handleFinish();
+    if (!completed && !isSubmitting.current) handleFinish();
   }, id.startsWith('practice-'));
 
   if (!tournament) return <div className="page-wrapper">Loading...</div>;

@@ -12,6 +12,7 @@ const LeaderboardPage = () => {
   const [gameType, setGameType] = useState('typing');
   const [expandedId, setExpandedId] = useState(null);
   const [isHidden, setIsHidden] = useState(false);
+  const [notFound, setNotFound] = useState(false);
   const [retakeInput, setRetakeInput] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [tournament, setTournament] = useState(null);
@@ -76,7 +77,9 @@ const LeaderboardPage = () => {
             setIsHidden(true);
           }
         } else {
-          setTitle('Competition');
+          setNotFound(true);
+          setLoading(false);
+          return;
         }
       }
       setLoading(false);
@@ -144,6 +147,23 @@ const LeaderboardPage = () => {
     : (isQuiz || isCrossword || isPuzzle)
       ? (isManager ? '80px 1fr 90px 90px 90px 90px 140px' : '80px 1fr 100px 100px 100px 100px 40px')
       : (isManager ? '80px 1fr 80px 90px 90px 100px 90px 140px' : '80px 1fr 80px 100px 100px 120px 100px 40px');
+
+  if (notFound) {
+    return (
+      <div className="container" style={{ maxWidth: '650px', textAlign: 'center', paddingTop: '4rem' }}>
+        <Card padding="3rem">
+          <Trophy size={48} style={{ color: 'var(--text-secondary)', marginBottom: '1rem', opacity: 0.5 }} />
+          <h2 style={{ fontSize: '1.75rem', marginBottom: '0.75rem' }}>Tournament Not Found</h2>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
+            The requested tournament does not exist or may have been removed.
+          </p>
+          <Link to={isAdmin ? "/admin/dashboard" : "/dashboard"} className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}>
+            <ArrowLeft size={16} /> Return to Dashboard
+          </Link>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="container" style={{ maxWidth: '850px' }}>
@@ -270,7 +290,14 @@ const LeaderboardPage = () => {
                     #{idx + 1}
                     {idx < 3 && <Medal size={20} />}
                   </div>
-                  <div style={{ fontWeight: '500', fontSize: '1.1rem' }}>{entry.studentId}</div>
+                  <div style={{ fontWeight: '500', fontSize: '1.1rem' }}>
+                    {entry.displayName || entry.studentId}
+                    {entry.displayName && entry.displayName !== entry.studentId && (
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginLeft: '0.4rem', fontWeight: '400' }}>
+                        (@{entry.studentId})
+                      </span>
+                    )}
+                  </div>
                   
                   {isMap ? (
                     <>

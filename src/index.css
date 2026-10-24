@@ -162,3 +162,17 @@ h1, h2, h3, h4, h5, h6 {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.9) 100%);
   box-shadow: var(--glass-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
+
+/* Responsive Navigation */
+@media (max-width: 768px) {
+  .desktop-nav-links a,
+  .desktop-nav-links div {
+    display: none !important;
+  }
+  .mobile-menu-toggle {
+    display: flex !important;
+  }
+  .container {
+    padding: 0 1rem;
+  }
+}
