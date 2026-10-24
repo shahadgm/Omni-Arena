@@ -155,14 +155,9 @@ const Navbar = ({ theme, toggleTheme }) => {
               </button>
             </>
           ) : (
-            <>
-              <Link to="/" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
-                <User size={16} /> Log In / Register
-              </Link>
-              <Link to="/admin/login" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
-                <Shield size={16} /> Admin Portal
-              </Link>
-            </>
+            <Link to="/" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
+              <User size={16} /> Log In / Register
+            </Link>
           )}
 
           {/* Hamburger toggle for small screens */}
@@ -238,14 +233,9 @@ const Navbar = ({ theme, toggleTheme }) => {
               </button>
             </>
           ) : (
-            <>
-              <Link to="/" style={mobileLinkItemStyle} onClick={() => setMobileMenuOpen(false)}>
-                <User size={18} color="var(--accent-primary)" /> Log In / Register
-              </Link>
-              <Link to="/admin/login" style={mobileLinkItemStyle} onClick={() => setMobileMenuOpen(false)}>
-                <Shield size={18} color="var(--accent-primary)" /> Admin Portal
-              </Link>
-            </>
+            <Link to="/" style={mobileLinkItemStyle} onClick={() => setMobileMenuOpen(false)}>
+              <User size={18} color="var(--accent-primary)" /> Log In / Register
+            </Link>
           )}
         </div>
       )}

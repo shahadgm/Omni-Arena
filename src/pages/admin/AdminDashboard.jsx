@@ -19,7 +19,7 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     if (!authService.isAdmin()) {
-      navigate('/admin/login');
+      navigate(authService.isAuthenticated() ? '/dashboard' : '/');
       return;
     }
     fetchTournaments();

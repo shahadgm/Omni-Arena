@@ -7,7 +7,6 @@ const StudentDashboard = lazy(() => import('./pages/StudentDashboard'));
 const ArenaRouter = lazy(() => import('./pages/ArenaRouter'));
 const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
 const StudentHistory = lazy(() => import('./pages/StudentHistory'));
-const AdminLogin = lazy(() => import('./pages/admin/AdminLogin'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const CreateTournament = lazy(() => import('./pages/admin/CreateTournament'));
 
@@ -45,7 +44,7 @@ const App = () => {
             
             <Route path="/tournament/create" element={<CreateTournament />} />
             <Route path="/tournament/edit/:id" element={<CreateTournament />} />
-            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/admin/login" element={<Navigate to="/" replace />} />
             <Route path="/admin/dashboard" element={<AdminDashboard />} />
             <Route path="/admin/tournament/create" element={<CreateTournament />} />
             <Route path="/admin/tournament/edit/:id" element={<CreateTournament />} />
