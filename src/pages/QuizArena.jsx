@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import { dbService } from '../services/db';
-import { Trophy, Clock, Target } from 'lucide-react';
+import { dbService, authService } from '../services/db';
+import { Trophy, Clock, Target, Lock } from 'lucide-react';
 import { useAntiCheat } from '../hooks/useAntiCheat';
 
 const QuizArena = () => {
@@ -210,6 +210,14 @@ const QuizArena = () => {
   if (!tournament) return <div className="page-wrapper">Loading...</div>;
 
   if (completed) {
+    const isPractice = id.startsWith('practice-');
+    const currentUser = authService.getCurrentUser();
+    const isAdmin = authService.isAdmin();
+    const isGuest = authService.isGuest();
+    const isRegisteredOwner = !isGuest && currentUser?.username && typeof tournament?.createdBy === 'string' && !tournament.createdBy.startsWith('guest:') && tournament.createdBy.toLowerCase() === currentUser.username.toLowerCase();
+    const isManager = isAdmin || isRegisteredOwner;
+    const canShowAnswers = isPractice || isManager || !!tournament?.showQuizAnswers;
+
     return (
       <div className="container" style={{ maxWidth: '800px', margin: '0 auto', paddingBottom: '4rem' }}>
         <Card style={{ textAlign: 'center', padding: '3rem 2rem', marginBottom: '2rem' }}>
@@ -230,36 +238,66 @@ const QuizArena = () => {
           </div>
         </Card>
 
-        <h3 style={{ fontSize: '1.5rem', marginBottom: '1.5rem' }}>Your Results</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {quizDetails.map((detail, idx) => (
-            <Card key={idx} style={{ padding: '1.5rem', borderLeft: `4px solid ${detail.isCorrect ? 'var(--success)' : 'var(--error)'}` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                <h4 style={{ fontSize: '1.1rem', fontWeight: '600', maxWidth: '80%' }}>{idx + 1}. {detail.question}</h4>
-                <div style={{ background: 'var(--glass-bg)', padding: '0.25rem 0.75rem', borderRadius: '20px', fontSize: '0.9rem', color: detail.isCorrect ? 'var(--success)' : 'var(--error)' }}>
-                  {detail.pointsAwarded} / {detail.maxPoints} pts
-                </div>
-              </div>
-              
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Your Answer</div>
-                  <div style={{ color: detail.isCorrect ? 'var(--success)' : 'var(--error)', fontWeight: '500' }}>
-                    {detail.userAnswer}
-                  </div>
-                </div>
-                {!detail.isCorrect && (
-                  <div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Correct Answer</div>
-                    <div style={{ color: 'var(--success)', fontWeight: '500' }}>
-                      {detail.correctAnswer}
+        {canShowAnswers ? (
+          <>
+            <h3 style={{ fontSize: '1.5rem', marginBottom: '1.5rem' }}>Your Results</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {quizDetails.map((detail, idx) => (
+                <Card key={idx} style={{ padding: '1.5rem', borderLeft: `4px solid ${detail.isCorrect ? 'var(--success)' : 'var(--error)'}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                    <h4 style={{ fontSize: '1.1rem', fontWeight: '600', maxWidth: '80%' }}>{idx + 1}. {detail.question}</h4>
+                    <div style={{ background: 'var(--glass-bg)', padding: '0.25rem 0.75rem', borderRadius: '20px', fontSize: '0.9rem', color: detail.isCorrect ? 'var(--success)' : 'var(--error)' }}>
+                      {detail.pointsAwarded} / {detail.maxPoints} pts
                     </div>
                   </div>
-                )}
-              </div>
-            </Card>
-          ))}
-        </div>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    <div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Your Answer</div>
+                      <div style={{ color: detail.isCorrect ? 'var(--success)' : 'var(--error)', fontWeight: '500' }}>
+                        {detail.userAnswer}
+                      </div>
+                    </div>
+                    {!detail.isCorrect && (
+                      <div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Correct Answer</div>
+                        <div style={{ color: 'var(--success)', fontWeight: '500' }}>
+                          {detail.correctAnswer}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </>
+        ) : (
+          <Card style={{ padding: '2.5rem 2rem', textAlign: 'center', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '12px' }}>
+            <div style={{
+              width: '54px',
+              height: '54px',
+              borderRadius: '50%',
+              background: 'rgba(234, 179, 8, 0.12)',
+              border: '1px solid rgba(234, 179, 8, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1rem',
+              color: '#eab308'
+            }}>
+              <Lock size={26} />
+            </div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '700', marginBottom: '0.4rem', color: 'var(--text-primary)' }}>
+              Answers Hidden by Organizer
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', maxWidth: '520px', margin: '0 auto 1.5rem', lineHeight: '1.6' }}>
+              Your submission has been securely recorded. The tournament host has hidden question breakdowns and correct answers while the competition is active.
+            </p>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.45rem 1rem', background: 'var(--surface)', borderRadius: '20px', border: '1px solid var(--border)', fontSize: '0.85rem', color: 'var(--text-tertiary)' }}>
+              <Clock size={15} /> Check back on the leaderboard once the host reveals answers
+            </div>
+          </Card>
+        )}
       </div>
     );
   }

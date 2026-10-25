@@ -4,7 +4,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { dbService, authService } from '../services/db';
-import { Trophy, ArrowLeft, RotateCcw, Search, Award, Eye, EyeOff } from 'lucide-react';
+import { Trophy, ArrowLeft, RotateCcw, Search, Award, Eye, EyeOff, Lock } from 'lucide-react';
 
 const LeaderboardPage = () => {
   const { id } = useParams();
@@ -47,6 +47,22 @@ const LeaderboardPage = () => {
       setTournament(prev => ({ ...prev, hideLeaderboard: newHide }));
     } catch (err) {
       alert("Error updating leaderboard visibility: " + err.message);
+    }
+  };
+
+  const handleToggleShowQuizAnswers = async () => {
+    if (!tournament || !isManager) return;
+    const newShow = !tournament.showQuizAnswers;
+    const msg = newShow 
+      ? "Reveal correct quiz answers to contestants? Contestants will be able to see the full answer key upon submitting and on the leaderboard."
+      : "Hide correct quiz answers from contestants? Contestants will only see their points, with answer keys hidden.";
+    if (!window.confirm(msg)) return;
+
+    try {
+      await dbService.updateTournament(id, { showQuizAnswers: newShow });
+      setTournament(prev => ({ ...prev, showQuizAnswers: newShow }));
+    } catch (err) {
+      alert("Error updating quiz answer visibility: " + err.message);
     }
   };
 
@@ -328,6 +344,29 @@ const LeaderboardPage = () => {
                 >
                   {tournament?.hideLeaderboard ? <><Eye size={14} /> Publish Standings</> : <><EyeOff size={14} /> Hide Standings</>}
                 </button>
+
+                {tournament?.gameType === 'quiz' && (
+                  <button
+                    type="button"
+                    onClick={handleToggleShowQuizAnswers}
+                    style={{
+                      padding: '0.5rem 0.85rem',
+                      background: 'transparent',
+                      border: '1px solid var(--border)',
+                      borderRadius: '8px',
+                      color: tournament?.showQuizAnswers ? 'var(--success)' : '#eab308',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem'
+                    }}
+                    title={tournament?.showQuizAnswers ? "Hide answer key from contestants" : "Reveal answer key to contestants"}
+                  >
+                    {tournament?.showQuizAnswers ? <><Eye size={14} /> Answers Revealed</> : <><EyeOff size={14} /> Answers Hidden</>}
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -355,6 +394,34 @@ const LeaderboardPage = () => {
               Grant Retake
             </Button>
           </form>
+        </Card>
+      )}
+
+      {/* QUIZ CONTROLS FOR MANAGERS */}
+      {activeTab === 'manage' && isManager && tournament?.gameType === 'quiz' && !id.startsWith('practice-') && (
+        <Card style={{ marginBottom: '2rem', padding: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Lock size={18} color="var(--primary-text)" /> Contestant Quiz Answer Key
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0, maxWidth: '540px', lineHeight: '1.5' }}>
+                Control whether contestants can see the correct answers after completing their quiz attempt and on the leaderboard.
+              </p>
+            </div>
+            <Button 
+              type="button" 
+              onClick={handleToggleShowQuizAnswers}
+              variant={tournament?.showQuizAnswers ? "secondary" : "primary"}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              {tournament?.showQuizAnswers ? (
+                <><EyeOff size={16} /> Hide Answers from Contestants</>
+              ) : (
+                <><Eye size={16} /> Reveal Answers to Contestants</>
+              )}
+            </Button>
+          </div>
         </Card>
       )}
 
@@ -546,6 +613,11 @@ const LeaderboardPage = () => {
                     {paginated.map((entry, idx) => {
                       const absoluteRank = (currentPage - 1) * pageSize + idx + 1;
                       const isMyRow = myStudentId && entry.studentId.toLowerCase() === myStudentId;
+                      const canExpand = Boolean(
+                        entry.sectionDetails || 
+                        (isManager && (entry.quizDetails || entry.mapDetails)) || 
+                        (tournament?.showQuizAnswers && isMyRow && entry.quizDetails)
+                      );
 
                       return (
                         <React.Fragment key={entry.id}>
@@ -559,11 +631,11 @@ const LeaderboardPage = () => {
                               background: isMyRow ? 'rgba(79, 70, 229, 0.08)' : 'transparent',
                               borderLeft: isMyRow ? '4px solid var(--primary)' : '4px solid transparent',
                               transition: 'background-color 0.15s ease',
-                              cursor: (entry.sectionDetails || (isManager && (entry.quizDetails || entry.mapDetails))) ? 'pointer' : 'default',
+                              cursor: canExpand ? 'pointer' : 'default',
                               fontSize: '0.95rem'
                             }}
                             onClick={() => {
-                              if (entry.sectionDetails || (isManager && (entry.quizDetails || entry.mapDetails))) {
+                              if (canExpand) {
                                 setExpandedId(expandedId === entry.id ? null : entry.id);
                               }
                             }}
@@ -588,6 +660,11 @@ const LeaderboardPage = () => {
                               {isMyRow && (
                                 <span style={{ marginLeft: '0.5rem', fontSize: '0.7rem', padding: '0.15rem 0.45rem', borderRadius: '4px', background: 'var(--primary)', color: 'white', fontWeight: '700' }}>
                                   YOU
+                                </span>
+                              )}
+                              {isMyRow && isQuiz && tournament?.showQuizAnswers && entry.quizDetails && (
+                                <span style={{ marginLeft: '0.35rem', fontSize: '0.7rem', padding: '0.15rem 0.45rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', color: 'var(--success)', fontWeight: '600' }}>
+                                  View answers
                                 </span>
                               )}
                             </div>
@@ -670,10 +747,12 @@ const LeaderboardPage = () => {
                                 </div>
                               )}
 
-                              {/* Quiz Breakdown with Grant Marks for Managers */}
-                              {isManager && entry.quizDetails && (
+                              {/* Quiz Breakdown: Managers can inspect all, contestants can inspect their own if showQuizAnswers is true */}
+                              {entry.quizDetails && (isManager || (tournament?.showQuizAnswers && isMyRow)) && (
                                 <div>
-                                  <div style={{ fontWeight: '700', fontSize: '0.9rem', marginBottom: '0.75rem' }}>Question-by-Question Grading:</div>
+                                  <div style={{ fontWeight: '700', fontSize: '0.9rem', marginBottom: '0.75rem' }}>
+                                    {isManager ? 'Question-by-Question Grading:' : 'Your Quiz Answers & Review:'}
+                                  </div>
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                     {entry.quizDetails.map((qd, qIdx) => (
                                       <div key={qIdx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', padding: '0.6rem 0.85rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
@@ -683,7 +762,7 @@ const LeaderboardPage = () => {
                                             Answer: "{qd.userAnswer}" {qd.isCorrect ? '✓ Correct' : `✗ (Expected: "${qd.correctAnswer}")`}
                                           </div>
                                         </div>
-                                        {!qd.isCorrect && (
+                                        {isManager && !qd.isCorrect && (
                                           <Button onClick={() => handleGrantMarks(entry.id, qIdx)} style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}>
                                             Grant Mark
                                           </Button>

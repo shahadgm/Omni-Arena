@@ -22,6 +22,7 @@ const CreateTournament = () => {
   const [isPrivate, setIsPrivate] = useState(false);
   const [accessCode, setAccessCode] = useState('');
   const [hideLeaderboard, setHideLeaderboard] = useState(false);
+  const [showQuizAnswers, setShowQuizAnswers] = useState(false);
   
   // Edit unlock state
   const [tournamentData, setTournamentData] = useState(null);
@@ -106,6 +107,9 @@ const CreateTournament = () => {
           }
           if (t.hideLeaderboard) {
             setHideLeaderboard(true);
+          }
+          if (t.showQuizAnswers) {
+            setShowQuizAnswers(true);
           }
           if (t.customText) {
             setUseCustomText(true);
@@ -299,6 +303,7 @@ const CreateTournament = () => {
         isPrivate: !!isPrivate,
         accessCode: isPrivate ? accessCode.trim().toUpperCase() : '',
         hideLeaderboard,
+        showQuizAnswers: gameType === 'quiz' ? !!showQuizAnswers : false,
       };
 
       if (!id) {
@@ -667,6 +672,25 @@ const CreateTournament = () => {
               />
               <span style={{ fontWeight: '500' }}>Hide Leaderboard from Contestants</span>
             </label>
+
+            {gameType === 'quiz' && (
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', cursor: 'pointer', marginTop: '1rem', padding: '0.75rem 1rem', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '8px' }}>
+                <input 
+                  type="checkbox" 
+                  checked={showQuizAnswers} 
+                  onChange={(e) => setShowQuizAnswers(e.target.checked)} 
+                  style={{ width: '18px', height: '18px', accentColor: 'var(--accent-primary)', marginTop: '0.15rem' }}
+                />
+                <div>
+                  <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>Reveal Answers to Contestants after Attempt</span>
+                  <div style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem', marginTop: '0.2rem', lineHeight: '1.4' }}>
+                    {showQuizAnswers 
+                      ? 'Contestants will see the full answer key upon submitting their quiz.' 
+                      : 'Answers remain hidden from contestants. You can reveal or hide them anytime from the Leaderboard host controls.'}
+                  </div>
+                </div>
+              </label>
+            )}
           </div>
 
           {gameType === 'typing' && !useCustomText && (
