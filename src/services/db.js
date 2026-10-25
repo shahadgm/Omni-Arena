@@ -1,5 +1,6 @@
-import { db } from './firebase';
+import { db, auth, googleProvider } from './firebase';
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { signInWithPopup } from 'firebase/auth';
 
 export const dbService = {
   async getTournaments() {
@@ -559,6 +560,135 @@ export const authService = {
     }
   },
 
+  async loginWithGoogle() {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      if (!user) throw new Error("Google Sign-In failed.");
+
+      let matchedUsername = null;
+      let matchedData = null;
+
+      // 1. Check if a user with this googleUid exists
+      if (user.uid) {
+        const qUid = query(collection(db, 'users'), where('googleUid', '==', user.uid));
+        const snapUid = await getDocs(qUid);
+        if (!snapUid.empty) {
+          matchedUsername = snapUid.docs[0].id;
+          matchedData = snapUid.docs[0].data();
+        }
+      }
+
+      // 2. If not found by uid, check by email
+      if (!matchedUsername && user.email) {
+        const qEmail = query(collection(db, 'users'), where('email', '==', user.email.toLowerCase()));
+        const snapEmail = await getDocs(qEmail);
+        if (!snapEmail.empty) {
+          matchedUsername = snapEmail.docs[0].id;
+          matchedData = snapEmail.docs[0].data();
+        }
+      }
+
+      // If user exists: check ban & suspension status
+      if (matchedUsername && matchedData) {
+        if (matchedData.status === 'banned') {
+          await auth.signOut().catch(() => {});
+          throw new Error(`This account has been permanently banned: ${matchedData.banReason || 'Policy violation.'}`);
+        }
+        if (matchedData.status === 'suspended') {
+          if (matchedData.suspendedUntil && new Date(matchedData.suspendedUntil) > new Date()) {
+            await auth.signOut().catch(() => {});
+            const untilStr = new Date(matchedData.suspendedUntil).toLocaleString();
+            throw new Error(`This account is suspended until ${untilStr}: ${matchedData.banReason || 'Temporary restriction.'}`);
+          } else {
+            // Suspension duration elapsed: auto-reactivate
+            dbService.reactivateUser(matchedUsername).catch(() => {});
+          }
+        }
+
+        const sessionUser = {
+          username: matchedData.username || matchedUsername,
+          displayName: matchedData.displayName || user.displayName || matchedUsername,
+          role: matchedData.role || 'student',
+          email: user.email,
+          authProvider: 'google'
+        };
+
+        localStorage.setItem('studentId', sessionUser.username);
+        localStorage.setItem('displayName', sessionUser.displayName);
+        localStorage.setItem('user', JSON.stringify(sessionUser));
+        localStorage.setItem('isAdmin', sessionUser.role === 'admin' ? 'true' : 'false');
+        try { sessionStorage.clear(); } catch (_e) {}
+
+        return sessionUser;
+      }
+
+      // If user does NOT exist, register a new organizer profile!
+      const emailPrefix = (user.email ? user.email.split('@')[0] : 'user')
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]/g, '_')
+        .slice(0, 20);
+      
+      let baseUsername = emailPrefix.length >= 3 ? emailPrefix : `user_${user.uid.slice(0, 6).toLowerCase()}`;
+      let finalUsername = baseUsername;
+
+      // Ensure username uniqueness
+      const existingDoc = await getDoc(doc(db, 'users', finalUsername));
+      if (existingDoc.exists()) {
+        const randSuffix = Math.random().toString(36).substring(2, 6);
+        finalUsername = `${baseUsername.slice(0, 24)}_${randSuffix}`;
+      }
+
+      const cleanDisplayName = (user.displayName || finalUsername).trim().slice(0, 50);
+      const role = 'student';
+
+      const newUserData = {
+        username: finalUsername,
+        displayName: cleanDisplayName,
+        email: (user.email || '').toLowerCase(),
+        googleUid: user.uid,
+        authProvider: 'google',
+        passwordHash: 'google_oauth_auth',
+        role,
+        status: 'active',
+        createdAt: new Date().toISOString()
+      };
+
+      await setDoc(doc(db, 'users', finalUsername), newUserData);
+
+      const sessionUser = {
+        username: finalUsername,
+        displayName: cleanDisplayName,
+        role,
+        email: user.email,
+        authProvider: 'google'
+      };
+
+      localStorage.setItem('studentId', sessionUser.username);
+      localStorage.setItem('displayName', sessionUser.displayName);
+      localStorage.setItem('user', JSON.stringify(sessionUser));
+      localStorage.setItem('isAdmin', 'false');
+      try { sessionStorage.clear(); } catch (_e) {}
+
+      return sessionUser;
+    } catch (error) {
+      console.error("Error signing in with Google:", error);
+      if (error.code === 'auth/popup-closed-by-user') {
+        throw new Error('Sign-in popup was closed before completing.');
+      }
+      if (error.code === 'auth/cancelled-popup-request') {
+        throw new Error('Sign-in popup was cancelled.');
+      }
+      if (error.code === 'auth/popup-blocked') {
+        throw new Error('Sign-in popup was blocked by your browser. Please allow popups for this site.');
+      }
+      if (error.code === 'auth/operation-not-allowed') {
+        throw new Error('Google Sign-In is not enabled yet in Firebase Console. Please enable Google under Authentication -> Sign-in method.');
+      }
+      throw error;
+    }
+  },
+
   async loginAdmin(username, password) {
     const user = await this.login(username, password);
     if (user.role !== 'admin') {
@@ -575,6 +705,7 @@ export const authService = {
     localStorage.removeItem('isAdmin');
     try {
       sessionStorage.clear();
+      auth.signOut().catch(() => {});
     } catch (_e) {}
   },
 
