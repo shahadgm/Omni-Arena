@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
 import { dbService, authService } from '../../services/db';
 import { 
-  Settings, Plus, Users, Calendar, Keyboard, Edit, Trash2, 
+  Plus, Users, Calendar, Keyboard, Edit, Trash2, 
   RotateCcw, Square, MapPin, Hash, Lock, Search, Copy, Check, Eye, EyeOff, Filter,
-  MessageSquare, Star, Bug, Lightbulb
+  MessageSquare, Star, Bug, Lightbulb, Ban, UserCheck, Clock, Shield
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -21,6 +22,18 @@ const AdminDashboard = () => {
   const [feedbackLoading, setFeedbackLoading] = useState(false);
   const [feedbackTypeFilter, setFeedbackTypeFilter] = useState('all');
   const [feedbackSearch, setFeedbackSearch] = useState('');
+
+  // User Management State
+  const [userList, setUserList] = useState([]);
+  const [userLoading, setUserLoading] = useState(false);
+  const [userSearch, setUserSearch] = useState('');
+  const [userStatusFilter, setUserStatusFilter] = useState('all'); // 'all' | 'active' | 'suspended' | 'banned'
+  const [userActionModal, setUserActionModal] = useState(null); // { user, type: 'suspend' | 'ban' } | null
+  const [suspendDurationHours, setSuspendDurationHours] = useState('24');
+  const [customHours, setCustomHours] = useState('');
+  const [actionReason, setActionReason] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+
   const navigate = useNavigate();
 
   const fetchTournaments = async () => {
@@ -37,6 +50,18 @@ const AdminDashboard = () => {
     setFeedbackLoading(false);
   };
 
+  const fetchUsers = async () => {
+    setUserLoading(true);
+    try {
+      const data = await dbService.getUsers();
+      setUserList(data);
+    } catch (err) {
+      console.error("Error fetching users:", err);
+    } finally {
+      setUserLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!authService.isAdmin()) {
       navigate(authService.isAuthenticated() ? '/dashboard' : '/');
@@ -44,6 +69,7 @@ const AdminDashboard = () => {
     }
     fetchTournaments();
     fetchFeedback();
+    fetchUsers();
   }, [navigate]);
 
   const handleDelete = async (id, name) => {
@@ -79,6 +105,70 @@ const AdminDashboard = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const handleOpenSuspendModal = (user) => {
+    setUserActionModal({ user, type: 'suspend' });
+    setSuspendDurationHours('24');
+    setCustomHours('');
+    setActionReason('');
+  };
+
+  const handleOpenBanModal = (user) => {
+    setUserActionModal({ user, type: 'ban' });
+    setActionReason('');
+  };
+
+  const handleSubmitUserAction = async (e) => {
+    e?.preventDefault();
+    if (!userActionModal?.user) return;
+    const { user, type } = userActionModal;
+    setActionLoading(true);
+    try {
+      if (type === 'suspend') {
+        const hours = suspendDurationHours === 'custom' ? parseFloat(customHours) : parseFloat(suspendDurationHours);
+        if (!hours || isNaN(hours) || hours <= 0) {
+          alert("Please enter a valid positive duration in hours.");
+          setActionLoading(false);
+          return;
+        }
+        await dbService.suspendUser(user.username, hours, actionReason);
+        alert(`User @${user.username} has been suspended for ${hours} hours.`);
+      } else if (type === 'ban') {
+        await dbService.banUser(user.username, actionReason);
+        alert(`User @${user.username} has been permanently banned.`);
+      }
+      setUserActionModal(null);
+      fetchUsers();
+    } catch (err) {
+      alert("Error: " + err.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReactivateUser = async (username) => {
+    if (!window.confirm(`Reactivate account for @${username}? Any active suspension or ban will be lifted immediately.`)) {
+      return;
+    }
+    try {
+      await dbService.reactivateUser(username);
+      fetchUsers();
+    } catch (err) {
+      alert("Error reactivating user: " + err.message);
+    }
+  };
+
+  const handleDeleteUser = async (username) => {
+    if (!window.confirm(`Are you sure you want to PERMANENTLY delete user @${username}? This action is irreversible.`)) {
+      return;
+    }
+    try {
+      await dbService.deleteUser(username);
+      fetchUsers();
+    } catch (err) {
+      alert("Error deleting user: " + err.message);
+    }
+  };
+
   const getStatus = (startStr, endStr) => {
     const now = new Date();
     const start = new Date(startStr);
@@ -98,7 +188,8 @@ const AdminDashboard = () => {
     { id: 'map', label: 'Map Spotting' },
     { id: 'crossword', label: 'Crossword' },
     { id: 'practice', label: 'Practice Hub' },
-    { id: 'feedback', label: 'Feedback & Reports' }
+    { id: 'feedback', label: 'Feedback & Reports' },
+    { id: 'users', label: 'User Control' }
   ];
 
   const practiceModes = [
@@ -335,6 +426,421 @@ const AdminDashboard = () => {
     );
   };
 
+  const renderUserSection = () => {
+    let filtered = userList;
+    if (userSearch.trim()) {
+      const q = userSearch.toLowerCase();
+      filtered = filtered.filter(u => 
+        u.username.toLowerCase().includes(q) ||
+        (u.displayName && u.displayName.toLowerCase().includes(q))
+      );
+    }
+    if (userStatusFilter !== 'all') {
+      filtered = filtered.filter(u => {
+        if (userStatusFilter === 'active') {
+          return u.status === 'active' || !u.status || (u.status === 'suspended' && u.suspendedUntil && new Date(u.suspendedUntil) <= new Date());
+        }
+        if (userStatusFilter === 'suspended') {
+          return u.status === 'suspended' && u.suspendedUntil && new Date(u.suspendedUntil) > new Date();
+        }
+        if (userStatusFilter === 'banned') {
+          return u.status === 'banned';
+        }
+        return true;
+      });
+    }
+
+    const totalCount = userList.length;
+    const activeCount = userList.filter(u => u.status === 'active' || !u.status || (u.status === 'suspended' && u.suspendedUntil && new Date(u.suspendedUntil) <= new Date())).length;
+    const suspendedCount = userList.filter(u => u.status === 'suspended' && u.suspendedUntil && new Date(u.suspendedUntil) > new Date()).length;
+    const bannedCount = userList.filter(u => u.status === 'banned').length;
+
+    return (
+      <div style={{ marginTop: '0.5rem' }}>
+        {/* Header & Refresh */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: '0 0 0.25rem 0' }}>
+              <Users size={22} color="var(--accent-primary)" /> User & Organizer Control
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0 }}>
+              Manage registered accounts, apply temporary match suspensions, or permanently ban violators.
+            </p>
+          </div>
+
+          <Button 
+            variant="secondary" 
+            onClick={fetchUsers} 
+            disabled={userLoading}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+          >
+            <RotateCcw size={14} /> Refresh Users
+          </Button>
+        </div>
+
+        {/* Stats Summary Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+          <Card padding="1.25rem" style={{ borderLeft: '4px solid var(--accent-primary)' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '600' }}>Total Accounts</span>
+            <div style={{ fontSize: '1.75rem', fontWeight: '800', color: 'var(--text)', marginTop: '0.25rem' }}>{totalCount}</div>
+          </Card>
+
+          <Card padding="1.25rem" style={{ borderLeft: '4px solid var(--success)' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <UserCheck size={14} color="var(--success)" /> Active Users
+            </span>
+            <div style={{ fontSize: '1.75rem', fontWeight: '800', color: 'var(--success)', marginTop: '0.25rem' }}>{activeCount}</div>
+          </Card>
+
+          <Card padding="1.25rem" style={{ borderLeft: '4px solid #f59e0b' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <Clock size={14} color="#f59e0b" /> Suspended
+            </span>
+            <div style={{ fontSize: '1.75rem', fontWeight: '800', color: '#f59e0b', marginTop: '0.25rem' }}>{suspendedCount}</div>
+          </Card>
+
+          <Card padding="1.25rem" style={{ borderLeft: '4px solid var(--error)' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <Ban size={14} color="var(--error)" /> Permanently Banned
+            </span>
+            <div style={{ fontSize: '1.75rem', fontWeight: '800', color: 'var(--error)', marginTop: '0.25rem' }}>{bannedCount}</div>
+          </Card>
+        </div>
+
+        {/* Search & Filter Bar */}
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ position: 'relative', flex: '1', minWidth: '240px', maxWidth: '380px' }}>
+            <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+            <input 
+              type="text"
+              placeholder="Search user by username or display name..."
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '0.65rem 0.85rem 0.65rem 2.4rem',
+                borderRadius: '8px',
+                border: '1px solid var(--border)',
+                background: 'var(--surface-2)',
+                color: 'var(--text)',
+                fontSize: '0.875rem',
+                outline: 'none'
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <Filter size={14} /> Status:
+            </span>
+            {[
+              { id: 'all', label: `All (${totalCount})` },
+              { id: 'active', label: `Active (${activeCount})` },
+              { id: 'suspended', label: `Suspended (${suspendedCount})` },
+              { id: 'banned', label: `Banned (${bannedCount})` }
+            ].map(s => (
+              <button
+                key={s.id}
+                onClick={() => setUserStatusFilter(s.id)}
+                style={{
+                  padding: '0.35rem 0.75rem',
+                  borderRadius: '6px',
+                  border: userStatusFilter === s.id ? '1px solid var(--primary)' : '1px solid var(--border)',
+                  background: userStatusFilter === s.id ? 'var(--primary)' : 'var(--surface-2)',
+                  color: userStatusFilter === s.id ? '#FFFFFF' : 'var(--text-secondary)',
+                  fontSize: '0.8rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                {s.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Users Table / List */}
+        <Card padding="0" style={{ overflow: 'hidden' }}>
+          <div style={{ 
+            padding: '0.85rem 1.25rem', 
+            background: 'var(--surface-2)', 
+            borderBottom: '1px solid var(--border)',
+            display: 'grid', 
+            gridTemplateColumns: 'minmax(220px, 2.5fr) minmax(110px, 1fr) minmax(140px, 1.4fr) minmax(220px, 2fr)',
+            fontSize: '0.8rem', 
+            fontWeight: '700', 
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            color: 'var(--text-secondary)' 
+          }}>
+            <div>User Details</div>
+            <div>Role</div>
+            <div>Account Status</div>
+            <div style={{ textAlign: 'right' }}>Administrative Controls</div>
+          </div>
+
+          {userLoading ? (
+            <div style={{ padding: '3.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              <div className="spinner" style={{ width: '28px', height: '28px', border: '3px solid var(--border)', borderTopColor: 'var(--primary)', borderRadius: '50%', margin: '0 auto 1rem', animation: 'spin 0.8s linear infinite' }} />
+              Loading registered users...
+            </div>
+          ) : filtered.length === 0 ? (
+            <div style={{ padding: '3.5rem 1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              <Users size={32} style={{ color: 'var(--text-tertiary)', margin: '0 auto 0.75rem', opacity: 0.7 }} />
+              <p style={{ fontSize: '1.05rem', fontWeight: '600', marginBottom: '0.35rem', color: 'var(--text)' }}>No matching users</p>
+              <p style={{ fontSize: '0.875rem', margin: 0 }}>
+                {userSearch || userStatusFilter !== 'all' ? 'Try adjusting your filters or search query.' : 'No registered users found.'}
+              </p>
+            </div>
+          ) : (
+            <div>
+              {filtered.map((u, idx) => {
+                const isAdminUser = u.username.toLowerCase() === 'admin' || u.role === 'admin';
+                const isSuspendedNow = u.status === 'suspended' && u.suspendedUntil && new Date(u.suspendedUntil) > new Date();
+                const isBannedNow = u.status === 'banned';
+
+                let remainingHours = 0;
+                if (isSuspendedNow) {
+                  remainingHours = Math.max(1, Math.ceil((new Date(u.suspendedUntil) - Date.now()) / (3600 * 1000)));
+                }
+
+                return (
+                  <div
+                    key={u.username}
+                    style={{
+                      padding: '1rem 1.25rem',
+                      borderBottom: idx < filtered.length - 1 ? '1px solid var(--border)' : 'none',
+                      display: 'grid',
+                      gridTemplateColumns: 'minmax(220px, 2.5fr) minmax(110px, 1fr) minmax(140px, 1.4fr) minmax(220px, 2fr)',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      fontSize: '0.9rem',
+                      transition: 'background 0.15s ease'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--surface-2)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    {/* User Details */}
+                    <div>
+                      <div style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {u.displayName || u.username}
+                        {isAdminUser && (
+                          <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem', background: 'var(--accent-primary)', color: 'white', borderRadius: '4px', fontWeight: 'bold' }}>
+                            MASTER
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginTop: '0.2rem' }}>
+                        @{u.username} {u.createdAt ? `• Joined ${new Date(u.createdAt).toLocaleDateString()}` : ''}
+                      </div>
+                      {(u.banReason && (isBannedNow || isSuspendedNow)) && (
+                        <div style={{ fontSize: '0.78rem', color: isBannedNow ? 'var(--error)' : '#f59e0b', marginTop: '0.25rem', fontStyle: 'italic' }}>
+                          Note: "{u.banReason}"
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Role */}
+                    <div>
+                      <span style={{ 
+                        fontSize: '0.75rem', 
+                        padding: '0.2rem 0.55rem', 
+                        borderRadius: '6px', 
+                        fontWeight: '700',
+                        background: isAdminUser ? 'rgba(59, 130, 246, 0.15)' : 'var(--surface-2)',
+                        color: isAdminUser ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                        border: '1px solid var(--border)'
+                      }}>
+                        {isAdminUser ? 'ADMINISTRATOR' : 'ORGANIZER'}
+                      </span>
+                    </div>
+
+                    {/* Status */}
+                    <div>
+                      {isBannedNow ? (
+                        <span style={{ 
+                          fontSize: '0.75rem', 
+                          padding: '0.25rem 0.6rem', 
+                          borderRadius: '6px', 
+                          fontWeight: '700',
+                          background: 'rgba(239, 68, 68, 0.15)',
+                          color: 'var(--error)',
+                          border: '1px solid rgba(239, 68, 68, 0.3)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem'
+                        }}>
+                          <Ban size={12} /> BANNED
+                        </span>
+                      ) : isSuspendedNow ? (
+                        <div>
+                          <span style={{ 
+                            fontSize: '0.75rem', 
+                            padding: '0.25rem 0.6rem', 
+                            borderRadius: '6px', 
+                            fontWeight: '700',
+                            background: 'rgba(245, 158, 11, 0.15)',
+                            color: '#f59e0b',
+                            border: '1px solid rgba(245, 158, 11, 0.3)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.35rem'
+                          }}>
+                            <Clock size={12} /> SUSPENDED
+                          </span>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginTop: '0.2rem' }}>
+                            {remainingHours}h remaining
+                          </div>
+                        </div>
+                      ) : (
+                        <span style={{ 
+                          fontSize: '0.75rem', 
+                          padding: '0.25rem 0.6rem', 
+                          borderRadius: '6px', 
+                          fontWeight: '700',
+                          background: 'rgba(16, 185, 129, 0.15)',
+                          color: '#34d399',
+                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem'
+                        }}>
+                          <Check size={12} /> ACTIVE
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Action Controls */}
+                    <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end', alignItems: 'center' }}>
+                      {isAdminUser ? (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>
+                          <Shield size={14} color="var(--accent-primary)" /> Protected
+                        </div>
+                      ) : (
+                        <>
+                          {isSuspendedNow && (
+                            <button
+                              type="button"
+                              onClick={() => handleReactivateUser(u.username)}
+                              title="Lift suspension immediately"
+                              style={{
+                                padding: '0.35rem 0.65rem',
+                                background: 'rgba(16, 185, 129, 0.12)',
+                                border: '1px solid rgba(16, 185, 129, 0.3)',
+                                borderRadius: '6px',
+                                color: '#34d399',
+                                cursor: 'pointer',
+                                fontSize: '0.8rem',
+                                fontWeight: '600',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem'
+                              }}
+                            >
+                              <UserCheck size={13} /> Reactivate
+                            </button>
+                          )}
+
+                          {isBannedNow && (
+                            <button
+                              type="button"
+                              onClick={() => handleReactivateUser(u.username)}
+                              title="Unban account"
+                              style={{
+                                padding: '0.35rem 0.65rem',
+                                background: 'rgba(59, 130, 246, 0.12)',
+                                border: '1px solid rgba(59, 130, 246, 0.3)',
+                                borderRadius: '6px',
+                                color: 'var(--accent-primary)',
+                                cursor: 'pointer',
+                                fontSize: '0.8rem',
+                                fontWeight: '600',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.3rem'
+                              }}
+                            >
+                              <UserCheck size={13} /> Unban
+                            </button>
+                          )}
+
+                          {!isSuspendedNow && !isBannedNow && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenSuspendModal(u)}
+                                title="Suspend account for a duration"
+                                style={{
+                                  padding: '0.35rem 0.65rem',
+                                  background: 'rgba(245, 158, 11, 0.12)',
+                                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                                  borderRadius: '6px',
+                                  color: '#f59e0b',
+                                  cursor: 'pointer',
+                                  fontSize: '0.8rem',
+                                  fontWeight: '600',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem'
+                                }}
+                              >
+                                <Clock size={13} /> Suspend
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleOpenBanModal(u)}
+                                title="Permanently ban user"
+                                style={{
+                                  padding: '0.35rem 0.65rem',
+                                  background: 'rgba(239, 68, 68, 0.1)',
+                                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                                  borderRadius: '6px',
+                                  color: 'var(--error)',
+                                  cursor: 'pointer',
+                                  fontSize: '0.8rem',
+                                  fontWeight: '600',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.3rem'
+                                }}
+                              >
+                                <Ban size={13} /> Ban
+                              </button>
+                            </>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteUser(u.username)}
+                            title="Permanently delete user account"
+                            style={{
+                              padding: '0.35rem 0.5rem',
+                              background: 'transparent',
+                              border: '1px solid var(--border)',
+                              borderRadius: '6px',
+                              color: 'var(--danger)',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      </div>
+    );
+  };
+
   return (
     <div className="container" style={{ maxWidth: '1100px', margin: '0 auto', padding: '1rem', paddingBottom: '4rem' }}>
       <style>{`
@@ -388,7 +894,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Search and Status Filters (for tournaments) */}
-      {activeTab !== 'practice' && activeTab !== 'feedback' && (
+      {activeTab !== 'practice' && activeTab !== 'feedback' && activeTab !== 'users' && (
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ position: 'relative', flex: '1', minWidth: '240px', maxWidth: '400px' }}>
             <Search size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
@@ -714,6 +1220,127 @@ const AdminDashboard = () => {
               </div>
             );
           })()}
+        </div>
+      )}
+
+      {activeTab === 'users' && renderUserSection()}
+
+      {/* Suspend / Ban Modal */}
+      {userActionModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.7)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '1rem'
+        }}>
+          <Card style={{ maxWidth: '460px', width: '100%', padding: '2rem' }}>
+            <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
+              <div style={{ 
+                width: '52px', height: '52px', borderRadius: '50%', 
+                background: userActionModal.type === 'ban' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)', 
+                border: `1px solid ${userActionModal.type === 'ban' ? 'var(--danger)' : '#f59e0b'}`, 
+                display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.75rem',
+                color: userActionModal.type === 'ban' ? 'var(--danger)' : '#f59e0b'
+              }}>
+                {userActionModal.type === 'ban' ? <Ban size={26} /> : <Clock size={26} />}
+              </div>
+              <h3 style={{ fontSize: '1.35rem', fontWeight: '800', marginBottom: '0.35rem', color: 'var(--text-primary)' }}>
+                {userActionModal.type === 'ban' ? 'Permanently Ban User' : 'Suspend Account'}
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0 }}>
+                Applying action to: <strong style={{ color: 'var(--text-primary)' }}>@{userActionModal.user.username}</strong> ({userActionModal.user.displayName || userActionModal.user.username})
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmitUserAction} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              {userActionModal.type === 'suspend' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                    Suspension Duration
+                  </label>
+                  <select
+                    value={suspendDurationHours}
+                    onChange={(e) => setSuspendDurationHours(e.target.value)}
+                    style={{
+                      padding: '0.65rem 0.85rem',
+                      borderRadius: '8px',
+                      background: 'var(--surface-2)',
+                      border: '1px solid var(--border)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.9rem',
+                      outline: 'none',
+                      fontFamily: 'inherit'
+                    }}
+                  >
+                    <option value="1">1 Hour (Cooling off)</option>
+                    <option value="6">6 Hours (Match day lockout)</option>
+                    <option value="24">24 Hours (1 Day)</option>
+                    <option value="72">72 Hours (3 Days)</option>
+                    <option value="168">7 Days (1 Week)</option>
+                    <option value="720">30 Days (1 Month)</option>
+                    <option value="custom">Custom hours...</option>
+                  </select>
+
+                  {suspendDurationHours === 'custom' && (
+                    <Input
+                      type="number"
+                      placeholder="Enter duration in hours (e.g. 12 or 48)..."
+                      value={customHours}
+                      onChange={(e) => setCustomHours(e.target.value)}
+                      min="1"
+                      required
+                      style={{ marginTop: '0.35rem' }}
+                    />
+                  )}
+                </div>
+              )}
+
+              {userActionModal.type === 'ban' && (
+                <div style={{ padding: '0.85rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', color: 'var(--error)', fontSize: '0.825rem', lineHeight: '1.5' }}>
+                  ⚠️ <strong>Permanent Action:</strong> The user will be immediately rejected from logging in or hosting tournaments until an admin explicitly unbans them.
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                  Reason (Optional)
+                </label>
+                <Input
+                  placeholder={userActionModal.type === 'ban' ? 'e.g. Repeated cheating or anti-cheat violation' : 'e.g. Match misconduct or suspicious speed'}
+                  value={actionReason}
+                  onChange={(e) => setActionReason(e.target.value)}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.5rem' }}>
+                <Button 
+                  type="submit" 
+                  disabled={actionLoading}
+                  variant={userActionModal.type === 'ban' ? 'danger' : 'primary'}
+                  style={{ flex: 1, padding: '0.75rem', fontWeight: '700' }}
+                >
+                  {actionLoading ? 'Processing...' : (userActionModal.type === 'ban' ? 'Ban Permanently' : 'Apply Suspension')}
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="secondary" 
+                  onClick={() => setUserActionModal(null)} 
+                  disabled={actionLoading}
+                  style={{ padding: '0.75rem 1rem' }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </Card>
         </div>
       )}
     </div>

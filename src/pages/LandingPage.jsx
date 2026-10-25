@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import { Trophy, Zap, Gamepad2, Shield, Lock, User, AlertCircle, UserPlus, LogIn } from 'lucide-react';
+import { Trophy, Zap, Gamepad2, Shield, Lock, User, AlertCircle, UserPlus } from 'lucide-react';
 import { authService } from '../services/db';
 
 const LandingPage = () => {
@@ -53,6 +53,20 @@ const LandingPage = () => {
 
     setLoading(true);
     try {
+      // Check if this candidate is banned or suspended
+      const banCheck = await authService.checkUserBanStatus(cleanId);
+      if (banCheck.isBanned) {
+        setError(`Access Denied: Contestant "${cleanId}" is permanently banned. (${banCheck.reason})`);
+        setLoading(false);
+        return;
+      }
+      if (banCheck.isSuspended) {
+        const untilStr = new Date(banCheck.suspendedUntil).toLocaleString();
+        setError(`Access Restricted: Contestant "${cleanId}" is suspended until ${untilStr}. (${banCheck.reason})`);
+        setLoading(false);
+        return;
+      }
+
       // Block names that match an existing account username
       const exists = await authService.checkUsernameExists(cleanId);
       if (exists) {

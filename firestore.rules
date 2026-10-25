@@ -19,9 +19,12 @@ service cloud.firestore {
                     && request.resource.data.role == 'student'
                     && request.resource.data.passwordHash is string;
 
-      // Block update and delete
-      allow update: if false;
-      allow delete: if false;
+      // Allow updates to status, suspension, ban reason (admin account cannot be modified or role escalated)
+      allow update: if username != 'admin'
+                    && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role);
+
+      // Allow deleting user account (admin cannot be deleted)
+      allow delete: if username != 'admin';
     }
 
     // TOURNAMENTS COLLECTION

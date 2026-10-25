@@ -299,6 +299,80 @@ export const dbService = {
       console.error("Error fetching feedback list:", error);
       return [];
     }
+  },
+
+  async getUsers() {
+    try {
+      const q = query(collection(db, 'users'));
+      const snapshot = await getDocs(q);
+      const list = [];
+      snapshot.forEach(docSnap => {
+        const d = docSnap.data();
+        list.push({
+          username: docSnap.id,
+          displayName: d.displayName || docSnap.id,
+          role: d.role || 'student',
+          status: d.status || 'active',
+          suspendedUntil: d.suspendedUntil || null,
+          bannedAt: d.bannedAt || null,
+          banReason: d.banReason || '',
+          createdAt: d.createdAt || null
+        });
+      });
+      return list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    } catch (err) {
+      console.error("Error fetching users:", err);
+      return [];
+    }
+  },
+
+  async suspendUser(username, durationHours, reason) {
+    const clean = (username || '').trim().toLowerCase();
+    if (clean === 'admin') throw new Error("Cannot suspend Master Admin account.");
+    const suspendedUntil = new Date(Date.now() + durationHours * 3600 * 1000).toISOString();
+    const ref = doc(db, 'users', clean);
+    await updateDoc(ref, {
+      status: 'suspended',
+      suspendedUntil,
+      banReason: reason?.trim() || 'Suspended by admin',
+      updatedAt: new Date().toISOString()
+    });
+    return { username: clean, status: 'suspended', suspendedUntil };
+  },
+
+  async banUser(username, reason) {
+    const clean = (username || '').trim().toLowerCase();
+    if (clean === 'admin') throw new Error("Cannot ban Master Admin account.");
+    const ref = doc(db, 'users', clean);
+    await updateDoc(ref, {
+      status: 'banned',
+      bannedAt: new Date().toISOString(),
+      banReason: reason?.trim() || 'Permanently banned by admin',
+      updatedAt: new Date().toISOString()
+    });
+    return { username: clean, status: 'banned' };
+  },
+
+  async reactivateUser(username) {
+    const clean = (username || '').trim().toLowerCase();
+    if (clean === 'admin') throw new Error("Cannot modify Master Admin account.");
+    const ref = doc(db, 'users', clean);
+    await updateDoc(ref, {
+      status: 'active',
+      suspendedUntil: null,
+      bannedAt: null,
+      banReason: null,
+      updatedAt: new Date().toISOString()
+    });
+    return { username: clean, status: 'active' };
+  },
+
+  async deleteUser(username) {
+    const clean = (username || '').trim().toLowerCase();
+    if (clean === 'admin') throw new Error("Cannot delete Master Admin account.");
+    const ref = doc(db, 'users', clean);
+    await deleteDoc(ref);
+    return { username: clean, deleted: true };
   }
 };
 
@@ -405,6 +479,21 @@ export const authService = {
       }
 
       const data = userSnap.data();
+
+      // Check if user is permanently banned or temporarily suspended
+      if (data.status === 'banned') {
+        throw new Error(`This account has been permanently banned: ${data.banReason || 'Violation of platform policies.'}`);
+      }
+      if (data.status === 'suspended') {
+        if (data.suspendedUntil && new Date(data.suspendedUntil) > new Date()) {
+          const untilStr = new Date(data.suspendedUntil).toLocaleString();
+          throw new Error(`This account is suspended until ${untilStr}: ${data.banReason || 'Temporary restriction.'}`);
+        } else {
+          // Suspension duration has elapsed; auto-reactivate
+          dbService.reactivateUser(cleanUsername).catch(() => {});
+        }
+      }
+
       const modernHash = await hashPassword(password, cleanUsername);
       const legacyHash = await legacySha256(password);
 
@@ -447,6 +536,26 @@ export const authService = {
     } catch (error) {
       console.error("Error checking username existence:", error);
       return false;
+    }
+  },
+
+  async checkUserBanStatus(username) {
+    const clean = (username || '').trim().toLowerCase();
+    if (!clean) return { isBanned: false, isSuspended: false };
+    try {
+      const userDocRef = doc(db, 'users', clean);
+      const snap = await getDoc(userDocRef);
+      if (!snap.exists()) return { isBanned: false, isSuspended: false };
+      const data = snap.data();
+      if (data.status === 'banned') {
+        return { isBanned: true, reason: data.banReason || 'Banned by administrator.' };
+      }
+      if (data.status === 'suspended' && data.suspendedUntil && new Date(data.suspendedUntil) > new Date()) {
+        return { isSuspended: true, suspendedUntil: data.suspendedUntil, reason: data.banReason || 'Temporarily suspended.' };
+      }
+      return { isBanned: false, isSuspended: false };
+    } catch (_err) {
+      return { isBanned: false, isSuspended: false };
     }
   },
 

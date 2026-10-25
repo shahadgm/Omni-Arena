@@ -4,7 +4,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { dbService, authService } from '../services/db';
-import { Trophy, ArrowLeft, RotateCcw, Search, Award, Key, Eye, EyeOff } from 'lucide-react';
+import { Trophy, ArrowLeft, RotateCcw, Search, Award, Eye, EyeOff } from 'lucide-react';
 
 const LeaderboardPage = () => {
   const { id } = useParams();
