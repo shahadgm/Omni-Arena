@@ -2,19 +2,26 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
-import { dbService } from '../services/db';
-import { Clock, ArrowLeft, Trophy } from 'lucide-react';
+import { dbService, authService } from '../services/db';
+import { Clock, ArrowLeft, Trophy, UserPlus, LogIn } from 'lucide-react';
 
 const StudentHistory = () => {
+  const isGuest = authService.isGuest();
   const [history, setHistory] = useState([]);
   const [tournamentsMap, setTournamentsMap] = useState({});
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isGuest);
   const navigate = useNavigate();
   const studentId = localStorage.getItem('studentId');
+  const currentUser = authService.getCurrentUser();
+  const displayName = currentUser?.displayName || 'Contestant';
 
   useEffect(() => {
     if (!studentId) {
       navigate('/');
+      return;
+    }
+
+    if (isGuest) {
       return;
     }
 
@@ -41,7 +48,7 @@ const StudentHistory = () => {
     };
 
     fetchHistory();
-  }, [navigate, studentId]);
+  }, [navigate, studentId, isGuest]);
 
   const getFormatLabel = (entry) => {
     const tInfo = tournamentsMap[entry.competitionId];
@@ -84,6 +91,63 @@ const StudentHistory = () => {
     }
     return { main: `${entry.score || 0}`, sub: 'pts' };
   };
+
+  if (isGuest) {
+    return (
+      <div className="container" style={{ maxWidth: '640px', margin: '2rem auto', padding: '1rem' }}>
+        <Link 
+          to="/dashboard" 
+          style={{ 
+            color: 'var(--text-secondary)', 
+            textDecoration: 'none', 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: '0.5rem', 
+            marginBottom: '1.5rem',
+            fontSize: '0.9rem',
+            fontWeight: '600'
+          }}
+        >
+          <ArrowLeft size={16} /> Back to Tournaments
+        </Link>
+
+        <Card padding="2.75rem 2rem" style={{ textAlign: 'center', border: '1px solid var(--border)' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--surface-2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
+            <Clock size={32} style={{ color: 'var(--primary-text)' }} />
+          </div>
+          <h2 style={{ fontSize: '1.6rem', fontWeight: '800', marginBottom: '0.6rem', color: 'var(--text-primary)' }}>
+            Tournament History is Saved for Registered Accounts
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.6', maxWidth: '480px', margin: '0 auto 1.75rem' }}>
+            You are currently competing as guest contestant <strong>{displayName}</strong>. Your scores are posted to live tournament leaderboards, but persistent history, WPM tracking, and performance analytics are only saved for registered accounts.
+          </p>
+
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Button 
+              onClick={() => { authService.logout(); navigate('/?tab=account&mode=register'); }} 
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}
+            >
+              <UserPlus size={16} /> Create Free Account
+            </Button>
+            <Button 
+              variant="secondary" 
+              onClick={() => { authService.logout(); navigate('/?tab=account&mode=login'); }} 
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.9rem' }}
+            >
+              <LogIn size={16} /> Log In
+            </Button>
+            <Button 
+              variant="secondary" 
+              onClick={() => navigate('/dashboard')}
+              style={{ fontSize: '0.9rem' }}
+            >
+              Browse Tournaments
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="container" style={{ maxWidth: '960px', margin: '0 auto', padding: '1rem' }}>

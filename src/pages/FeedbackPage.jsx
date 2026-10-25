@@ -13,7 +13,7 @@ const FeedbackPage = () => {
   const navigate = useNavigate();
   const currentUser = authService.getCurrentUser();
   const rawName = currentUser?.displayName || localStorage.getItem('displayName') || currentUser?.username || localStorage.getItem('studentId') || '';
-  const defaultDisplayName = rawName ? rawName.replace(/^guest:/, '') : '';
+  const defaultDisplayName = rawName ? rawName.replace(/^guest:/, '').replace(/_[a-z0-9]{5,8}$/, '') : '';
 
   // Form State
   const [feedbackType, setFeedbackType] = useState('bug'); // 'bug' | 'suggestion' | 'review'

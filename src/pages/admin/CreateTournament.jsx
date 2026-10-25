@@ -4,7 +4,7 @@ import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { dbService, authService, hashManagePassword } from '../../services/db';
-import { Plus, Trash2, Globe, Lock, Key, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Globe, Lock, Key, RefreshCw, UserPlus, LogIn } from 'lucide-react';
 import clg from 'crossword-layout-generator';
 
 const CreateTournament = () => {
@@ -325,7 +325,7 @@ const CreateTournament = () => {
       if (!id) {
         // Only set creator for new tournaments; never overwrite original creator on edit
         tournament.createdBy = currentUser.username;
-        tournament.creatorName = (currentUser.displayName || currentUser.username).replace(/^guest:/, '');
+        tournament.creatorName = (currentUser.displayName || currentUser.username).replace(/^guest:/, '').replace(/_[a-z0-9]{5,8}$/, '');
         tournament.createdAt = new Date().toISOString();
       }
 
@@ -415,8 +415,9 @@ const CreateTournament = () => {
         tournament.crosswordLayout = flatLayout;
       }
 
-      if (!id && authService.isGuest() && (!managePassword.trim() || managePassword.trim().length < 3)) {
-        alert("Please set a management password (at least 3 characters) so you can edit and manage this tournament.");
+      if (!id && authService.isGuest()) {
+        alert("Hosting tournaments requires an Organizer account. Please log in or register.");
+        navigate('/?tab=account&mode=register');
         return;
       }
 
@@ -484,6 +485,36 @@ const CreateTournament = () => {
       alert("Error deleting tournament: " + err.message);
     }
   };
+
+  if (!id && authService.isGuest()) {
+    return (
+      <div className="container" style={{ maxWidth: '540px', margin: '4rem auto', padding: '1rem' }}>
+        <Card style={{ padding: '2.5rem 2rem', textAlign: 'center' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--surface-2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
+            <Lock size={30} style={{ color: 'var(--primary-text)' }} />
+          </div>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: '800', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>
+            Organizer Account Required
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '1.75rem' }}>
+            Hosting and administering tournaments requires an Organizer account. This ensures you can securely manage rules, inspect hidden leaderboards, and grade candidate submissions.
+          </p>
+
+          <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Button onClick={() => { authService.logout(); navigate('/?tab=account&mode=register'); }} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+              <UserPlus size={16} /> Create Free Account
+            </Button>
+            <Button variant="secondary" onClick={() => { authService.logout(); navigate('/?tab=account&mode=login'); }} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+              <LogIn size={16} /> Log In as Organizer
+            </Button>
+            <Button variant="secondary" onClick={() => navigate('/dashboard')}>
+              Back to Arena
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   if (id && !isUnlocked) {
     return (
@@ -702,17 +733,16 @@ const CreateTournament = () => {
             
             <div style={{ marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
               <label style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Key size={15} /> Host Management Password {authService.isGuest() && !id ? <span style={{ color: 'var(--danger)' }}>*</span> : '(Optional)'}
+                <Key size={15} /> Tournament Management Password (Optional)
               </label>
               <Input 
                 type="password"
-                placeholder={id ? "Enter new management password, or leave blank to keep current" : "Set password to edit or manage this tournament later..."}
+                placeholder={id ? "Enter new management password, or leave blank to keep current" : "Optional passcode to delegate editing or grading..."}
                 value={managePassword}
                 onChange={e => setManagePassword(e.target.value)}
-                required={authService.isGuest() && !id}
               />
               <p style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem', marginTop: '0.2rem', margin: 0 }}>
-                {authService.isGuest() ? "Required for guests: allows you to edit tournament details or unlock retake & grading controls on the leaderboard." : "Allows you to edit tournament settings or manage retakes across different devices."}
+                Allows you or fellow proctors to unlock host controls on different devices without sharing your account password.
               </p>
             </div>
 

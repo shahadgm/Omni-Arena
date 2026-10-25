@@ -156,7 +156,9 @@ export const dbService = {
       const user = authService.getCurrentUser();
       const newRef = doc(collection(db, 'results'));
       const studentId = result.studentId || user?.username || localStorage.getItem('studentId') || 'unknown';
-      const plainName = (result.displayName || user?.displayName || localStorage.getItem('displayName') || studentId).replace(/^guest:/, '');
+      const plainName = (result.displayName || user?.displayName || localStorage.getItem('displayName') || studentId)
+        .replace(/^guest:/, '')
+        .replace(/_[a-z0-9]{5,8}$/, '');
       const resultData = {
         ...result,
         studentId,
@@ -223,6 +225,9 @@ export const dbService = {
   },
 
   async getStudentHistory(studentId) {
+    if (!studentId || studentId.startsWith('guest:') || authService.isGuest()) {
+      return [];
+    }
     try {
       const q = query(collection(db, 'results'), where('studentId', '==', studentId));
       const snapshot = await getDocs(q);
@@ -266,7 +271,9 @@ export const dbService = {
       const user = authService.getCurrentUser();
       const newRef = doc(collection(db, 'feedback'));
       const studentId = user?.username || localStorage.getItem('studentId') || 'anonymous';
-      const plainName = (data.name || user?.displayName || localStorage.getItem('displayName') || studentId).replace(/^guest:/, '');
+      const plainName = (data.name || user?.displayName || localStorage.getItem('displayName') || studentId)
+        .replace(/^guest:/, '')
+        .replace(/_[a-z0-9]{5,8}$/, '');
       const payload = {
         type: data.type || 'suggestion',
         category: data.category || 'general',
@@ -479,13 +486,44 @@ export const authService = {
     } catch (_e) {}
   },
 
+  getOrCreateDeviceToken() {
+    let token = localStorage.getItem('omni_device_token');
+    if (!token) {
+      token = Math.random().toString(36).substring(2, 8);
+      localStorage.setItem('omni_device_token', token);
+    }
+    return token;
+  },
+
+  setGuestContestant(name) {
+    const cleanName = (name || '').trim();
+    if (!cleanName) return null;
+    const token = this.getOrCreateDeviceToken();
+    const guestId = `guest:${cleanName.toLowerCase()}_${token}`;
+    localStorage.setItem('studentId', guestId);
+    localStorage.setItem('displayName', cleanName);
+    const sessionUser = {
+      username: guestId,
+      displayName: cleanName,
+      role: 'guest'
+    };
+    localStorage.setItem('user', JSON.stringify(sessionUser));
+    localStorage.setItem('isAdmin', 'false');
+    try {
+      sessionStorage.clear();
+    } catch (_e) {}
+    return sessionUser;
+  },
+
   getCurrentUser() {
     try {
       const stored = localStorage.getItem('user');
       if (stored) {
         const u = JSON.parse(stored);
         if (u) {
-          u.displayName = (u.displayName || u.username || '').replace(/^guest:/, '');
+          u.displayName = (u.displayName || u.username || '')
+            .replace(/^guest:/, '')
+            .replace(/_[a-z0-9]{5,8}$/, '');
           return u;
         }
       }
@@ -494,7 +532,9 @@ export const authService = {
     const studentId = localStorage.getItem('studentId');
     if (studentId) {
       const isGuest = studentId.startsWith('guest:');
-      const plain = (localStorage.getItem('displayName') || studentId).replace(/^guest:/, '');
+      const plain = (localStorage.getItem('displayName') || studentId)
+        .replace(/^guest:/, '')
+        .replace(/_[a-z0-9]{5,8}$/, '');
       return {
         username: studentId,
         displayName: plain,
@@ -509,6 +549,10 @@ export const authService = {
     if (!user) return false;
     const studentId = localStorage.getItem('studentId') || '';
     return user.role === 'guest' || (user.username && user.username.startsWith('guest:')) || studentId.startsWith('guest:');
+  },
+
+  canHost() {
+    return !this.isGuest() && this.isAuthenticated();
   },
 
   isAuthenticated() {

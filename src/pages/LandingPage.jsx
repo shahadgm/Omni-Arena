@@ -1,32 +1,46 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import { Trophy, Zap, Gamepad2, Shield, Lock, User, AlertCircle } from 'lucide-react';
+import { Trophy, Zap, Gamepad2, Shield, Lock, User, AlertCircle, UserPlus, LogIn } from 'lucide-react';
 import { authService } from '../services/db';
 
 const LandingPage = () => {
-  const [tab, setTab] = useState('contestant'); // 'contestant' | 'admin'
+  const [tab, setTab] = useState('contestant'); // 'contestant' | 'account'
+  const [accountMode, setAccountMode] = useState('login'); // 'login' | 'register'
   
   // Contestant entry state
   const [contestantId, setContestantId] = useState('');
   
-  // Admin login state
-  const [adminUsername, setAdminUsername] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
+  // Account login/register state
+  const [username, setUsername] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [password, setPassword] = useState('');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
+    // Parse URL params e.g. /?tab=account&mode=register
+    const params = new URLSearchParams(location.search);
+    if (params.get('tab') === 'account') {
+      setTab('account');
+      if (params.get('mode') === 'register') {
+        setAccountMode('register');
+      } else if (params.get('mode') === 'login') {
+        setAccountMode('login');
+      }
+    }
+
     if (authService.isAdmin()) {
       navigate('/admin/dashboard');
     } else if (localStorage.getItem('studentId')) {
       navigate('/dashboard');
     }
-  }, [navigate]);
+  }, [navigate, location.search]);
 
   const handleContestantEnter = async (e) => {
     e.preventDefault();
@@ -42,50 +56,51 @@ const LandingPage = () => {
       // Block names that match an existing account username
       const exists = await authService.checkUsernameExists(cleanId);
       if (exists) {
-        setError('This name belongs to a registered account. Please log in with your password.');
+        setError('This name belongs to a registered account. Please switch to Organizer Portal to log in.');
         setLoading(false);
         return;
       }
 
-      // Save contestants as guest:<name> so they can never match a username
-      const guestId = `guest:${cleanId}`;
-      localStorage.setItem('studentId', guestId);
-      localStorage.setItem('displayName', cleanId);
-      localStorage.setItem('user', JSON.stringify({
-        username: guestId,
-        displayName: cleanId,
-        role: 'guest'
-      }));
-      localStorage.setItem('isAdmin', 'false');
-      try {
-        sessionStorage.clear();
-      } catch (_e) {}
+      // Save contestant with device token so names don't collide
+      authService.setGuestContestant(cleanId);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.message || 'Error verifying contestant name.');
+      setError(err.message || 'Error entering arena as contestant.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAdminLogin = async (e) => {
+  const handleAccountSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    if (!adminUsername.trim() || !adminPassword) {
-      setError('Please enter both admin username and password.');
-      return;
-    }
     setLoading(true);
+
     try {
-      const user = await authService.login(adminUsername, adminPassword);
-      if (user.role === 'admin') {
-        navigate('/admin/dashboard');
+      if (accountMode === 'login') {
+        if (!username.trim() || !password) {
+          setError('Please enter both username and password.');
+          setLoading(false);
+          return;
+        }
+        const user = await authService.login(username.trim(), password);
+        if (user.role === 'admin') {
+          navigate('/admin/dashboard');
+        } else {
+          navigate('/dashboard');
+        }
       } else {
-        setError('Administrator privileges required.');
-        authService.logout();
+        // Register Mode
+        if (!username.trim() || !password) {
+          setError('Please enter both username and password.');
+          setLoading(false);
+          return;
+        }
+        await authService.register(username.trim(), password, displayName.trim());
+        navigate('/dashboard');
       }
     } catch (err) {
-      setError(err.message || 'Invalid username or password.');
+      setError(err.message || 'Authentication error.');
     } finally {
       setLoading(false);
     }
@@ -162,16 +177,16 @@ const LandingPage = () => {
           <button
             type="button"
             role="tab"
-            id="admin-tab"
-            aria-selected={tab === 'admin'}
-            aria-controls="admin-panel"
-            onClick={() => { setTab('admin'); setError(''); }}
+            id="account-tab"
+            aria-selected={tab === 'account'}
+            aria-controls="account-panel"
+            onClick={() => { setTab('account'); setError(''); }}
             style={{
               padding: '0.65rem 1rem',
               borderRadius: '7px',
               border: 'none',
-              background: tab === 'admin' ? 'var(--primary)' : 'transparent',
-              color: tab === 'admin' ? '#ffffff' : 'var(--text-secondary)',
+              background: tab === 'account' ? 'var(--primary)' : 'transparent',
+              color: tab === 'account' ? '#ffffff' : 'var(--text-secondary)',
               fontWeight: '600',
               cursor: 'pointer',
               display: 'flex',
@@ -181,7 +196,7 @@ const LandingPage = () => {
               transition: 'all 0.15s ease'
             }}
           >
-            <Shield size={16} /> Admin Login
+            <Shield size={16} /> Organizer Portal
           </button>
         </div>
 
@@ -212,9 +227,9 @@ const LandingPage = () => {
               <div style={{ display: 'inline-flex', padding: '0.75rem', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '50%', marginBottom: '0.75rem' }}>
                 <Gamepad2 size={28} style={{ color: 'var(--primary-text)' }} />
               </div>
-              <h2 style={{ fontSize: '1.4rem', fontWeight: '700', marginBottom: '0.35rem' }}>Enter the Arena</h2>
+              <h2 style={{ fontSize: '1.4rem', fontWeight: '700', marginBottom: '0.35rem' }}>Enter as Contestant</h2>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0 }}>
-                No password required. Enter your Name or Admission Number to join.
+                No password required. Enter your Name or Admission Number to join live tournaments.
               </p>
             </div>
 
@@ -236,49 +251,116 @@ const LandingPage = () => {
               <Button 
                 type="submit" 
                 variant="primary"
+                disabled={loading}
                 style={{ width: '100%', padding: '0.85rem', fontSize: '1rem', marginTop: '0.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
               >
                 Enter Platform <Zap size={18} />
               </Button>
             </form>
+
+            <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border)', textAlign: 'center', fontSize: '0.825rem', color: 'var(--text-tertiary)' }}>
+              Want to host tournaments and save your competition history?{' '}
+              <button
+                type="button"
+                onClick={() => { setTab('account'); setAccountMode('register'); setError(''); }}
+                style={{ background: 'none', border: 'none', color: 'var(--primary-text)', fontWeight: '600', cursor: 'pointer', padding: 0 }}
+              >
+                Create an Organizer Account
+              </button>
+            </div>
           </div>
         ) : (
-          <div role="tabpanel" id="admin-panel" aria-labelledby="admin-tab">
-            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+          <div role="tabpanel" id="account-panel" aria-labelledby="account-tab">
+            {/* Account Mode Sub-Toggle */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
+              <button
+                type="button"
+                onClick={() => { setAccountMode('login'); setError(''); }}
+                style={{
+                  background: accountMode === 'login' ? 'var(--surface-2)' : 'transparent',
+                  border: '1px solid ' + (accountMode === 'login' ? 'var(--border)' : 'transparent'),
+                  borderRadius: '6px',
+                  padding: '0.35rem 0.85rem',
+                  fontSize: '0.85rem',
+                  fontWeight: '600',
+                  color: accountMode === 'login' ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                  cursor: 'pointer'
+                }}
+              >
+                Log In
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAccountMode('register'); setError(''); }}
+                style={{
+                  background: accountMode === 'register' ? 'var(--surface-2)' : 'transparent',
+                  border: '1px solid ' + (accountMode === 'register' ? 'var(--border)' : 'transparent'),
+                  borderRadius: '6px',
+                  padding: '0.35rem 0.85rem',
+                  fontSize: '0.85rem',
+                  fontWeight: '600',
+                  color: accountMode === 'register' ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                  cursor: 'pointer'
+                }}
+              >
+                Create Account
+              </button>
+            </div>
+
+            <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
               <div style={{ display: 'inline-flex', padding: '0.75rem', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '50%', marginBottom: '0.75rem' }}>
-                <Lock size={28} style={{ color: 'var(--primary-text)' }} />
+                {accountMode === 'login' ? <Lock size={26} style={{ color: 'var(--primary-text)' }} /> : <UserPlus size={26} style={{ color: 'var(--primary-text)' }} />}
               </div>
-              <h2 style={{ fontSize: '1.4rem', fontWeight: '700', marginBottom: '0.35rem' }}>Admin Portal</h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0 }}>
-                Sign in with your master administrator credentials.
+              <h2 style={{ fontSize: '1.35rem', fontWeight: '700', marginBottom: '0.35rem' }}>
+                {accountMode === 'login' ? 'Organizer / Admin Login' : 'Create Organizer Account'}
+              </h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+                {accountMode === 'login' 
+                  ? 'Sign in to host competitions and manage leaderboards.' 
+                  : 'Host tournaments, save your test history, and grade candidates.'}
               </p>
             </div>
 
-            <form onSubmit={handleAdminLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <label htmlFor="admin-username-input" style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
+            <form onSubmit={handleAccountSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label htmlFor="account-username" style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
                   Username
                 </label>
                 <Input 
-                  id="admin-username-input"
-                  placeholder="e.g. admin" 
-                  value={adminUsername}
-                  onChange={(e) => { setAdminUsername(e.target.value); setError(''); }}
+                  id="account-username"
+                  placeholder="e.g. host_john" 
+                  value={username}
+                  onChange={(e) => { setUsername(e.target.value); setError(''); }}
                   autoFocus
                   required
                 />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <label htmlFor="admin-password-input" style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
+              {accountMode === 'register' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <label htmlFor="account-display-name" style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
+                    Display Name
+                  </label>
+                  <Input 
+                    id="account-display-name"
+                    placeholder="e.g. Professor John or John Doe" 
+                    value={displayName}
+                    onChange={(e) => { setDisplayName(e.target.value); setError(''); }}
+                    required
+                  />
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                <label htmlFor="account-password" style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
                   Password
                 </label>
                 <Input 
-                  id="admin-password-input"
+                  id="account-password"
                   type="password"
                   placeholder="••••••••" 
-                  value={adminPassword}
-                  onChange={(e) => { setAdminPassword(e.target.value); setError(''); }}
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); setError(''); }}
                   required
                 />
               </div>
@@ -289,7 +371,7 @@ const LandingPage = () => {
                 disabled={loading} 
                 style={{ width: '100%', padding: '0.85rem', fontSize: '1rem', marginTop: '0.5rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
               >
-                {loading ? 'Authenticating...' : 'Sign In as Admin'} <Zap size={18} />
+                {loading ? 'Processing...' : (accountMode === 'login' ? 'Sign In' : 'Register Account')} <Zap size={18} />
               </Button>
             </form>
           </div>

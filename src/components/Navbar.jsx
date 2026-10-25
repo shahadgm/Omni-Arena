@@ -8,10 +8,11 @@ const Navbar = ({ theme, toggleTheme }) => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const isAdmin = authService.isAdmin();
+  const isGuest = authService.isGuest();
   const currentUser = authService.getCurrentUser();
   const isAuthenticated = authService.isAuthenticated();
   const rawDisplayName = currentUser?.displayName || localStorage.getItem('displayName') || currentUser?.username || localStorage.getItem('studentId');
-  const displayName = rawDisplayName ? rawDisplayName.replace(/^guest:/, '') : 'Contestant';
+  const displayName = rawDisplayName ? rawDisplayName.replace(/^guest:/, '').replace(/_[a-z0-9]{5,8}$/, '') : 'Contestant';
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -139,9 +140,17 @@ const Navbar = ({ theme, toggleTheme }) => {
               }}>
                 <User size={14} color="var(--accent-primary)" />
                 <span style={{ fontWeight: '600' }}>{displayName}</span>
-                {isAdmin && (
+                {isAdmin ? (
                   <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.35rem', background: 'var(--accent-primary)', color: 'white', borderRadius: '4px', fontWeight: 'bold' }}>
                     ADMIN
+                  </span>
+                ) : isGuest ? (
+                  <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.35rem', background: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: '4px', fontWeight: '700' }}>
+                    GUEST
+                  </span>
+                ) : (
+                  <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.35rem', background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', borderRadius: '4px', fontWeight: '700' }}>
+                    HOST
                   </span>
                 )}
               </div>
@@ -153,9 +162,9 @@ const Navbar = ({ theme, toggleTheme }) => {
                   cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.35rem',
                   fontWeight: '500', fontSize: '0.95rem', fontFamily: 'inherit'
                 }}
-                title="Log out of account"
+                title={isGuest ? "Exit guest session" : "Log out of account"}
               >
-                <LogOut size={16} /> Logout
+                <LogOut size={16} /> {isGuest ? 'Exit' : 'Logout'}
               </button>
             </>
           ) : (
@@ -209,7 +218,13 @@ const Navbar = ({ theme, toggleTheme }) => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0', borderBottom: '1px solid var(--glass-border)', marginBottom: '0.5rem' }}>
                 <User size={18} color="var(--accent-primary)" />
                 <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{displayName}</span>
-                {isAdmin && <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.35rem', background: 'var(--accent-primary)', color: 'white', borderRadius: '4px', fontWeight: 'bold' }}>ADMIN</span>}
+                {isAdmin ? (
+                  <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.35rem', background: 'var(--accent-primary)', color: 'white', borderRadius: '4px', fontWeight: 'bold' }}>ADMIN</span>
+                ) : isGuest ? (
+                  <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.35rem', background: 'var(--surface-2)', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: '4px', fontWeight: '700' }}>GUEST</span>
+                ) : (
+                  <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.35rem', background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', borderRadius: '4px', fontWeight: '700' }}>HOST</span>
+                )}
               </div>
 
               <Link to="/dashboard" style={mobileLinkItemStyle} onClick={() => setMobileMenuOpen(false)}>
@@ -241,7 +256,7 @@ const Navbar = ({ theme, toggleTheme }) => {
                   marginTop: '0.5rem'
                 }}
               >
-                <LogOut size={18} /> Logout
+                <LogOut size={18} /> {isGuest ? 'Exit Arena' : 'Logout'}
               </button>
             </>
           ) : (

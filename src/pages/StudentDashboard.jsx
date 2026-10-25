@@ -5,9 +5,9 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { dbService, authService } from '../services/db';
 import { 
-  Play, Trophy, Clock, Keyboard, Grid, Square, HelpCircle, Lock, 
-  Globe, Search, Copy, Check, Key, Plus, Trash2, Edit, Gamepad2,
-  Sparkles, ShieldCheck, ArrowRight, MapPin
+  Play, Trophy, Keyboard, Grid, Square, HelpCircle, 
+  Globe, Copy, Check, Key, Plus, Trash2, Edit, Gamepad2,
+  Sparkles, ShieldCheck, ArrowRight, MapPin, UserPlus
 } from 'lucide-react';
 
 const StudentDashboard = () => {
@@ -24,7 +24,9 @@ const StudentDashboard = () => {
 
   const navigate = useNavigate();
   const currentUser = authService.getCurrentUser();
-  const studentId = (currentUser?.displayName || localStorage.getItem('displayName') || currentUser?.username || localStorage.getItem('studentId') || 'Contestant').replace(/^guest:/, '');
+  const isGuest = authService.isGuest();
+  const rawStudent = currentUser?.displayName || localStorage.getItem('displayName') || currentUser?.username || localStorage.getItem('studentId') || 'Contestant';
+  const studentDisplayName = rawStudent.replace(/^guest:/, '').replace(/_[a-z0-9]{5,8}$/, '');
   const practiceRef = useRef(null);
 
   const fetchAllTournaments = async () => {
@@ -38,10 +40,13 @@ const StudentDashboard = () => {
       setPublicTournaments(activePublic);
 
       // 2. Fetch tournaments hosted by the current user or unlocked in this session
-      const userCreated = data.filter(t => 
-        (currentUser?.username && t.createdBy && t.createdBy.toLowerCase() === currentUser.username.toLowerCase()) ||
-        sessionStorage.getItem(`managed_${t.id}`) === 'true'
-      );
+      const userCreated = data.filter(t => {
+        if (authService.isGuest()) {
+          return sessionStorage.getItem(`managed_${t.id}`) === 'true';
+        }
+        return (currentUser?.username && t.createdBy && !t.createdBy.startsWith('guest:') && t.createdBy.toLowerCase() === currentUser.username.toLowerCase()) ||
+          sessionStorage.getItem(`managed_${t.id}`) === 'true';
+      });
       setMyTournaments(userCreated.sort((a, b) => new Date(b.startTime) - new Date(a.startTime)));
     } catch (err) {
       console.error('Error fetching tournaments:', err);
@@ -189,7 +194,7 @@ const StudentDashboard = () => {
             <Sparkles size={14} /> OmniArena Platform
           </div>
           <h1 style={{ fontSize: '2.25rem', fontWeight: '800', letterSpacing: '-0.02em', marginBottom: '0.35rem' }}>
-            Welcome back, <span className="text-gradient">{studentId}</span>
+            Welcome back, <span className="text-gradient">{studentDisplayName}</span>
           </h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
             Compete in live tournaments, join private match rooms, or train in solo practice arenas.
@@ -243,6 +248,48 @@ const StudentDashboard = () => {
           )}
         </div>
       </div>
+
+      {/* Guest Contestant Notice Banner */}
+      {isGuest && (
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(139, 92, 246, 0.08) 100%)',
+          border: '1px solid rgba(139, 92, 246, 0.25)',
+          borderRadius: '12px',
+          padding: '1rem 1.25rem',
+          marginBottom: '2rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '1rem'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ 
+              width: '38px', height: '38px', borderRadius: '10px', 
+              background: 'rgba(139, 92, 246, 0.15)', color: 'var(--accent-primary)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+            }}>
+              <Sparkles size={20} />
+            </div>
+            <div>
+              <div style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                Guest Contestant: <span style={{ color: 'var(--accent-primary)' }}>{studentDisplayName}</span>
+              </div>
+              <div style={{ fontSize: '0.825rem', color: 'var(--text-secondary)' }}>
+                You can participate in all tournaments with zero friction. Scores appear on leaderboards, but persistent history & hosting tournaments require an account.
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <Button 
+              onClick={() => { authService.logout(); navigate('/?tab=account&mode=register'); }} 
+              style={{ padding: '0.45rem 0.85rem', fontSize: '0.825rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+            >
+              <UserPlus size={14} /> Create Free Account
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* SECTION 1: Live Now (Public Tournaments) */}
       <div style={{ marginBottom: '3.5rem' }}>

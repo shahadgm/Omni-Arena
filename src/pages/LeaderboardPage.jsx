@@ -84,7 +84,7 @@ const LeaderboardPage = () => {
       resolvedId = match.studentId;
     }
 
-    const plainTarget = resolvedId.replace(/^guest:/, '');
+    const plainTarget = resolvedId.replace(/^guest:/, '').replace(/_[a-z0-9]{5,8}$/, '');
     if (!window.confirm(`Are you sure you want to give "${plainTarget}" another chance? Their attempt lock will be cleared.`)) {
       return;
     }
@@ -534,7 +534,7 @@ const LeaderboardPage = () => {
                     <div style={{ fontSize: '1.75rem', marginBottom: '0.25rem' }}>🥇</div>
                     <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--gold)', letterSpacing: '0.05em' }}>1ST PLACE</div>
                     <div style={{ fontSize: '1.15rem', fontWeight: '700', margin: '0.4rem 0 0.2rem', color: 'var(--text-primary)' }}>
-                      {(top3[0].displayName || top3[0].studentId || '').replace(/^guest:/, '')}
+                      {(top3[0].displayName || top3[0].studentId || '').replace(/^guest:/, '').replace(/_[a-z0-9]{5,8}$/, '')}
                     </div>
                     <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--primary-text)' }} className="tabular-nums">
                       {top3[0].displayScore !== undefined ? top3[0].displayScore : top3[0].score} pts
@@ -557,7 +557,7 @@ const LeaderboardPage = () => {
                     <div style={{ fontSize: '1.75rem', marginBottom: '0.25rem' }}>🥈</div>
                     <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--silver)', letterSpacing: '0.05em' }}>2ND PLACE</div>
                     <div style={{ fontSize: '1.15rem', fontWeight: '700', margin: '0.4rem 0 0.2rem', color: 'var(--text-primary)' }}>
-                      {(top3[1].displayName || top3[1].studentId || '').replace(/^guest:/, '')}
+                      {(top3[1].displayName || top3[1].studentId || '').replace(/^guest:/, '').replace(/_[a-z0-9]{5,8}$/, '')}
                     </div>
                     <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--primary-text)' }} className="tabular-nums">
                       {top3[1].displayScore !== undefined ? top3[1].displayScore : top3[1].score} pts
@@ -580,7 +580,7 @@ const LeaderboardPage = () => {
                     <div style={{ fontSize: '1.75rem', marginBottom: '0.25rem' }}>🥉</div>
                     <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--bronze)', letterSpacing: '0.05em' }}>3RD PLACE</div>
                     <div style={{ fontSize: '1.15rem', fontWeight: '700', margin: '0.4rem 0 0.2rem', color: 'var(--text-primary)' }}>
-                      {(top3[2].displayName || top3[2].studentId || '').replace(/^guest:/, '')}
+                      {(top3[2].displayName || top3[2].studentId || '').replace(/^guest:/, '').replace(/_[a-z0-9]{5,8}$/, '')}
                     </div>
                     <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--primary-text)' }} className="tabular-nums">
                       {top3[2].displayScore !== undefined ? top3[2].displayScore : top3[2].score} pts
@@ -695,7 +695,7 @@ const LeaderboardPage = () => {
                             </div>
 
                             <div style={{ fontWeight: isMyRow ? '700' : '500', color: 'var(--text-primary)' }}>
-                              {(entry.displayName || entry.studentId || '').replace(/^guest:/, '')}
+                              {(entry.displayName || entry.studentId || '').replace(/^guest:/, '').replace(/_[a-z0-9]{5,8}$/, '')}
                               {entry.displayName && entry.studentId && !entry.studentId.startsWith('guest:') && entry.displayName !== entry.studentId && (
                                 <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginLeft: '0.35rem' }}>
                                   (@{entry.studentId})
