@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
-import { dbService, authService, hashManagePassword } from '../../services/db';
+import { dbService, authService } from '../../services/db';
 import { Plus, Trash2, Globe, Lock, Key, RefreshCw, UserPlus, LogIn } from 'lucide-react';
 import clg from 'crossword-layout-generator';
 
@@ -22,13 +22,10 @@ const CreateTournament = () => {
   const [isPrivate, setIsPrivate] = useState(false);
   const [accessCode, setAccessCode] = useState('');
   const [hideLeaderboard, setHideLeaderboard] = useState(false);
-  const [managePassword, setManagePassword] = useState('');
   
   // Edit unlock state
   const [tournamentData, setTournamentData] = useState(null);
   const [isUnlocked, setIsUnlocked] = useState(false);
-  const [unlockPassword, setUnlockPassword] = useState('');
-  const [unlockError, setUnlockError] = useState('');
   
   const generateRandomCode = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -83,13 +80,11 @@ const CreateTournament = () => {
         const currentUser = authService.getCurrentUser();
         const isAdmin = authService.isAdmin();
         const isGuest = authService.isGuest();
-        const isSessionUnlocked = !!t.managePasswordHash && sessionStorage.getItem(`managed_${id}`) === 'true';
         const isRegisteredOwner = !isGuest && currentUser && t.createdBy && !t.createdBy.startsWith('guest:') && t.createdBy.toLowerCase() === currentUser.username.toLowerCase();
 
-        // If master admin, registered owner, or session unlocked with valid password
-        if (isAdmin || isRegisteredOwner || isSessionUnlocked) {
+        if (isAdmin || isRegisteredOwner) {
           setIsUnlocked(true);
-        } else if (!t.managePasswordHash) {
+        } else {
           alert("Only the tournament organizer can edit this tournament.");
           navigate('/dashboard');
           return;
@@ -151,26 +146,6 @@ const CreateTournament = () => {
         setIsUnlocked(true);
       }
     }, [navigate, id]);
-
-  const handleUnlockEdit = async (e) => {
-    e.preventDefault();
-    setUnlockError('');
-    if (!unlockPassword.trim()) {
-      setUnlockError('Please enter the management password.');
-      return;
-    }
-    if (!tournamentData?.managePasswordHash) {
-      setUnlockError('This tournament does not have a management password.');
-      return;
-    }
-    const ok = await dbService.verifyManagePassword(id, unlockPassword.trim());
-    if (ok) {
-      sessionStorage.setItem(`managed_${id}`, 'true');
-      setIsUnlocked(true);
-    } else {
-      setUnlockError('Incorrect management password. Please try again.');
-    }
-  };
 
   const handleAddSection = () => {
     setCustomSections([...customSections, { language: 'English', text: '', dir: 'ltr' }]);
@@ -425,16 +400,10 @@ const CreateTournament = () => {
         return;
       }
 
-      if (managePassword.trim()) {
-        tournament.managePasswordHash = await hashManagePassword(managePassword.trim());
-      }
-
       if (id) {
         await dbService.updateTournament(id, tournament);
-        sessionStorage.setItem(`managed_${id}`, 'true');
       } else {
-        const created = await dbService.createTournament(tournament);
-        sessionStorage.setItem(`managed_${created.id}`, 'true');
+        await dbService.createTournament(tournament);
       }
       
       if (authService.isAdmin()) {
@@ -458,27 +427,13 @@ const CreateTournament = () => {
       const isGuest = authService.isGuest();
       const isRegisteredOwner = !isGuest && currentUser && tournament.createdBy && !tournament.createdBy.startsWith('guest:') && tournament.createdBy.toLowerCase() === currentUser.username.toLowerCase();
 
-      // If tournament is password-protected: ALWAYS require the management password to delete unless Master Admin
-      if (tournament.managePasswordHash && !isAdmin) {
-        const pwd = window.prompt(`Enter management password to confirm deletion of "${name}":`);
-        if (pwd === null) return;
-        if (!pwd.trim()) {
-          alert("Management password is required to delete this tournament.");
-          return;
-        }
-        const valid = await dbService.verifyManagePassword(id, pwd.trim());
-        if (!valid) {
-          alert("Incorrect management password. Deletion cancelled.");
-          return;
-        }
-      } else if (!tournament.managePasswordHash && !isAdmin && !isRegisteredOwner) {
-        alert("You do not have permission to delete this tournament.");
+      if (!isAdmin && !isRegisteredOwner) {
+        alert("Only the tournament organizer can delete this tournament.");
         return;
       }
 
       if (window.confirm(`Are you sure you want to permanently delete "${name}"? This action cannot be undone.`)) {
         await dbService.deleteTournament(id);
-        sessionStorage.removeItem(`managed_${id}`);
         if (authService.isAdmin()) {
           navigate('/admin/dashboard');
         } else {
@@ -522,41 +477,8 @@ const CreateTournament = () => {
 
   if (id && !isUnlocked) {
     return (
-      <div className="container" style={{ maxWidth: '480px', margin: '4rem auto', padding: '1rem' }}>
-        <Card style={{ padding: '2.5rem 2rem', textAlign: 'center' }}>
-          <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--surface-2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
-            <Key size={26} style={{ color: 'var(--primary-text)' }} />
-          </div>
-          <h2 style={{ fontSize: '1.4rem', fontWeight: '700', marginBottom: '0.4rem', color: 'var(--text-primary)' }}>
-            Tournament Management Gate
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem', lineHeight: '1.5' }}>
-            Enter the host management password for <strong>{tournamentData?.name || 'this tournament'}</strong> to access editing.
-          </p>
-
-          {unlockError && (
-            <div style={{ padding: '0.75rem 1rem', background: 'rgba(239, 68, 68, 0.12)', border: '1px solid var(--danger)', borderRadius: '8px', color: 'var(--danger)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
-              {unlockError}
-            </div>
-          )}
-
-          <form onSubmit={handleUnlockEdit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <Input 
-              type="password"
-              placeholder="Host management password..."
-              value={unlockPassword}
-              onChange={e => { setUnlockPassword(e.target.value); setUnlockError(''); }}
-              autoFocus
-              required
-            />
-            <Button type="submit" variant="primary" style={{ padding: '0.8rem', fontSize: '1rem', width: '100%' }}>
-              Unlock & Edit Tournament
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => navigate('/dashboard')} style={{ padding: '0.75rem', fontSize: '0.9rem', width: '100%' }}>
-              Cancel
-            </Button>
-          </form>
-        </Card>
+      <div className="container" style={{ maxWidth: '480px', margin: '4rem auto', textAlign: 'center', color: 'var(--text-secondary)' }}>
+        Loading tournament details...
       </div>
     );
   }
@@ -735,20 +657,6 @@ const CreateTournament = () => {
               </div>
             )}
             
-            <div style={{ marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <label style={{ fontSize: '0.875rem', fontWeight: '600', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Key size={15} /> Tournament Management Password (Optional)
-              </label>
-              <Input 
-                type="password"
-                placeholder={id ? "Enter new management password, or leave blank to keep current" : "Optional passcode to delegate editing or grading..."}
-                value={managePassword}
-                onChange={e => setManagePassword(e.target.value)}
-              />
-              <p style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem', marginTop: '0.2rem', margin: 0 }}>
-                Allows you or fellow proctors to unlock host controls on different devices without sharing your account password.
-              </p>
-            </div>
 
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', marginTop: '0.5rem' }}>
               <input 

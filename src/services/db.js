@@ -143,16 +143,6 @@ export const dbService = {
     }
   },
 
-  async verifyManagePassword(tournamentId, inputPassword) {
-    if (!inputPassword || typeof inputPassword !== 'string' || !inputPassword.trim()) {
-      return false;
-    }
-    const t = await this.getTournament(tournamentId);
-    if (!t || !t.managePasswordHash) return false;
-    const hash = await hashManagePassword(inputPassword.trim());
-    return hash === t.managePasswordHash;
-  },
-
   async saveResult(competitionId, result) {
     try {
       const user = authService.getCurrentUser();
@@ -336,15 +326,6 @@ export async function hashPassword(password, salt = 'omni_arena_default_salt') {
   return Array.from(new Uint8Array(derivedBits))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
-}
-
-// SHA-256 hash for tournament management/editing password
-export async function hashManagePassword(password) {
-  if (!password) return '';
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password + "_omni_manage_salt_2026");
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 // Legacy SHA-256 hash for backward compatibility

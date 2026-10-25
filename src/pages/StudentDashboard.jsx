@@ -39,14 +39,10 @@ const StudentDashboard = () => {
       const activePublic = data.filter(t => !t.isPrivate && new Date(t.startTime) <= now && new Date(t.endTime) >= now);
       setPublicTournaments(activePublic);
 
-      // 2. Fetch tournaments hosted by the current user or unlocked in this session
-      const userCreated = data.filter(t => {
-        if (authService.isGuest()) {
-          return !!t.managePasswordHash && sessionStorage.getItem(`managed_${t.id}`) === 'true';
-        }
-        return (currentUser?.username && t.createdBy && !t.createdBy.startsWith('guest:') && t.createdBy.toLowerCase() === currentUser.username.toLowerCase()) ||
-          (!!t.managePasswordHash && sessionStorage.getItem(`managed_${t.id}`) === 'true');
-      });
+      // 2. Fetch tournaments hosted by the current registered user
+      const userCreated = !authService.isGuest() && currentUser?.username
+        ? data.filter(t => t.createdBy && !t.createdBy.startsWith('guest:') && t.createdBy.toLowerCase() === currentUser.username.toLowerCase())
+        : [];
       setMyTournaments(userCreated.sort((a, b) => new Date(b.startTime) - new Date(a.startTime)));
     } catch (err) {
       console.error('Error fetching tournaments:', err);
@@ -103,8 +99,7 @@ const StudentDashboard = () => {
     }
 
     if (target.isPrivate) {
-      const isCreator = (!authService.isGuest() && currentUser && target.createdBy && !target.createdBy.startsWith('guest:') && target.createdBy.toLowerCase() === currentUser.username.toLowerCase()) ||
-                        (!!target.managePasswordHash && sessionStorage.getItem(`managed_${target.id}`) === 'true');
+      const isCreator = !authService.isGuest() && currentUser && target.createdBy && !target.createdBy.startsWith('guest:') && target.createdBy.toLowerCase() === currentUser.username.toLowerCase();
       const isAdmin = authService.isAdmin();
       const isUnlocked = sessionStorage.getItem(`unlocked_${target.id}`) === 'true';
 
@@ -135,28 +130,13 @@ const StudentDashboard = () => {
       const isGuest = authService.isGuest();
       const isRegisteredOwner = !isGuest && currentUser?.username && tournament.createdBy && !tournament.createdBy.startsWith('guest:') && tournament.createdBy.toLowerCase() === currentUser.username.toLowerCase();
 
-      // If tournament is password-protected: ALWAYS require the management password to delete unless Master Admin
-      if (tournament.managePasswordHash && !isAdmin) {
-        const pwd = window.prompt(`Enter management password to delete "${name}":`);
-        if (pwd === null) return; // User pressed Cancel
-        if (!pwd.trim()) {
-          alert("Management password is required to delete this tournament.");
-          return;
-        }
-        const valid = await dbService.verifyManagePassword(id, pwd.trim());
-        if (!valid) {
-          alert("Incorrect management password. Deletion cancelled.");
-          return;
-        }
-      } else if (!tournament.managePasswordHash && !isAdmin && !isRegisteredOwner) {
-        // Unpassworded tournament: only the registered account creator or Master Admin can delete
-        alert("You do not have permission to delete this tournament.");
+      if (!isAdmin && !isRegisteredOwner) {
+        alert("Only the tournament organizer can delete this tournament.");
         return;
       }
 
       if (window.confirm(`Are you sure you want to permanently delete "${name}"? This action cannot be undone.`)) {
         await dbService.deleteTournament(id);
-        sessionStorage.removeItem(`managed_${id}`);
         fetchAllTournaments();
       }
     } catch (err) {
