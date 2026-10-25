@@ -42,10 +42,10 @@ const StudentDashboard = () => {
       // 2. Fetch tournaments hosted by the current user or unlocked in this session
       const userCreated = data.filter(t => {
         if (authService.isGuest()) {
-          return sessionStorage.getItem(`managed_${t.id}`) === 'true';
+          return !!t.managePasswordHash && sessionStorage.getItem(`managed_${t.id}`) === 'true';
         }
         return (currentUser?.username && t.createdBy && !t.createdBy.startsWith('guest:') && t.createdBy.toLowerCase() === currentUser.username.toLowerCase()) ||
-          sessionStorage.getItem(`managed_${t.id}`) === 'true';
+          (!!t.managePasswordHash && sessionStorage.getItem(`managed_${t.id}`) === 'true');
       });
       setMyTournaments(userCreated.sort((a, b) => new Date(b.startTime) - new Date(a.startTime)));
     } catch (err) {
@@ -104,7 +104,7 @@ const StudentDashboard = () => {
 
     if (target.isPrivate) {
       const isCreator = (!authService.isGuest() && currentUser && target.createdBy && !target.createdBy.startsWith('guest:') && target.createdBy.toLowerCase() === currentUser.username.toLowerCase()) ||
-                        sessionStorage.getItem(`managed_${target.id}`) === 'true';
+                        (!!target.managePasswordHash && sessionStorage.getItem(`managed_${target.id}`) === 'true');
       const isAdmin = authService.isAdmin();
       const isUnlocked = sessionStorage.getItem(`unlocked_${target.id}`) === 'true';
 

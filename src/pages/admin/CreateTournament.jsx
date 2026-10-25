@@ -83,14 +83,14 @@ const CreateTournament = () => {
         const currentUser = authService.getCurrentUser();
         const isAdmin = authService.isAdmin();
         const isGuest = authService.isGuest();
-        const isSessionUnlocked = sessionStorage.getItem(`managed_${id}`) === 'true';
+        const isSessionUnlocked = !!t.managePasswordHash && sessionStorage.getItem(`managed_${id}`) === 'true';
         const isRegisteredOwner = !isGuest && currentUser && t.createdBy && !t.createdBy.startsWith('guest:') && t.createdBy.toLowerCase() === currentUser.username.toLowerCase();
 
-        // If master admin, session unlocked, or legacy tournament without password where user is registered owner
-        if (isAdmin || isSessionUnlocked || (!t.managePasswordHash && isRegisteredOwner)) {
+        // If master admin, registered owner, or session unlocked with valid password
+        if (isAdmin || isRegisteredOwner || isSessionUnlocked) {
           setIsUnlocked(true);
-        } else if (!t.managePasswordHash && !isRegisteredOwner) {
-          alert("You do not have permission to edit this tournament.");
+        } else if (!t.managePasswordHash) {
+          alert("Only the tournament organizer can edit this tournament.");
           navigate('/dashboard');
           return;
         }
@@ -157,6 +157,10 @@ const CreateTournament = () => {
     setUnlockError('');
     if (!unlockPassword.trim()) {
       setUnlockError('Please enter the management password.');
+      return;
+    }
+    if (!tournamentData?.managePasswordHash) {
+      setUnlockError('This tournament does not have a management password.');
       return;
     }
     const ok = await dbService.verifyManagePassword(id, unlockPassword.trim());

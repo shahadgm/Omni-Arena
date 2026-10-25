@@ -144,10 +144,12 @@ export const dbService = {
   },
 
   async verifyManagePassword(tournamentId, inputPassword) {
+    if (!inputPassword || typeof inputPassword !== 'string' || !inputPassword.trim()) {
+      return false;
+    }
     const t = await this.getTournament(tournamentId);
-    if (!t) return false;
-    if (!t.managePasswordHash) return true;
-    const hash = await hashManagePassword(inputPassword);
+    if (!t || !t.managePasswordHash) return false;
+    const hash = await hashManagePassword(inputPassword.trim());
     return hash === t.managePasswordHash;
   },
 

@@ -25,7 +25,7 @@ const LeaderboardPage = () => {
   const pageSize = 50;
 
   // Host unlock state
-  const [isHostUnlocked, setIsHostUnlocked] = useState(() => sessionStorage.getItem(`managed_${id}`) === 'true');
+  const [hostUnlockedSession, setHostUnlockedSession] = useState(false);
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [unlockPassword, setUnlockPassword] = useState('');
   const [unlockError, setUnlockError] = useState('');
@@ -35,7 +35,8 @@ const LeaderboardPage = () => {
   const isGuest = authService.isGuest();
   const myStudentId = (currentUser?.username || localStorage.getItem('studentId') || '').toLowerCase();
   const isRegisteredCreator = !isGuest && currentUser?.username && tournament?.createdBy && !tournament.createdBy.startsWith('guest:') && tournament.createdBy.toLowerCase() === currentUser.username.toLowerCase();
-  const isManager = isAdmin || isHostUnlocked || (tournament && !tournament.managePasswordHash && isRegisteredCreator);
+  const isHostUnlocked = !!tournament?.managePasswordHash && (hostUnlockedSession || sessionStorage.getItem(`managed_${id}`) === 'true');
+  const isManager = isAdmin || isRegisteredCreator || isHostUnlocked;
   
   // Dynamic hidden state: Only hidden from candidates if hideLeaderboard is true AND user is NOT a manager/host
   const isHidden = !!tournament?.hideLeaderboard && !isManager;
@@ -47,10 +48,14 @@ const LeaderboardPage = () => {
       setUnlockError('Please enter the management password.');
       return;
     }
+    if (!tournament?.managePasswordHash) {
+      setUnlockError('This tournament does not have a management password.');
+      return;
+    }
     const ok = await dbService.verifyManagePassword(id, unlockPassword.trim());
     if (ok) {
       sessionStorage.setItem(`managed_${id}`, 'true');
-      setIsHostUnlocked(true);
+      setHostUnlockedSession(true);
       setShowUnlockModal(false);
     } else {
       setUnlockError('Incorrect management password. Please try again.');
@@ -355,7 +360,7 @@ const LeaderboardPage = () => {
             )}
           </div>
 
-          {!isManager && (
+          {!isManager && tournament?.managePasswordHash && (
             <button
               type="button"
               onClick={() => { setShowUnlockModal(true); setUnlockError(''); setUnlockPassword(''); }}
@@ -473,10 +478,10 @@ const LeaderboardPage = () => {
                   The results and candidate rankings for this tournament have been hidden by the organizer until grading is completed.
                 </p>
 
-                {!isManager && (
+                {!isManager && tournament?.managePasswordHash && (
                   <div style={{ paddingTop: '1.25rem', borderTop: '1px solid var(--border)' }}>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)', marginBottom: '0.75rem' }}>
-                      Are you the tournament host? Unlock with your management password to view all candidate results:
+                      Are you the tournament host or proctor? Unlock with your management password to view all candidate results:
                     </p>
                     <Button 
                       variant="secondary"
