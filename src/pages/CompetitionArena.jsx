@@ -294,6 +294,19 @@ const CompetitionArena = () => {
   const currentInput = inputs[currentSectionIdx] || '';
   const inputLength = currentInput.length;
   
+  const isRtl = currentSection.dir === 'rtl' || 
+    (currentSection.language && (
+      currentSection.language.toLowerCase() === 'arabic' || 
+      currentSection.language.toLowerCase() === 'urdu'
+    ));
+  const isUrdu = currentSection.language && currentSection.language.toLowerCase() === 'urdu';
+
+  const fontStack = isUrdu 
+    ? "'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Urdu Typesetting', 'Segoe UI', Tahoma, sans-serif" 
+    : isRtl 
+      ? "'Segoe UI', 'Noto Sans Arabic', Tahoma, 'Traditional Arabic', sans-serif" 
+      : 'var(--font-mono)';
+
   // Real-time HUD metrics
   const elapsedSecs = startTime ? Math.max(1, Math.floor((Date.now() - startTime) / 1000)) : 0;
   const elapsedMins = elapsedSecs / 60;
@@ -306,7 +319,118 @@ const CompetitionArena = () => {
   const liveAccuracy = currentChars > 0 ? Math.round(Math.max(0, ((currentChars - currentErrors) / currentChars) * 100)) : 100;
   const sectionProgress = targetText.length > 0 ? Math.min(100, Math.round((currentChars / targetText.length) * 100)) : 0;
 
-  const renderText = () => {
+  // RTL Cursive Renderer (Preserves authentic Arabic & Urdu cursive joining across words)
+  const renderRtlText = () => {
+    const tokens = [];
+    const regex = /(\S+|\s+)/g;
+    let match;
+    while ((match = regex.exec(targetText)) !== null) {
+      tokens.push({
+        text: match[0],
+        isSpace: /^\s+$/.test(match[0]),
+        start: match.index,
+        end: match.index + match[0].length
+      });
+    }
+
+    return tokens.map((token, idx) => {
+      if (token.isSpace) {
+        const isSpacePassed = token.end <= inputLength;
+        const isSpaceActive = token.start <= inputLength && inputLength < token.end;
+        
+        let spaceBg = 'transparent';
+        if (isSpacePassed) {
+          const userTypedSpace = currentInput.slice(token.start, token.end);
+          if (userTypedSpace !== token.text) {
+            spaceBg = 'rgba(239, 68, 68, 0.4)';
+          }
+        }
+        return (
+          <span 
+            key={'sp_' + idx}
+            ref={isSpaceActive ? activeCharRef : null}
+            style={{ 
+              background: spaceBg,
+              display: 'inline',
+              whiteSpace: 'pre',
+              borderRadius: '2px'
+            }}
+          >
+            {token.text}
+          </span>
+        );
+      }
+
+      // Word token
+      const isWordCompleted = token.end <= inputLength;
+      const isWordActive = token.start <= inputLength && inputLength < token.end;
+
+      if (isWordCompleted) {
+        const userWord = currentInput.slice(token.start, token.end);
+        const isCorrect = userWord === token.text;
+        return (
+          <span
+            key={'w_' + idx}
+            style={{
+              color: isCorrect ? 'var(--success)' : 'var(--error)',
+              textDecoration: isCorrect ? 'none' : 'underline wavy var(--error)',
+              display: 'inline',
+              transition: 'color 0.1s ease'
+            }}
+          >
+            {token.text}
+          </span>
+        );
+      }
+
+      if (isWordActive) {
+        const typedCount = Math.max(0, inputLength - token.start);
+        const typedSlice = token.text.slice(0, typedCount);
+        const remainingSlice = token.text.slice(typedCount);
+        const userTypedSlice = currentInput.slice(token.start, inputLength);
+        const isSliceCorrect = userTypedSlice === typedSlice;
+
+        return (
+          <span
+            key={'w_' + idx}
+            ref={activeCharRef}
+            style={{
+              display: 'inline',
+              padding: '0.1rem 0.35rem',
+              margin: '0 -0.1rem',
+              background: 'var(--surface-2)',
+              borderBottom: '2.5px solid var(--accent-primary)',
+              borderRadius: '4px',
+              boxShadow: '0 0 10px rgba(79, 70, 229, 0.25)'
+            }}
+          >
+            <span style={{ color: isSliceCorrect ? 'var(--success)' : 'var(--error)' }}>
+              {typedSlice}
+            </span>
+            <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>
+              {remainingSlice}
+            </span>
+          </span>
+        );
+      }
+
+      // Upcoming word
+      return (
+        <span
+          key={'w_' + idx}
+          style={{
+            color: 'var(--text-tertiary)',
+            display: 'inline'
+          }}
+        >
+          {token.text}
+        </span>
+      );
+    });
+  };
+
+  // LTR Character-by-character Renderer (for English, code, etc.)
+  const renderLtrText = () => {
     return targetText.split('').map((char, idx) => {
       let color = 'var(--text-tertiary)';
       let bg = 'transparent';
@@ -331,30 +455,13 @@ const CompetitionArena = () => {
             color, 
             background: bg,
             position: 'relative',
-            display: 'inline-block',
+            display: 'inline',
             borderRadius: bg !== 'transparent' ? '3px' : '0',
             fontWeight: isCurrent ? '700' : '400',
+            borderBottom: isCurrent ? '2px solid var(--accent-primary)' : 'none',
             transition: 'color 0.05s ease, background 0.05s ease'
           }}
         >
-          {/* Active Blinking Monkeytype-style Caret */}
-          {isCurrent && (
-            <span 
-              style={{
-                position: 'absolute',
-                left: currentSection.dir === 'rtl' ? 'auto' : '-1px',
-                right: currentSection.dir === 'rtl' ? '-1px' : 'auto',
-                top: '12%',
-                bottom: '12%',
-                width: '2.5px',
-                backgroundColor: 'var(--accent-primary)',
-                borderRadius: '2px',
-                boxShadow: '0 0 8px var(--accent-primary)',
-                animation: 'caretPulse 1s ease-in-out infinite',
-                pointerEvents: 'none'
-              }} 
-            />
-          )}
           {char === ' ' ? '\u00A0' : char}
         </span>
       );
@@ -461,7 +568,7 @@ const CompetitionArena = () => {
           onChange={handleInput}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          dir={currentSection.dir}
+          dir={isRtl ? 'rtl' : 'ltr'}
           autoFocus
           style={{
             position: 'absolute',
@@ -486,11 +593,11 @@ const CompetitionArena = () => {
         <div 
           ref={containerRef}
           style={{ 
-            fontSize: currentSection.dir === 'rtl' ? '1.75rem' : '1.5rem', 
-            lineHeight: currentSection.dir === 'rtl' ? '3rem' : '2.6rem', 
-            letterSpacing: currentSection.dir === 'rtl' ? '0' : '0.025em',
-            direction: currentSection.dir,
-            fontFamily: currentSection.dir === 'rtl' ? 'Arial, sans-serif' : 'var(--font-mono)',
+            fontSize: isRtl ? (isUrdu ? '1.85rem' : '1.75rem') : '1.5rem', 
+            lineHeight: isRtl ? (isUrdu ? '3.5rem' : '3.2rem') : '2.6rem', 
+            letterSpacing: isRtl ? 'normal' : '0.025em',
+            direction: isRtl ? 'rtl' : 'ltr',
+            fontFamily: fontStack,
             height: '210px',
             overflowY: 'hidden',
             position: 'relative',
@@ -499,7 +606,7 @@ const CompetitionArena = () => {
             transition: 'scrollTop 0.15s ease'
           }}
         >
-          {renderText()}
+          {isRtl ? renderRtlText() : renderLtrText()}
         </div>
 
         {/* Focus Invitation Overlay when blurred */}
