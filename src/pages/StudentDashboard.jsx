@@ -41,7 +41,7 @@ const StudentDashboard = () => {
 
       // 2. Fetch tournaments hosted by the current registered user
       const userCreated = !authService.isGuest() && currentUser?.username
-        ? data.filter(t => t.createdBy && !t.createdBy.startsWith('guest:') && t.createdBy.toLowerCase() === currentUser.username.toLowerCase())
+        ? data.filter(t => typeof t.createdBy === 'string' && !t.createdBy.startsWith('guest:') && t.createdBy.toLowerCase() === currentUser.username.toLowerCase())
         : [];
       setMyTournaments(userCreated.sort((a, b) => new Date(b.startTime) - new Date(a.startTime)));
     } catch (err) {
@@ -99,7 +99,7 @@ const StudentDashboard = () => {
     }
 
     if (target.isPrivate) {
-      const isCreator = !authService.isGuest() && currentUser && target.createdBy && !target.createdBy.startsWith('guest:') && target.createdBy.toLowerCase() === currentUser.username.toLowerCase();
+      const isCreator = !authService.isGuest() && currentUser?.username && typeof target.createdBy === 'string' && !target.createdBy.startsWith('guest:') && target.createdBy.toLowerCase() === currentUser.username.toLowerCase();
       const isAdmin = authService.isAdmin();
       const isUnlocked = sessionStorage.getItem(`unlocked_${target.id}`) === 'true';
 
@@ -128,7 +128,7 @@ const StudentDashboard = () => {
 
       const isAdmin = authService.isAdmin();
       const isGuest = authService.isGuest();
-      const isRegisteredOwner = !isGuest && currentUser?.username && tournament.createdBy && !tournament.createdBy.startsWith('guest:') && tournament.createdBy.toLowerCase() === currentUser.username.toLowerCase();
+      const isRegisteredOwner = !isGuest && currentUser?.username && typeof tournament?.createdBy === 'string' && !tournament.createdBy.startsWith('guest:') && tournament.createdBy.toLowerCase() === currentUser.username.toLowerCase();
 
       if (!isAdmin && !isRegisteredOwner) {
         alert("Only the tournament organizer can delete this tournament.");

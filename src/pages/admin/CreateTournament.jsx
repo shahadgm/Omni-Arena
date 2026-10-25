@@ -80,7 +80,7 @@ const CreateTournament = () => {
         const currentUser = authService.getCurrentUser();
         const isAdmin = authService.isAdmin();
         const isGuest = authService.isGuest();
-        const isRegisteredOwner = !isGuest && currentUser && t.createdBy && !t.createdBy.startsWith('guest:') && t.createdBy.toLowerCase() === currentUser.username.toLowerCase();
+        const isRegisteredOwner = !isGuest && currentUser?.username && typeof t.createdBy === 'string' && !t.createdBy.startsWith('guest:') && t.createdBy.toLowerCase() === currentUser.username.toLowerCase();
 
         if (isAdmin || isRegisteredOwner) {
           setIsUnlocked(true);
@@ -425,7 +425,7 @@ const CreateTournament = () => {
 
       const isAdmin = authService.isAdmin();
       const isGuest = authService.isGuest();
-      const isRegisteredOwner = !isGuest && currentUser && tournament.createdBy && !tournament.createdBy.startsWith('guest:') && tournament.createdBy.toLowerCase() === currentUser.username.toLowerCase();
+      const isRegisteredOwner = !isGuest && currentUser?.username && typeof tournament?.createdBy === 'string' && !tournament.createdBy.startsWith('guest:') && tournament.createdBy.toLowerCase() === currentUser.username.toLowerCase();
 
       if (!isAdmin && !isRegisteredOwner) {
         alert("Only the tournament organizer can delete this tournament.");

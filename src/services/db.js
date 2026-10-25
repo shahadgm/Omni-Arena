@@ -1,4 +1,4 @@
-import { db, auth, googleProvider } from './firebase';
+import { db, auth, googleProvider, getSafeAuth, getSafeGoogleProvider } from './firebase';
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { signInWithPopup } from 'firebase/auth';
 
@@ -562,7 +562,14 @@ export const authService = {
 
   async loginWithGoogle() {
     try {
-      const result = await signInWithPopup(auth, googleProvider);
+      const activeAuth = getSafeAuth() || auth;
+      const activeProvider = getSafeGoogleProvider() || googleProvider;
+
+      if (!activeAuth || !activeProvider) {
+        throw new Error('Google Sign-In is unavailable. Please check if an ad-blocker or browser shield is blocking authentication.');
+      }
+
+      const result = await signInWithPopup(activeAuth, activeProvider);
       const user = result.user;
       if (!user) throw new Error("Google Sign-In failed.");
 
@@ -592,12 +599,16 @@ export const authService = {
       // If user exists: check ban & suspension status
       if (matchedUsername && matchedData) {
         if (matchedData.status === 'banned') {
-          await auth.signOut().catch(() => {});
+          if (activeAuth && typeof activeAuth.signOut === 'function') {
+            await activeAuth.signOut().catch(() => {});
+          }
           throw new Error(`This account has been permanently banned: ${matchedData.banReason || 'Policy violation.'}`);
         }
         if (matchedData.status === 'suspended') {
           if (matchedData.suspendedUntil && new Date(matchedData.suspendedUntil) > new Date()) {
-            await auth.signOut().catch(() => {});
+            if (activeAuth && typeof activeAuth.signOut === 'function') {
+              await activeAuth.signOut().catch(() => {});
+            }
             const untilStr = new Date(matchedData.suspendedUntil).toLocaleString();
             throw new Error(`This account is suspended until ${untilStr}: ${matchedData.banReason || 'Temporary restriction.'}`);
           } else {
@@ -705,7 +716,10 @@ export const authService = {
     localStorage.removeItem('isAdmin');
     try {
       sessionStorage.clear();
-      auth.signOut().catch(() => {});
+      const activeAuth = getSafeAuth() || auth;
+      if (activeAuth && typeof activeAuth.signOut === 'function') {
+        activeAuth.signOut().catch(() => {});
+      }
     } catch (_e) {}
   },
 

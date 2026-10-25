@@ -3,13 +3,31 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Navbar from './components/Navbar';
 import LandingPage from './pages/LandingPage';
 
-const StudentDashboard = lazy(() => import('./pages/StudentDashboard'));
-const ArenaRouter = lazy(() => import('./pages/ArenaRouter'));
-const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
-const StudentHistory = lazy(() => import('./pages/StudentHistory'));
-const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
-const CreateTournament = lazy(() => import('./pages/admin/CreateTournament'));
-const FeedbackPage = lazy(() => import('./pages/FeedbackPage'));
+// Self-healing dynamic import: if a new release changed chunk hashes, auto-refresh to fetch fresh assets
+const lazyWithRetry = (componentImport) =>
+  lazy(async () => {
+    const hasRefreshed = sessionStorage.getItem('chunk_retry_refreshed');
+    try {
+      const component = await componentImport();
+      sessionStorage.removeItem('chunk_retry_refreshed');
+      return component;
+    } catch (error) {
+      if (!hasRefreshed) {
+        sessionStorage.setItem('chunk_retry_refreshed', 'true');
+        window.location.reload();
+        return { default: () => null };
+      }
+      throw error;
+    }
+  });
+
+const StudentDashboard = lazyWithRetry(() => import('./pages/StudentDashboard'));
+const ArenaRouter = lazyWithRetry(() => import('./pages/ArenaRouter'));
+const LeaderboardPage = lazyWithRetry(() => import('./pages/LeaderboardPage'));
+const StudentHistory = lazyWithRetry(() => import('./pages/StudentHistory'));
+const AdminDashboard = lazyWithRetry(() => import('./pages/admin/AdminDashboard'));
+const CreateTournament = lazyWithRetry(() => import('./pages/admin/CreateTournament'));
+const FeedbackPage = lazyWithRetry(() => import('./pages/FeedbackPage'));
 
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', color: 'var(--text-secondary)' }}>

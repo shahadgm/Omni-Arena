@@ -78,7 +78,7 @@ const ArenaRouter = () => {
 
         if (t.isPrivate) {
           const currentUser = authService.getCurrentUser();
-          const isCreator = !authService.isGuest() && currentUser && t.createdBy && !t.createdBy.startsWith('guest:') && t.createdBy.toLowerCase() === currentUser.username.toLowerCase();
+          const isCreator = !authService.isGuest() && currentUser?.username && typeof t.createdBy === 'string' && !t.createdBy.startsWith('guest:') && t.createdBy.toLowerCase() === currentUser.username.toLowerCase();
           const isAdmin = authService.isAdmin();
           const isUnlocked = sessionStorage.getItem(`unlocked_${id}`) === 'true';
 

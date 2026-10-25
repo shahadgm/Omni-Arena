@@ -7,7 +7,7 @@ import { dbService, authService } from '../../services/db';
 import { 
   Plus, Users, Calendar, Keyboard, Edit, Trash2, 
   RotateCcw, Square, MapPin, Hash, Lock, Search, Copy, Check, Eye, EyeOff, Filter,
-  MessageSquare, Star, Bug, Lightbulb, Ban, UserCheck, Clock, Shield
+  MessageSquare, Star, Bug, Lightbulb, Ban, UserCheck, Clock, Shield, Settings
 } from 'lucide-react';
 
 const AdminDashboard = () => {

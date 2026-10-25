@@ -28,7 +28,7 @@ const LeaderboardPage = () => {
   const currentUser = authService.getCurrentUser();
   const isGuest = authService.isGuest();
   const myStudentId = (currentUser?.username || localStorage.getItem('studentId') || '').toLowerCase();
-  const isRegisteredCreator = !isGuest && currentUser?.username && tournament?.createdBy && !tournament.createdBy.startsWith('guest:') && tournament.createdBy.toLowerCase() === currentUser.username.toLowerCase();
+  const isRegisteredCreator = !isGuest && currentUser?.username && typeof tournament?.createdBy === 'string' && !tournament.createdBy.startsWith('guest:') && tournament.createdBy.toLowerCase() === currentUser.username.toLowerCase();
   const isManager = isAdmin || isRegisteredCreator;
   
   // Dynamic hidden state: Only hidden from candidates if hideLeaderboard is true AND user is NOT a manager/host
