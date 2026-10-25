@@ -4,7 +4,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { dbService, authService } from '../services/db';
-import { Trophy, ArrowLeft, RotateCcw, Search, Award, Key } from 'lucide-react';
+import { Trophy, ArrowLeft, RotateCcw, Search, Award, Key, Eye, EyeOff } from 'lucide-react';
 
 const LeaderboardPage = () => {
   const { id } = useParams();
@@ -13,7 +13,6 @@ const LeaderboardPage = () => {
   const [title, setTitle] = useState('');
   const [gameType, setGameType] = useState('typing');
   const [expandedId, setExpandedId] = useState(null);
-  const [isHidden, setIsHidden] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [retakeInput, setRetakeInput] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
@@ -37,6 +36,9 @@ const LeaderboardPage = () => {
   const myStudentId = (currentUser?.username || localStorage.getItem('studentId') || '').toLowerCase();
   const isRegisteredCreator = !isGuest && currentUser?.username && tournament?.createdBy && !tournament.createdBy.startsWith('guest:') && tournament.createdBy.toLowerCase() === currentUser.username.toLowerCase();
   const isManager = isAdmin || isHostUnlocked || (tournament && !tournament.managePasswordHash && isRegisteredCreator);
+  
+  // Dynamic hidden state: Only hidden from candidates if hideLeaderboard is true AND user is NOT a manager/host
+  const isHidden = !!tournament?.hideLeaderboard && !isManager;
 
   const handleUnlockHost = async (e) => {
     e.preventDefault();
@@ -50,9 +52,24 @@ const LeaderboardPage = () => {
       sessionStorage.setItem(`managed_${id}`, 'true');
       setIsHostUnlocked(true);
       setShowUnlockModal(false);
-      setActiveTab('manage');
     } else {
       setUnlockError('Incorrect management password. Please try again.');
+    }
+  };
+
+  const handleToggleHideLeaderboard = async () => {
+    if (!tournament || !isManager) return;
+    const newHide = !tournament.hideLeaderboard;
+    const msg = newHide 
+      ? "Hide leaderboard from candidates? Candidates will see 'Leaderboard is Hidden' until results are published."
+      : "Make leaderboard public to all candidates now?";
+    if (!window.confirm(msg)) return;
+
+    try {
+      await dbService.updateTournament(id, { hideLeaderboard: newHide });
+      setTournament(prev => ({ ...prev, hideLeaderboard: newHide }));
+    } catch (err) {
+      alert("Error updating leaderboard visibility: " + err.message);
     }
   };
 
@@ -118,10 +135,6 @@ const LeaderboardPage = () => {
           setTournament(t);
           setTitle(t.name);
           setGameType(t.gameType || 'typing');
-          const isUserCreator = !isGuest && currentUser && t.createdBy && !t.createdBy.startsWith('guest:') && t.createdBy.toLowerCase() === (currentUser?.username || '').toLowerCase();
-          if (t.hideLeaderboard && !isAdmin && !isUserCreator) {
-            setIsHidden(true);
-          }
         } else {
           setNotFound(true);
           setLoading(false);
@@ -245,7 +258,7 @@ const LeaderboardPage = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.25rem 0.65rem', borderRadius: '6px', background: 'var(--surface-2)', border: '1px solid var(--border)', fontSize: '0.75rem', fontWeight: '700', color: 'var(--primary-text)', marginBottom: '0.5rem', letterSpacing: '0.04em' }}>
-              {(gameType || 'competition').toUpperCase()} • {leaderboard.length} CANDIDATES
+              {(gameType || 'competition').toUpperCase()} • {isHidden ? 'RESULTS HIDDEN' : `${leaderboard.length} CANDIDATES`}
             </div>
             <h1 style={{ fontSize: '2.25rem', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-primary)' }}>
               <Trophy size={32} color="var(--primary)" /> {title || 'Tournament Standings'}
@@ -253,7 +266,7 @@ const LeaderboardPage = () => {
           </div>
 
           {/* User's Current Rank Chip */}
-          {myRankIndex !== -1 && (
+          {!isHidden && myRankIndex !== -1 && (
             <div style={{ 
               background: 'var(--surface)', 
               border: '1px solid var(--border)', 
@@ -297,25 +310,48 @@ const LeaderboardPage = () => {
               🏆 Leaderboard Standings
             </button>
             {isManager && (
-              <button
-                type="button"
-                onClick={() => setActiveTab('manage')}
-                style={{
-                  padding: '0.5rem 1rem',
-                  background: activeTab === 'manage' ? 'var(--surface-2)' : 'transparent',
-                  border: '1px solid ' + (activeTab === 'manage' ? 'var(--border)' : 'transparent'),
-                  borderRadius: '8px',
-                  color: activeTab === 'manage' ? 'var(--text-primary)' : 'var(--text-secondary)',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  fontSize: '0.9rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem'
-                }}
-              >
-                <RotateCcw size={15} /> Candidate Retake Management
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('manage')}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    background: activeTab === 'manage' ? 'var(--surface-2)' : 'transparent',
+                    border: '1px solid ' + (activeTab === 'manage' ? 'var(--border)' : 'transparent'),
+                    borderRadius: '8px',
+                    color: activeTab === 'manage' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    fontSize: '0.9rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.4rem'
+                  }}
+                >
+                  <RotateCcw size={15} /> Candidate Retake Management
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleToggleHideLeaderboard}
+                  style={{
+                    padding: '0.5rem 0.85rem',
+                    background: 'transparent',
+                    border: '1px solid var(--border)',
+                    borderRadius: '8px',
+                    color: tournament?.hideLeaderboard ? '#eab308' : 'var(--text-secondary)',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem'
+                  }}
+                  title={tournament?.hideLeaderboard ? "Publish leaderboard to candidates" : "Hide leaderboard from candidates"}
+                >
+                  {tournament?.hideLeaderboard ? <><Eye size={14} /> Publish Standings</> : <><EyeOff size={14} /> Hide Standings</>}
+                </button>
+              </>
             )}
           </div>
 
@@ -428,13 +464,60 @@ const LeaderboardPage = () => {
         <>
           {isHidden ? (
             <Card padding="3rem">
-              <div style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>
+              <div style={{ textAlign: 'center', color: 'var(--text-secondary)', maxWidth: '520px', margin: '0 auto' }}>
+                <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'var(--surface-2)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' }}>
+                  <EyeOff size={28} style={{ color: 'var(--text-tertiary)' }} />
+                </div>
                 <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Leaderboard is Hidden</h2>
-                <p style={{ fontSize: '0.95rem' }}>The results for this tournament are hidden by the organizer until grading is completed.</p>
+                <p style={{ fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '1.5rem' }}>
+                  The results and candidate rankings for this tournament have been hidden by the organizer until grading is completed.
+                </p>
+
+                {!isManager && (
+                  <div style={{ paddingTop: '1.25rem', borderTop: '1px solid var(--border)' }}>
+                    <p style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)', marginBottom: '0.75rem' }}>
+                      Are you the tournament host? Unlock with your management password to view all candidate results:
+                    </p>
+                    <Button 
+                      variant="secondary"
+                      onClick={() => { setShowUnlockModal(true); setUnlockError(''); setUnlockPassword(''); }}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+                    >
+                      <Key size={14} style={{ color: 'var(--primary-text)' }} /> Unlock Host Controls
+                    </Button>
+                  </div>
+                )}
               </div>
             </Card>
           ) : (
             <div>
+              {/* Host Visibility Notice Banner */}
+              {tournament?.hideLeaderboard && isManager && (
+                <div style={{
+                  background: 'rgba(234, 179, 8, 0.08)',
+                  border: '1px solid rgba(234, 179, 8, 0.25)',
+                  borderRadius: '10px',
+                  padding: '0.85rem 1.25rem',
+                  marginBottom: '1.5rem',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '0.75rem'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#eab308', fontSize: '0.875rem', fontWeight: '600' }}>
+                    <EyeOff size={18} />
+                    <span>Leaderboard is hidden from candidates (visible only to you as Host)</span>
+                  </div>
+                  <Button 
+                    variant="secondary" 
+                    onClick={handleToggleHideLeaderboard}
+                    style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                  >
+                    <Eye size={14} /> Make Public Now
+                  </Button>
+                </div>
+              )}
               {/* Top 3 Podium Cards (when 3+ participants exist and no search filter) */}
               {top3.length >= 3 && !searchQuery && currentPage === 1 && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '1.75rem' }}>
