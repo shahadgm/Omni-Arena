@@ -4,7 +4,7 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyA-LCfXc-65kxzcO0Bz3sDL4qFSBVbtlQc",
-  authDomain: "mr-typist.firebaseapp.com",
+  authDomain: "omni-arena.vercel.app",
   projectId: "mr-typist",
   storageBucket: "mr-typist.firebasestorage.app",
   messagingSenderId: "542261546961",
