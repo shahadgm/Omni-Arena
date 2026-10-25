@@ -684,6 +684,10 @@ export const authService = {
       return sessionUser;
     } catch (error) {
       console.error("Error signing in with Google:", error);
+      if (error.code === 'auth/unauthorized-domain') {
+        const domain = (typeof window !== 'undefined' && window.location.hostname) ? window.location.hostname : 'your-site.vercel.app';
+        throw new Error(`Domain "${domain}" is not authorized. Please add "${domain}" to Firebase Console -> Authentication -> Settings -> Authorized domains.`);
+      }
       if (error.code === 'auth/popup-closed-by-user') {
         throw new Error('Sign-in popup was closed before completing.');
       }
