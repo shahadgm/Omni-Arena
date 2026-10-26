@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import { Trophy, Zap, Gamepad2, Shield, Lock, User, AlertCircle, UserPlus } from 'lucide-react';
+import { Trophy, Zap, Gamepad2, Shield, Lock, User, AlertCircle, UserPlus, Keyboard, HelpCircle, MapPin, Sparkles, Grid } from 'lucide-react';
 import { authService } from '../services/db';
 
 const LandingPage = () => {
@@ -151,12 +151,28 @@ const LandingPage = () => {
       
       {/* Hero Section */}
       <div style={{ textAlign: 'center', marginBottom: '2.5rem', position: 'relative' }}>
-        <h1 className="hero-title">
-          Welcome to <br />
+        <div style={{ 
+          display: 'inline-flex', 
+          alignItems: 'center', 
+          gap: '0.5rem', 
+          padding: '0.35rem 0.85rem', 
+          borderRadius: '20px', 
+          background: 'rgba(99, 102, 241, 0.1)', 
+          border: '1px solid rgba(99, 102, 241, 0.25)', 
+          marginBottom: '1rem',
+          fontSize: '0.85rem',
+          color: 'var(--primary-text)',
+          fontWeight: '600'
+        }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)', boxShadow: '0 0 8px var(--success)' }}></span>
+          Multi-Format Esports & Competition Arena
+        </div>
+        <h1 className="hero-title" style={{ fontFamily: 'var(--font-display)' }}>
+          Compete, Solve & Win in <br />
           <span className="text-gradient">OmniArena</span>
         </h1>
-        <p style={{ fontSize: '1.15rem', color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto', lineHeight: 1.6 }}>
-          Compete in live tournaments, join private rooms with a code, and sharpen your skills.
+        <p style={{ fontSize: '1.15rem', color: 'var(--text-secondary)', maxWidth: '620px', margin: '0 auto', lineHeight: 1.6 }}>
+          Live tournaments, speed typing sprints, real-time quizzes, geography map trivia, and logic puzzles in one seamless arena.
         </p>
       </div>
 
@@ -482,27 +498,116 @@ const LandingPage = () => {
         )}
       </Card>
 
-      {/* Features Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem', marginTop: '3.5rem', width: '100%' }}>
-        {[
-          { icon: <Gamepad2 style={{ color: 'var(--primary-text)' }} size={24} />, title: '5 Diverse Disciplines', desc: 'Typing, Quiz, Nonograms, Shikaku, Crosswords, and Geography Maps.' },
-          { icon: <Lock style={{ color: 'var(--primary-text)' }} size={24} />, title: 'Instant Private Rooms', desc: 'Generate tournament codes for classroom drills or private competitions.' },
-          { icon: <Trophy style={{ color: 'var(--gold)' }} size={24} />, title: 'Live Medals & Podiums', desc: 'Real-time scoring, live leaderboards, and instant results verification.' },
-        ].map((feature, idx) => (
-          <div key={idx} style={{ 
-            textAlign: 'center', 
-            padding: '1.75rem 1.25rem', 
-            background: 'var(--surface-2)', 
-            borderRadius: '12px',
-            border: '1px solid var(--border)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'center', background: 'var(--surface)', border: '1px solid var(--border)', width: '48px', height: '48px', margin: '0 auto 1rem', alignItems: 'center', borderRadius: '10px' }}>
-              {feature.icon}
-            </div>
-            <h3 style={{ marginBottom: '0.5rem', fontSize: '1.05rem', fontWeight: '600' }}>{feature.title}</h3>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.5, margin: 0 }}>{feature.desc}</p>
+      {/* 5 Disciplines Showcase Section */}
+      <div style={{ marginTop: '4rem', width: '100%' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <h2 style={{ fontSize: '1.75rem', fontWeight: '800', fontFamily: 'var(--font-display)', marginBottom: '0.4rem' }}>
+            5 Competitive Disciplines
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+            Challenge your reflexes, intellect, and problem-solving skills across multiple arena formats.
+          </p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+          {[
+            { 
+              badgeClass: 'badge-disc-typing', 
+              badgeText: 'Speed Typing', 
+              icon: <Keyboard size={22} color="var(--disc-typing)" />, 
+              title: 'Typing Sprint', 
+              desc: 'English, Arabic, and Nastaliq Urdu speed drills with live WPM and accuracy metrics.' 
+            },
+            { 
+              badgeClass: 'badge-disc-quiz', 
+              badgeText: 'Live Quiz', 
+              icon: <HelpCircle size={22} color="var(--disc-quiz)" />, 
+              title: 'Knowledge Arena', 
+              desc: 'High-speed timed MCQs and text trivia questions with automated host grading.' 
+            },
+            { 
+              badgeClass: 'badge-disc-map', 
+              badgeText: 'Geography', 
+              icon: <MapPin size={22} color="var(--disc-map)" />, 
+              title: 'World Map Trivia', 
+              desc: 'Interactive world map challenge to pinpoint countries, capitals, and global flags.' 
+            },
+            { 
+              badgeClass: 'badge-disc-crossword', 
+              badgeText: 'Crossword', 
+              icon: <Sparkles size={22} color="var(--disc-crossword)" />, 
+              title: 'Word Grids', 
+              desc: 'Intersecting clue grids that test vocabulary and rapid deductive pattern recognition.' 
+            },
+            { 
+              badgeClass: 'badge-disc-puzzle', 
+              badgeText: 'Logic Puzzles', 
+              icon: <Grid size={22} color="var(--disc-puzzle)" />, 
+              title: 'Nonograms & Shikaku', 
+              desc: 'Spatial logic puzzles: deduce painted picture cells and partition geometric rectangles.' 
+            },
+          ].map((item, idx) => (
+            <Card key={idx} hoverEffect={true} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <div style={{ 
+                  width: '42px', 
+                  height: '42px', 
+                  borderRadius: '10px', 
+                  background: 'var(--surface-2)', 
+                  border: '1px solid var(--border)', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center' 
+                }}>
+                  {item.icon}
+                </div>
+                <span className={`badge-disc ${item.badgeClass}`}>{item.badgeText}</span>
+              </div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: '700', marginBottom: '0.4rem', color: 'var(--text-primary)' }}>
+                {item.title}
+              </h3>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.5, margin: 0 }}>
+                {item.desc}
+              </p>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* Trust & Architecture Strip */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', 
+        gap: '1.25rem', 
+        marginTop: '2.5rem', 
+        marginBottom: '2rem',
+        width: '100%',
+        padding: '1.5rem',
+        background: 'var(--surface-2)',
+        borderRadius: '12px',
+        border: '1px solid var(--border)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <Lock size={20} color="var(--primary-text)" style={{ flexShrink: 0 }} />
+          <div>
+            <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Private Tournament Codes</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Instant PINs for classroom drills and private tournaments</div>
           </div>
-        ))}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <Trophy size={20} color="var(--gold)" style={{ flexShrink: 0 }} />
+          <div>
+            <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Live Olympic Podiums</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Real-time scoreboard ranking and instant medal results</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <Shield size={20} color="var(--success)" style={{ flexShrink: 0 }} />
+          <div>
+            <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--text-primary)' }}>Anti-Cheat Telemetry</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Tab-switch and clipboard guard for integrity</div>
+          </div>
+        </div>
       </div>
     </div>
   );

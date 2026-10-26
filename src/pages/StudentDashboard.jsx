@@ -155,6 +155,15 @@ const StudentDashboard = () => {
     { id: 'practice-map', name: 'World Geography Map', format: 'Map', desc: 'Pinpoint world capitals, landmarks, and countries.', icon: <MapPin size={24} /> },
   ];
 
+  const getBadgeClass = (gt = '') => {
+    const norm = gt.toLowerCase();
+    if (norm === 'quiz') return 'badge-disc badge-disc-quiz';
+    if (norm === 'map') return 'badge-disc badge-disc-map';
+    if (norm === 'crossword') return 'badge-disc badge-disc-crossword';
+    if (norm === 'nonogram' || norm === 'shikaku' || norm === 'logic' || norm === 'logic-puzzle') return 'badge-disc badge-disc-puzzle';
+    return 'badge-disc badge-disc-typing';
+  };
+
   return (
     <div className="container" style={{ width: '100%', maxWidth: '1120px', paddingBottom: '4rem' }}>
       
@@ -308,22 +317,13 @@ const StudentDashboard = () => {
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
             {publicTournaments.map(t => (
-              <Card key={t.id} style={{ display: 'flex', flexDirection: 'column', padding: '1.5rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                  <span style={{ 
-                    fontSize: '0.7rem', 
-                    fontWeight: '700', 
-                    padding: '0.2rem 0.6rem', 
-                    borderRadius: '6px', 
-                    background: 'var(--surface-2)', 
-                    color: 'var(--primary-text)',
-                    border: '1px solid var(--border)',
-                    letterSpacing: '0.04em'
-                  }}>
+              <Card key={t.id} hoverEffect={true} style={{ display: 'flex', flexDirection: 'column', padding: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                  <span className={getBadgeClass(t.gameType || 'typing')}>
                     {(t.gameType || 'typing').toUpperCase()}
                   </span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                    <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--success)' }}></span> LIVE
+                  <span style={{ fontSize: '0.75rem', color: 'var(--success)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '0.4rem', letterSpacing: '0.04em' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)', boxShadow: '0 0 8px var(--success)' }}></span> LIVE
                   </span>
                 </div>
 
@@ -444,8 +444,8 @@ const StudentDashboard = () => {
                   {item.icon}
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '1.05rem', fontWeight: '700' }}>{item.name}</h3>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>{item.format}</span>
+                  <h3 style={{ fontSize: '1.05rem', fontWeight: '700', marginBottom: '0.2rem' }}>{item.name}</h3>
+                  <span className={getBadgeClass(item.format)} style={{ fontSize: '0.7rem', padding: '0.15rem 0.5rem' }}>{item.format}</span>
                 </div>
               </div>
 

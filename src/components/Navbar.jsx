@@ -36,6 +36,8 @@ const Navbar = ({ theme, toggleTheme }) => {
     position: 'sticky',
     top: 0,
     zIndex: 100,
+    backdropFilter: 'blur(12px)',
+    WebkitBackdropFilter: 'blur(12px)',
   };
 
   const logoStyle = {
@@ -62,14 +64,16 @@ const Navbar = ({ theme, toggleTheme }) => {
   const mobileLinkItemStyle = {
     textDecoration: 'none',
     color: 'var(--text-primary)',
-    fontWeight: '500',
+    fontWeight: '600',
     display: 'flex',
     alignItems: 'center',
     gap: '0.75rem',
     padding: '0.75rem 1rem',
     borderRadius: '8px',
-    background: 'rgba(255, 255, 255, 0.03)',
-    fontSize: '1rem',
+    background: 'var(--surface-2)',
+    border: '1px solid var(--border)',
+    fontSize: '0.95rem',
+    transition: 'background-color 0.15s ease, border-color 0.15s ease',
   };
 
   let logoLink = '/';
@@ -201,17 +205,19 @@ const Navbar = ({ theme, toggleTheme }) => {
       {mobileMenuOpen && (
         <div style={{
           position: 'fixed',
-          top: '60px',
+          top: '64px',
           left: 0,
           right: 0,
-          background: 'var(--bg-secondary)',
-          borderBottom: '1px solid var(--glass-border)',
+          background: 'var(--surface)',
+          borderBottom: '1px solid var(--border)',
           padding: '1.25rem',
           display: 'flex',
           flexDirection: 'column',
           gap: '0.75rem',
           zIndex: 99,
-          boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+          boxShadow: '0 12px 30px rgba(0,0,0,0.45)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
         }}>
           {isAuthenticated ? (
             <>

@@ -96,6 +96,35 @@ const QuizArena = () => {
     return () => clearTimeout(timer);
   }, [completed, timeLeft, tournament]);
 
+  // Keyboard navigation for MCQ: 1-4 or A-D to select, Enter to advance
+  useEffect(() => {
+    if (!tournament || completed) return;
+    const currentQ = tournament.quizQuestions?.[currentQuestionIdx];
+    if (!currentQ || currentQ.type === 'text') return;
+
+    const handleKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      const key = e.key.toUpperCase();
+      let selectedIdx = -1;
+      if (key === '1' || key === 'A') selectedIdx = 0;
+      else if (key === '2' || key === 'B') selectedIdx = 1;
+      else if (key === '3' || key === 'C') selectedIdx = 2;
+      else if (key === '4' || key === 'D') selectedIdx = 3;
+      else if (key === 'ENTER') {
+        handleNext();
+        return;
+      }
+
+      if (selectedIdx >= 0 && selectedIdx < (currentQ.options?.length || 0)) {
+        handleSelectOption(selectedIdx);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [tournament, completed, currentQuestionIdx, answers]);
+
   const handleSelectOption = (optIdx) => {
     const newAnswers = [...answers];
     newAnswers[currentQuestionIdx] = optIdx;
@@ -320,8 +349,8 @@ const QuizArena = () => {
             <Target size={18} className="text-gradient" /> Q {currentQuestionIdx + 1} of {tournament.quizQuestions.length}
           </div>
           {timeLeft !== null && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--glass-bg)', padding: '0.4rem 0.8rem', borderRadius: '20px', border: '1px solid var(--glass-border)', color: timeLeft < 10 && timeLeft > 0 ? 'var(--error)' : 'inherit' }}>
-              <Clock size={18} /> {timeLeft}s
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--surface-2)', padding: '0.4rem 0.85rem', borderRadius: '20px', border: '1px solid var(--border)', color: timeLeft < 10 && timeLeft > 0 ? 'var(--danger)' : 'inherit' }}>
+              <Clock size={16} /> <span className="font-mono-numbers" style={{ fontWeight: '700' }}>{timeLeft}s</span>
             </div>
           )}
         </div>
@@ -366,33 +395,47 @@ const QuizArena = () => {
               />
             </div>
           ) : (
-            currentQ.options.map((opt, idx) => (
-              <div 
-                key={idx}
-                onClick={() => handleSelectOption(idx)}
-                style={{
-                  padding: '0.85rem 1rem',
-                  borderRadius: '10px',
-                  background: answers[currentQuestionIdx] === idx ? 'rgba(99, 102, 241, 0.2)' : 'var(--glass-bg)',
-                  border: `1px solid ${answers[currentQuestionIdx] === idx ? 'var(--accent-primary)' : 'var(--glass-border)'}`,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  fontSize: '1.05rem'
-                }}
-              >
-                <div style={{
-                  width: '20px', height: '20px', borderRadius: '50%',
-                  border: `2px solid ${answers[currentQuestionIdx] === idx ? 'var(--accent-primary)' : 'var(--text-tertiary)'}`,
-                  display: 'flex', justifyContent: 'center', alignItems: 'center', flexShrink: 0
-                }}>
-                  {answers[currentQuestionIdx] === idx && <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: 'var(--accent-primary)' }} />}
+            currentQ.options.map((opt, idx) => {
+              const isSelected = answers[currentQuestionIdx] === idx;
+              const optionLetter = ['A', 'B', 'C', 'D'][idx] || idx + 1;
+              return (
+                <div 
+                  key={idx}
+                  onClick={() => handleSelectOption(idx)}
+                  style={{
+                    padding: '0.9rem 1.15rem',
+                    borderRadius: '10px',
+                    background: isSelected ? 'rgba(99, 102, 241, 0.15)' : 'var(--surface-2)',
+                    border: `1.5px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.85rem',
+                    fontSize: '1rem',
+                    boxShadow: isSelected ? '0 0 12px var(--primary-glow)' : 'none'
+                  }}
+                >
+                  <div style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '6px',
+                    background: isSelected ? 'var(--primary)' : 'var(--surface)',
+                    color: isSelected ? '#ffffff' : 'var(--text-secondary)',
+                    border: `1px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.8rem',
+                    fontWeight: '700',
+                    flexShrink: 0
+                  }}>
+                    {optionLetter}
+                  </div>
+                  <span style={{ fontWeight: isSelected ? '600' : '500', color: 'var(--text-primary)' }}>{opt}</span>
                 </div>
-                <span>{opt}</span>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </Card>

@@ -4,7 +4,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { dbService, authService } from '../services/db';
-import { Trophy, ArrowLeft, RotateCcw, Search, Award, Eye, EyeOff, Lock } from 'lucide-react';
+import { Trophy, ArrowLeft, RotateCcw, Search, Award, Eye, EyeOff, Lock, Crown } from 'lucide-react';
 
 const LeaderboardPage = () => {
   const { id } = useParams();
@@ -478,16 +478,28 @@ const LeaderboardPage = () => {
                     border: '1px solid var(--border)', 
                     borderTop: '4px solid var(--gold)',
                     borderRadius: '12px', 
-                    padding: '1.25rem',
+                    padding: '1.5rem 1.25rem',
                     textAlign: 'center',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                    boxShadow: '0 8px 24px -6px var(--gold-glow)'
                   }}>
-                    <div style={{ fontSize: '1.75rem', marginBottom: '0.25rem' }}>🥇</div>
-                    <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--gold)', letterSpacing: '0.05em' }}>1ST PLACE</div>
+                    <div style={{ 
+                      width: '46px', 
+                      height: '46px', 
+                      borderRadius: '50%', 
+                      background: 'var(--gold-glow)', 
+                      border: '1.5px solid var(--gold)',
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      margin: '0 auto 0.65rem' 
+                    }}>
+                      <Crown size={22} color="var(--gold)" />
+                    </div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--gold)', letterSpacing: '0.06em' }}>1ST PLACE</div>
                     <div style={{ fontSize: '1.15rem', fontWeight: '700', margin: '0.4rem 0 0.2rem', color: 'var(--text-primary)' }}>
                       {(top3[0].displayName || top3[0].studentId || '').replace(/^guest:/, '').replace(/_[a-z0-9]{5,8}$/, '')}
                     </div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--primary-text)' }} className="tabular-nums">
+                    <div style={{ fontSize: '1.35rem', fontWeight: '800', color: 'var(--gold)' }} className="tabular-nums font-mono-numbers">
                       {top3[0].displayScore !== undefined ? top3[0].displayScore : top3[0].score} pts
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
@@ -501,16 +513,28 @@ const LeaderboardPage = () => {
                     border: '1px solid var(--border)', 
                     borderTop: '4px solid var(--silver)',
                     borderRadius: '12px', 
-                    padding: '1.25rem',
+                    padding: '1.5rem 1.25rem',
                     textAlign: 'center',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                    boxShadow: '0 8px 24px -6px var(--silver-glow)'
                   }}>
-                    <div style={{ fontSize: '1.75rem', marginBottom: '0.25rem' }}>🥈</div>
-                    <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--silver)', letterSpacing: '0.05em' }}>2ND PLACE</div>
+                    <div style={{ 
+                      width: '44px', 
+                      height: '44px', 
+                      borderRadius: '50%', 
+                      background: 'var(--silver-glow)', 
+                      border: '1.5px solid var(--silver)',
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      margin: '0 auto 0.65rem' 
+                    }}>
+                      <Award size={22} color="var(--silver)" />
+                    </div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--silver)', letterSpacing: '0.06em' }}>2ND PLACE</div>
                     <div style={{ fontSize: '1.15rem', fontWeight: '700', margin: '0.4rem 0 0.2rem', color: 'var(--text-primary)' }}>
                       {(top3[1].displayName || top3[1].studentId || '').replace(/^guest:/, '').replace(/_[a-z0-9]{5,8}$/, '')}
                     </div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--primary-text)' }} className="tabular-nums">
+                    <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--silver)' }} className="tabular-nums font-mono-numbers">
                       {top3[1].displayScore !== undefined ? top3[1].displayScore : top3[1].score} pts
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
@@ -524,16 +548,28 @@ const LeaderboardPage = () => {
                     border: '1px solid var(--border)', 
                     borderTop: '4px solid var(--bronze)',
                     borderRadius: '12px', 
-                    padding: '1.25rem',
+                    padding: '1.5rem 1.25rem',
                     textAlign: 'center',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                    boxShadow: '0 8px 24px -6px var(--bronze-glow)'
                   }}>
-                    <div style={{ fontSize: '1.75rem', marginBottom: '0.25rem' }}>🥉</div>
-                    <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--bronze)', letterSpacing: '0.05em' }}>3RD PLACE</div>
+                    <div style={{ 
+                      width: '44px', 
+                      height: '44px', 
+                      borderRadius: '50%', 
+                      background: 'var(--bronze-glow)', 
+                      border: '1.5px solid var(--bronze)',
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      margin: '0 auto 0.65rem' 
+                    }}>
+                      <Award size={22} color="var(--bronze)" />
+                    </div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--bronze)', letterSpacing: '0.06em' }}>3RD PLACE</div>
                     <div style={{ fontSize: '1.15rem', fontWeight: '700', margin: '0.4rem 0 0.2rem', color: 'var(--text-primary)' }}>
                       {(top3[2].displayName || top3[2].studentId || '').replace(/^guest:/, '').replace(/_[a-z0-9]{5,8}$/, '')}
                     </div>
-                    <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--primary-text)' }} className="tabular-nums">
+                    <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--bronze)' }} className="tabular-nums font-mono-numbers">
                       {top3[2].displayScore !== undefined ? top3[2].displayScore : top3[2].score} pts
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
@@ -561,7 +597,10 @@ const LeaderboardPage = () => {
                   </div>
                 </div>
 
-                {/* Table Header */}
+                {/* Scrollable Viewport for Mobile & Desktop */}
+                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                  <div style={{ minWidth: isManager ? '740px' : '580px' }}>
+                    {/* Table Header */}
                 <div style={{ 
                   padding: '0.85rem 1.25rem', 
                   borderBottom: '1px solid var(--border)', 
@@ -779,6 +818,8 @@ const LeaderboardPage = () => {
                     })}
                   </div>
                 )}
+                  </div>
+                </div>
 
                 {/* Pagination Controls */}
                 {totalPages > 1 && (
