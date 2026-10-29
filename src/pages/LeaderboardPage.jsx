@@ -119,6 +119,7 @@ const LeaderboardPage = () => {
         if (id.startsWith('practice-quiz')) setGameType('quiz');
         else if (id.startsWith('practice-nonogram')) setGameType('nonogram');
         else if (id.startsWith('practice-shikaku')) setGameType('shikaku');
+        else if (id.startsWith('practice-sudoku')) setGameType('sudoku');
         else if (id.startsWith('practice-map')) setGameType('map');
         else if (id.startsWith('practice-crossword')) setGameType('crossword');
         else setGameType('typing');
@@ -140,7 +141,7 @@ const LeaderboardPage = () => {
     fetchLeaderboard();
   }, [id, isAdmin]);
 
-  const isPuzzle = gameType === 'nonogram' || gameType === 'shikaku' || gameType === 'logic-puzzle';
+  const isPuzzle = gameType === 'nonogram' || gameType === 'shikaku' || gameType === 'sudoku' || gameType === 'logic-puzzle';
   const isCrossword = gameType === 'crossword';
   const isQuiz = gameType === 'quiz';
   const isMap = gameType === 'map';

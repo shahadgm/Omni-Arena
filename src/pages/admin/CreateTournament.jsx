@@ -130,11 +130,11 @@ const CreateTournament = () => {
               ...p,
               customGrid: p.customGrid ? JSON.stringify(p.customGrid, null, 2) : ''
             })));
-          } else if (t.gameType === 'nonogram' || t.gameType === 'shikaku') {
+          } else if (t.gameType === 'nonogram' || t.gameType === 'shikaku' || t.gameType === 'sudoku') {
             setGameType('logic-puzzle');
             setPuzzles([{
               type: t.gameType,
-              size: t.puzzleSize || '7x7',
+              size: t.gameType === 'sudoku' ? (t.difficulty || t.puzzleSize || 'medium') : (t.puzzleSize || '7x7'),
               customGrid: t.customPuzzle ? JSON.stringify(t.customPuzzle, null, 2) : ''
             }]);
           }
@@ -509,7 +509,7 @@ const CreateTournament = () => {
             >
               <option value="typing">⌨️ Typing Competition</option>
               <option value="quiz">❓ Quiz Competition (MCQ & Text)</option>
-              <option value="logic-puzzle">🧩 Logic Puzzles (Nonogram & Shikaku)</option>
+              <option value="logic-puzzle">🧩 Logic Puzzles (Nonogram, Shikaku, Sudoku)</option>
               <option value="crossword">📝 Crossword Puzzle</option>
               <option value="map">🗺️ World Map Geography</option>
             </select>
@@ -957,7 +957,13 @@ const CreateTournament = () => {
                         value={puzzle.type} 
                         onChange={e => {
                           const updated = [...puzzles];
-                          updated[idx].type = e.target.value;
+                          const newType = e.target.value;
+                          updated[idx].type = newType;
+                          if (newType === 'sudoku') {
+                            updated[idx].size = 'medium';
+                          } else if (['easy', 'medium', 'hard'].includes(updated[idx].size)) {
+                            updated[idx].size = '7x7';
+                          }
                           setPuzzles(updated);
                         }}
                         style={{
@@ -967,28 +973,50 @@ const CreateTournament = () => {
                       >
                         <option value="nonogram">Nonogram</option>
                         <option value="shikaku">Shikaku</option>
+                        <option value="sudoku">Sudoku</option>
                       </select>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      <label style={{ fontSize: '0.875rem', fontWeight: '500', color: 'var(--text-secondary)' }}>Generated Size</label>
-                      <select 
-                        value={puzzle.size} 
-                        onChange={e => {
-                          const updated = [...puzzles];
-                          updated[idx].size = e.target.value;
-                          setPuzzles(updated);
-                        }}
-                        style={{
-                          padding: '0.75rem 1rem', borderRadius: '8px', background: 'var(--surface-2)',
-                          border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none'
-                        }}
-                      >
-                        <option value="5x5">5x5</option>
-                        <option value="7x7">7x7</option>
-                        <option value="10x10">10x10</option>
-                        <option value="15x15">15x15</option>
-                      </select>
+                      <label style={{ fontSize: '0.875rem', fontWeight: '500', color: 'var(--text-secondary)' }}>
+                        {puzzle.type === 'sudoku' ? 'Difficulty' : 'Generated Size'}
+                      </label>
+                      {puzzle.type === 'sudoku' ? (
+                        <select 
+                          value={puzzle.size || 'medium'} 
+                          onChange={e => {
+                            const updated = [...puzzles];
+                            updated[idx].size = e.target.value;
+                            setPuzzles(updated);
+                          }}
+                          style={{
+                            padding: '0.75rem 1rem', borderRadius: '8px', background: 'var(--surface-2)',
+                            border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none'
+                          }}
+                        >
+                          <option value="easy">Easy (~42 Clues)</option>
+                          <option value="medium">Medium (~34 Clues)</option>
+                          <option value="hard">Hard (~28 Clues)</option>
+                        </select>
+                      ) : (
+                        <select 
+                          value={puzzle.size} 
+                          onChange={e => {
+                            const updated = [...puzzles];
+                            updated[idx].size = e.target.value;
+                            setPuzzles(updated);
+                          }}
+                          style={{
+                            padding: '0.75rem 1rem', borderRadius: '8px', background: 'var(--surface-2)',
+                            border: '1px solid var(--border)', color: 'var(--text-primary)', outline: 'none'
+                          }}
+                        >
+                          <option value="5x5">5x5</option>
+                          <option value="7x7">7x7</option>
+                          <option value="10x10">10x10</option>
+                          <option value="15x15">15x15</option>
+                        </select>
+                      )}
                     </div>
                   </div>
 
@@ -1003,7 +1031,13 @@ const CreateTournament = () => {
                         updated[idx].customGrid = e.target.value;
                         setPuzzles(updated);
                       }}
-                      placeholder={puzzle.type === 'shikaku' ? "[[null, null, 4], [null, 2, null]]" : "[[true, false], [false, true]]"}
+                      placeholder={
+                        puzzle.type === 'sudoku'
+                          ? "[[5, 3, null, null, 7, null, null, null, null], [6, null, null, 1, 9, 5, null, null, null], ...]"
+                          : puzzle.type === 'shikaku'
+                            ? "[[null, null, 4], [null, 2, null]]"
+                            : "[[true, false], [false, true]]"
+                      }
                       style={{
                         width: '100%', height: '100px', padding: '0.75rem',
                         background: 'var(--bg-primary)', border: '1px solid var(--glass-border)',

@@ -64,6 +64,7 @@ const ArenaRouter = () => {
         if (id.startsWith('practice-quiz')) setGameType('quiz');
         else if (id.startsWith('practice-nonogram')) setGameType('nonogram');
         else if (id.startsWith('practice-shikaku')) setGameType('shikaku');
+        else if (id.startsWith('practice-sudoku')) setGameType('sudoku');
         else if (id.startsWith('practice-map')) setGameType('map');
         else if (id.startsWith('practice-crossword')) setGameType('crossword');
         else setGameType('typing');
@@ -268,7 +269,8 @@ const ArenaRouter = () => {
       case 'crossword': return <CrosswordArena />;
       case 'logic-puzzle':
       case 'nonogram': 
-      case 'shikaku': return <MultiPuzzleArena />;
+      case 'shikaku':
+      case 'sudoku': return <MultiPuzzleArena />;
       case 'typing':
       default: return <CompetitionArena />;
     }

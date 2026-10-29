@@ -209,7 +209,7 @@ const AdminDashboard = () => {
     if (norm === 'quiz') return 'badge-disc badge-disc-quiz';
     if (norm === 'map') return 'badge-disc badge-disc-map';
     if (norm === 'crossword') return 'badge-disc badge-disc-crossword';
-    if (norm === 'nonogram' || norm === 'shikaku' || norm === 'logic' || norm === 'logic-puzzle') return 'badge-disc badge-disc-puzzle';
+    if (norm === 'nonogram' || norm === 'shikaku' || norm === 'sudoku' || norm === 'logic' || norm === 'logic-puzzle') return 'badge-disc badge-disc-puzzle';
     return 'badge-disc badge-disc-typing';
   };
 
@@ -224,6 +224,8 @@ const AdminDashboard = () => {
     { id: 'practice-nonogram-5x5', name: '5x5 Easy Nonogram', format: 'Logic', desc: 'Row and column clue painting deduction.' },
     { id: 'practice-nonogram-10x10', name: '10x10 Medium Nonogram', format: 'Logic', desc: 'Medium picture tile deduction challenge.' },
     { id: 'practice-shikaku-5x5', name: '5x5 Beginner Shikaku', format: 'Logic', desc: 'Rectangular grid area partitioning.' },
+    { id: 'practice-sudoku-easy', name: 'Sudoku (Easy)', format: 'Logic', desc: 'Classic 9x9 number grid with starter clues.' },
+    { id: 'practice-sudoku-medium', name: 'Sudoku (Medium)', format: 'Logic', desc: '9x9 logical number placement deduction.' },
     { id: 'practice-map', name: 'World Geography', format: 'Map', desc: 'Pinpoint world capitals, flags, and countries.' },
     { id: 'practice-crossword', name: 'Cryptic Crossword', format: 'Crossword', desc: 'Intersecting clue word puzzle practice.' }
   ];
@@ -240,14 +242,14 @@ const AdminDashboard = () => {
   const quizCount = tournaments.filter(t => t.gameType === 'quiz').length;
   const mapCount = tournaments.filter(t => t.gameType === 'map').length;
   const crosswordCount = tournaments.filter(t => t.gameType === 'crossword').length;
-  const puzzleCount = tournaments.filter(t => ['logic-puzzle', 'nonogram', 'shikaku'].includes(t.gameType)).length;
+  const puzzleCount = tournaments.filter(t => ['logic-puzzle', 'nonogram', 'shikaku', 'sudoku'].includes(t.gameType)).length;
 
   // Filtered Tournaments
   const filteredTournaments = tournaments.filter(t => {
     const gType = t.gameType || 'typing';
     if (disciplineFilter !== 'all') {
       if (disciplineFilter === 'logic-puzzle') {
-        if (!['logic-puzzle', 'nonogram', 'shikaku'].includes(gType)) return false;
+        if (!['logic-puzzle', 'nonogram', 'shikaku', 'sudoku'].includes(gType)) return false;
       } else if (gType !== disciplineFilter) {
         return false;
       }

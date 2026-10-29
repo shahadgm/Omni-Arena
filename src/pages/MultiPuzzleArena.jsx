@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { dbService } from '../services/db';
-import { generateNonogram, generateShikaku, generateClues } from '../utils/puzzleGenerators';
+import { generateNonogram, generateShikaku, generateSudoku, solveSudoku, generateClues } from '../utils/puzzleGenerators';
 import NonogramBoard from '../components/puzzles/NonogramBoard';
 import ShikakuBoard from '../components/puzzles/ShikakuBoard';
+import SudokuBoard from '../components/puzzles/SudokuBoard';
 import Card from '../components/ui/Card';
 import { Trophy } from 'lucide-react';
 import { useAntiCheat } from '../hooks/useAntiCheat';
@@ -34,6 +35,9 @@ const MultiPuzzleArena = () => {
         if (id.startsWith('practice-nonogram')) {
           type = 'nonogram';
           puz = generateNonogram(id);
+        } else if (id.startsWith('practice-sudoku')) {
+          type = 'sudoku';
+          puz = generateSudoku(id);
         } else {
           type = 'shikaku';
           puz = generateShikaku(id);
@@ -52,6 +56,13 @@ const MultiPuzzleArena = () => {
             if (pConfig.type === 'nonogram') {
               if (pConfig.customGrid) return { type: 'nonogram', data: generateClues(pConfig.customGrid) };
               return { type: 'nonogram', data: generateNonogram(id + index, pConfig.size) };
+            } else if (pConfig.type === 'sudoku') {
+              if (pConfig.customGrid) {
+                const initialGrid = Array.isArray(pConfig.customGrid) ? pConfig.customGrid : JSON.parse(pConfig.customGrid);
+                const solution = solveSudoku(initialGrid) || initialGrid;
+                return { type: 'sudoku', data: { size: 9, initialGrid, solution, difficulty: pConfig.size || 'medium' } };
+              }
+              return { type: 'sudoku', data: generateSudoku(id + index, pConfig.size) };
             } else {
               if (pConfig.customGrid) return { type: 'shikaku', data: { size: pConfig.customGrid.length, grid: pConfig.customGrid } };
               return { type: 'shikaku', data: generateShikaku(id + index, pConfig.size) };
@@ -64,6 +75,15 @@ const MultiPuzzleArena = () => {
           if (t.gameType === 'nonogram') {
             puz = t.customPuzzle ? generateClues(t.customPuzzle) : generateNonogram(id, t.puzzleSize);
             setPuzzles([{ type: 'nonogram', data: puz }]);
+          } else if (t.gameType === 'sudoku') {
+            if (t.customPuzzle) {
+              const initialGrid = Array.isArray(t.customPuzzle) ? t.customPuzzle : JSON.parse(t.customPuzzle);
+              const solution = solveSudoku(initialGrid) || initialGrid;
+              puz = { size: 9, initialGrid, solution, difficulty: t.difficulty || 'medium' };
+            } else {
+              puz = generateSudoku(id, t.difficulty || t.puzzleSize);
+            }
+            setPuzzles([{ type: 'sudoku', data: puz }]);
           } else if (t.gameType === 'shikaku') {
             puz = t.customPuzzle ? { size: t.customPuzzle.length, grid: t.customPuzzle } : generateShikaku(id, t.puzzleSize);
             setPuzzles([{ type: 'shikaku', data: puz }]);
@@ -200,10 +220,13 @@ const MultiPuzzleArena = () => {
     return <div className="page-wrapper" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>Loading next puzzle...</div>;
   }
 
-  const title = `Puzzle ${currentIdx + 1} of ${puzzles.length} - ${currentPuzzle.type === 'nonogram' ? 'Nonogram' : 'Shikaku'}`;
+  const typeName = currentPuzzle.type === 'nonogram' ? 'Nonogram' : currentPuzzle.type === 'sudoku' ? 'Sudoku' : 'Shikaku';
+  const title = `Puzzle ${currentIdx + 1} of ${puzzles.length} - ${typeName}`;
 
   if (currentPuzzle.type === 'nonogram') {
     return <NonogramBoard key={`nonogram-${currentIdx}`} puzzle={currentPuzzle.data} onSolve={handleSolve} timeElapsed={timeElapsed} onSurrender={handleSurrender} title={title} />;
+  } else if (currentPuzzle.type === 'sudoku') {
+    return <SudokuBoard key={`sudoku-${currentIdx}`} puzzle={currentPuzzle.data} onSolve={handleSolve} timeElapsed={timeElapsed} onSurrender={handleSurrender} title={title} />;
   } else {
     return <ShikakuBoard key={`shikaku-${currentIdx}`} puzzle={currentPuzzle.data} onSolve={handleSolve} timeElapsed={timeElapsed} onSurrender={handleSurrender} title={title} />;
   }

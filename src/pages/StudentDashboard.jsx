@@ -5,7 +5,7 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { dbService, authService } from '../services/db';
 import { 
-  Play, Trophy, Keyboard, Grid, Square, HelpCircle, 
+  Play, Trophy, Keyboard, Grid, Square, Grid3X3, HelpCircle, 
   Globe, Copy, Check, Key, Plus, Trash2, Edit, Gamepad2,
   Sparkles, ShieldCheck, ArrowRight, MapPin, UserPlus
 } from 'lucide-react';
@@ -151,6 +151,8 @@ const StudentDashboard = () => {
     { id: 'practice-quiz-gk', name: 'General Quiz', format: 'Quiz', desc: 'MCQs & text questions across science and general knowledge.', icon: <HelpCircle size={24} /> },
     { id: 'practice-nonogram-5x5', name: 'Nonogram (5x5)', format: 'Logic', desc: 'Deduce painted picture tiles using row and column clues.', icon: <Grid size={24} /> },
     { id: 'practice-shikaku-5x5', name: 'Shikaku (5x5)', format: 'Logic', desc: 'Partition the grid into rectangles matching numbered areas.', icon: <Square size={24} /> },
+    { id: 'practice-sudoku-easy', name: 'Sudoku (Easy)', format: 'Logic', desc: 'Classic 9x9 number grid with generous starter clues.', icon: <Grid3X3 size={24} /> },
+    { id: 'practice-sudoku-medium', name: 'Sudoku (Medium)', format: 'Logic', desc: 'Deduce row, column, and box numbers with strategic elimination.', icon: <Grid3X3 size={24} /> },
     { id: 'practice-crossword', name: 'Crossword Puzzle', format: 'Crossword', desc: 'Fill intersecting across and down words from clues.', icon: <Sparkles size={24} /> },
     { id: 'practice-map', name: 'World Geography Map', format: 'Map', desc: 'Pinpoint world capitals, landmarks, and countries.', icon: <MapPin size={24} /> },
   ];
@@ -160,7 +162,7 @@ const StudentDashboard = () => {
     if (norm === 'quiz') return 'badge-disc badge-disc-quiz';
     if (norm === 'map') return 'badge-disc badge-disc-map';
     if (norm === 'crossword') return 'badge-disc badge-disc-crossword';
-    if (norm === 'nonogram' || norm === 'shikaku' || norm === 'logic' || norm === 'logic-puzzle') return 'badge-disc badge-disc-puzzle';
+    if (norm === 'nonogram' || norm === 'shikaku' || norm === 'sudoku' || norm === 'logic' || norm === 'logic-puzzle') return 'badge-disc badge-disc-puzzle';
     return 'badge-disc badge-disc-typing';
   };
 
