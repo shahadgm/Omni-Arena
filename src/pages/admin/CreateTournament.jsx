@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
+import { ConfirmModal } from '../../components/ui/Modal';
 import { dbService, authService } from '../../services/db';
 import { Plus, Trash2, Globe, Lock, Key, RefreshCw, UserPlus, LogIn } from 'lucide-react';
 import clg from 'crossword-layout-generator';
@@ -27,6 +28,7 @@ const CreateTournament = () => {
   // Edit unlock state
   const [tournamentData, setTournamentData] = useState(null);
   const [isUnlocked, setIsUnlocked] = useState(false);
+  const [pendingDeleteModal, setPendingDeleteModal] = useState(false);
   
   const generateRandomCode = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -437,16 +439,24 @@ const CreateTournament = () => {
         return;
       }
 
-      if (window.confirm(`Are you sure you want to permanently delete "${name}"? This action cannot be undone.`)) {
-        await dbService.deleteTournament(id);
-        if (authService.isAdmin()) {
-          navigate('/admin/dashboard');
-        } else {
-          navigate('/dashboard');
-        }
+      setPendingDeleteModal(true);
+    } catch (err) {
+      alert("Error deleting tournament: " + err.message);
+    }
+  };
+
+  const executeDelete = async () => {
+    try {
+      await dbService.deleteTournament(id);
+      setPendingDeleteModal(false);
+      if (authService.isAdmin()) {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/dashboard');
       }
     } catch (err) {
       alert("Error deleting tournament: " + err.message);
+      setPendingDeleteModal(false);
     }
   };
 
@@ -1253,6 +1263,19 @@ const CreateTournament = () => {
           )}
         </div>
       </form>
+
+      {/* Themed In-Built Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={pendingDeleteModal}
+        onClose={() => setPendingDeleteModal(false)}
+        onConfirm={executeDelete}
+        title="Delete Tournament?"
+        message={`Are you sure you want to permanently delete "${name}"? This action cannot be undone.`}
+        confirmText="Delete Tournament"
+        cancelText="Cancel"
+        variant="danger"
+        icon={<Trash2 size={26} />}
+      />
     </div>
   );
 };

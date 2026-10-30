@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import { ConfirmModal } from '../components/ui/Modal';
 import { dbService, authService } from '../services/db';
 import { 
   Play, Trophy, Keyboard, Grid, Square, Grid3X3, HelpCircle, 
@@ -21,6 +22,7 @@ const StudentDashboard = () => {
   const [searchResult, setSearchResult] = useState(null);
   const [searchError, setSearchError] = useState('');
   const [copiedId, setCopiedId] = useState(null);
+  const [pendingDeleteModal, setPendingDeleteModal] = useState(null);
 
   const navigate = useNavigate();
   const currentUser = authService.getCurrentUser();
@@ -121,26 +123,29 @@ const StudentDashboard = () => {
   const handleDeleteTournament = async (id, name) => {
     try {
       const tournament = myTournaments.find(t => t.id === id) || await dbService.getTournament(id);
-      if (!tournament) {
-        alert("Tournament not found.");
-        return;
-      }
+      if (!tournament) return;
 
       const isAdmin = authService.isAdmin();
       const isGuest = authService.isGuest();
       const isRegisteredOwner = !isGuest && currentUser?.username && typeof tournament?.createdBy === 'string' && !tournament.createdBy.startsWith('guest:') && tournament.createdBy.toLowerCase() === currentUser.username.toLowerCase();
 
-      if (!isAdmin && !isRegisteredOwner) {
-        alert("Only the tournament organizer can delete this tournament.");
-        return;
-      }
+      if (!isAdmin && !isRegisteredOwner) return;
 
-      if (window.confirm(`Are you sure you want to permanently delete "${name}"? This action cannot be undone.`)) {
-        await dbService.deleteTournament(id);
-        fetchAllTournaments();
-      }
+      setPendingDeleteModal({ id, name });
     } catch (err) {
-      alert("Error deleting tournament: " + err.message);
+      console.error("Error deleting tournament:", err);
+    }
+  };
+
+  const executeDeleteTournament = async () => {
+    if (!pendingDeleteModal) return;
+    try {
+      await dbService.deleteTournament(pendingDeleteModal.id);
+      setPendingDeleteModal(null);
+      fetchAllTournaments();
+    } catch (err) {
+      console.error("Error executing delete:", err);
+      setPendingDeleteModal(null);
     }
   };
 
@@ -467,6 +472,19 @@ const StudentDashboard = () => {
           ))}
         </div>
       </div>
+
+      {/* Themed In-Built Deletion Confirmation Dialog */}
+      <ConfirmModal
+        isOpen={!!pendingDeleteModal}
+        onClose={() => setPendingDeleteModal(null)}
+        onConfirm={executeDeleteTournament}
+        title="Delete Tournament?"
+        message={`Are you sure you want to permanently delete "${pendingDeleteModal?.name}"? This action cannot be undone.`}
+        confirmText="Delete Tournament"
+        cancelText="Cancel"
+        variant="danger"
+        icon={<Trash2 size={26} />}
+      />
     </div>
   );
 };

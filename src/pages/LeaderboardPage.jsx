@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import { ConfirmModal } from '../components/ui/Modal';
 import { dbService, authService } from '../services/db';
 import { Trophy, ArrowLeft, RotateCcw, Search, Award, Eye, EyeOff, Lock, Crown } from 'lucide-react';
 
@@ -23,6 +24,7 @@ const LeaderboardPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 50;
+  const [confirmAction, setConfirmAction] = useState(null);
 
   const isAdmin = authService.isAdmin();
   const currentUser = authService.getCurrentUser();
@@ -34,39 +36,53 @@ const LeaderboardPage = () => {
   // Dynamic hidden state: Only hidden from candidates if hideLeaderboard is true AND user is NOT a manager/host
   const isHidden = !!tournament?.hideLeaderboard && !isManager;
 
-  const handleToggleHideLeaderboard = async () => {
+  const handleToggleHideLeaderboard = () => {
     if (!tournament || !isManager) return;
     const newHide = !tournament.hideLeaderboard;
-    const msg = newHide 
-      ? "Hide leaderboard from candidates? Candidates will see 'Leaderboard is Hidden' until results are published."
-      : "Make leaderboard public to all candidates now?";
-    if (!window.confirm(msg)) return;
-
-    try {
-      await dbService.updateTournament(id, { hideLeaderboard: newHide });
-      setTournament(prev => ({ ...prev, hideLeaderboard: newHide }));
-    } catch (err) {
-      alert("Error updating leaderboard visibility: " + err.message);
-    }
+    setConfirmAction({
+      title: newHide ? "Hide Leaderboard?" : "Make Leaderboard Public?",
+      message: newHide 
+        ? "Hide leaderboard from candidates? Candidates will see 'Leaderboard is Hidden' until results are published."
+        : "Make leaderboard public to all candidates now?",
+      confirmText: newHide ? "Hide Leaderboard" : "Make Public",
+      variant: newHide ? "warning" : "primary",
+      onConfirm: async () => {
+        try {
+          await dbService.updateTournament(id, { hideLeaderboard: newHide });
+          setTournament(prev => ({ ...prev, hideLeaderboard: newHide }));
+        } catch (err) {
+          console.error("Error updating leaderboard visibility:", err);
+        } finally {
+          setConfirmAction(null);
+        }
+      }
+    });
   };
 
-  const handleToggleShowQuizAnswers = async () => {
+  const handleToggleShowQuizAnswers = () => {
     if (!tournament || !isManager) return;
     const newShow = !tournament.showQuizAnswers;
-    const msg = newShow 
-      ? "Reveal correct quiz answers to contestants? Contestants will be able to see the full answer key upon submitting and on the leaderboard."
-      : "Hide correct quiz answers from contestants? Contestants will only see their points, with answer keys hidden.";
-    if (!window.confirm(msg)) return;
-
-    try {
-      await dbService.updateTournament(id, { showQuizAnswers: newShow });
-      setTournament(prev => ({ ...prev, showQuizAnswers: newShow }));
-    } catch (err) {
-      alert("Error updating quiz answer visibility: " + err.message);
-    }
+    setConfirmAction({
+      title: newShow ? "Reveal Answers to Contestants?" : "Hide Answers from Contestants?",
+      message: newShow 
+        ? "Reveal correct quiz answers to contestants? Contestants will be able to see the full answer key upon submitting and on the leaderboard."
+        : "Hide correct quiz answers from contestants? Contestants will only see their points, with answer keys hidden.",
+      confirmText: newShow ? "Reveal Answers" : "Hide Answers",
+      variant: newShow ? "warning" : "primary",
+      onConfirm: async () => {
+        try {
+          await dbService.updateTournament(id, { showQuizAnswers: newShow });
+          setTournament(prev => ({ ...prev, showQuizAnswers: newShow }));
+        } catch (err) {
+          console.error("Error updating quiz answer visibility:", err);
+        } finally {
+          setConfirmAction(null);
+        }
+      }
+    });
   };
 
-  const handleAllowRetake = async (targetStudentId) => {
+  const handleAllowRetake = (targetStudentId) => {
     let resolvedId = targetStudentId;
     const match = leaderboard.find(e => 
       e.studentId.toLowerCase() === targetStudentId.toLowerCase() ||
@@ -78,19 +94,25 @@ const LeaderboardPage = () => {
     }
 
     const plainTarget = resolvedId.replace(/^guest:/, '').replace(/_[a-z0-9]{5,8}$/, '');
-    if (!window.confirm(`Are you sure you want to give "${plainTarget}" another chance? Their attempt lock will be cleared.`)) {
-      return;
-    }
-    setActionLoading(true);
-    try {
-      await dbService.allowStudentRetake(id, resolvedId);
-      setLeaderboard(prev => prev.filter(e => e.studentId !== resolvedId));
-      alert(`Candidate "${plainTarget}" can now join this tournament again!`);
-    } catch (err) {
-      alert("Error resetting attempt: " + err.message);
-    } finally {
-      setActionLoading(false);
-    }
+    setConfirmAction({
+      title: "Allow Retake?",
+      message: `Are you sure you want to give "${plainTarget}" another chance? Their attempt lock will be cleared.`,
+      confirmText: "Allow Retake",
+      variant: "warning",
+      icon: <RotateCcw size={26} />,
+      onConfirm: async () => {
+        setActionLoading(true);
+        try {
+          await dbService.allowStudentRetake(id, resolvedId);
+          setLeaderboard(prev => prev.filter(e => e.studentId !== resolvedId));
+        } catch (err) {
+          console.error("Error resetting attempt:", err);
+        } finally {
+          setActionLoading(false);
+          setConfirmAction(null);
+        }
+      }
+    });
   };
 
   const handleManualRetake = async (e) => {
@@ -156,38 +178,45 @@ const LeaderboardPage = () => {
     const targetQ = qDetails[questionIndex];
     if (targetQ.isCorrect) return;
     
-    if (!window.confirm('Are you sure you want to grant marks for this answer?')) return;
-    
-    targetQ.isCorrect = true;
-    targetQ.pointsAwarded = targetQ.maxPoints;
-    
-    const newCorrectAnswers = qDetails.filter(q => q.isCorrect).length;
-    const newScore = qDetails.reduce((sum, q) => sum + (q.pointsAwarded || 0), 0);
-    const totalQuestions = entry.totalQuestions || qDetails.length;
-    const newAccuracy = Math.round((newCorrectAnswers / totalQuestions) * 100);
-    
-    const updatedFields = {
-      quizDetails: qDetails,
-      correctAnswers: newCorrectAnswers,
-      score: newScore,
-      accuracy: newAccuracy
-    };
-    
-    try {
-      await dbService.updateResult(entryId, updatedFields);
-      setLeaderboard(prev => {
-        const newBoard = prev.map(e => e.id === entryId ? { ...e, ...updatedFields } : e);
-        return newBoard.sort((a, b) => {
-          if (b.score !== a.score) return b.score - a.score;
-          if (b.accuracy !== a.accuracy) return b.accuracy - a.accuracy;
-          if ((b.progress || 0) !== (a.progress || 0)) return (b.progress || 0) - (a.progress || 0);
-          return 0;
-        });
-      });
-      alert('Marks granted successfully.');
-    } catch (error) {
-      alert('Error updating marks: ' + error.message);
-    }
+    setConfirmAction({
+      title: "Grant Marks?",
+      message: "Are you sure you want to manually award full marks for this question?",
+      confirmText: "Grant Marks",
+      variant: "primary",
+      onConfirm: async () => {
+        targetQ.isCorrect = true;
+        targetQ.pointsAwarded = targetQ.maxPoints;
+        
+        const newCorrectAnswers = qDetails.filter(q => q.isCorrect).length;
+        const newScore = qDetails.reduce((sum, q) => sum + (q.pointsAwarded || 0), 0);
+        const totalQuestions = entry.totalQuestions || qDetails.length;
+        const newAccuracy = Math.round((newCorrectAnswers / totalQuestions) * 100);
+        
+        const updatedFields = {
+          quizDetails: qDetails,
+          correctAnswers: newCorrectAnswers,
+          score: newScore,
+          accuracy: newAccuracy
+        };
+        
+        try {
+          await dbService.updateResult(entryId, updatedFields);
+          setLeaderboard(prev => {
+            const newBoard = prev.map(e => e.id === entryId ? { ...e, ...updatedFields } : e);
+            return newBoard.sort((a, b) => {
+              if (b.score !== a.score) return b.score - a.score;
+              if (b.accuracy !== a.accuracy) return b.accuracy - a.accuracy;
+              if ((b.progress || 0) !== (a.progress || 0)) return (b.progress || 0) - (a.progress || 0);
+              return 0;
+            });
+          });
+        } catch (error) {
+          console.error('Error updating marks:', error);
+        } finally {
+          setConfirmAction(null);
+        }
+      }
+    });
   };
 
   // Filtered and Paginated Leaderboard
@@ -850,6 +879,20 @@ const LeaderboardPage = () => {
             </div>
           )}
         </>
+      )}
+
+      {/* Themed In-Built Confirmation Dialog (Replaces Browser Dialog Boxes) */}
+      {confirmAction && (
+        <ConfirmModal
+          isOpen={!!confirmAction}
+          onClose={() => setConfirmAction(null)}
+          onConfirm={confirmAction.onConfirm}
+          title={confirmAction.title}
+          message={confirmAction.message}
+          confirmText={confirmAction.confirmText}
+          variant={confirmAction.variant}
+          icon={confirmAction.icon}
+        />
       )}
     </div>
   );

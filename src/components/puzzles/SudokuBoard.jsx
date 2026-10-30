@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
-import { ArrowLeft, Eraser, RotateCcw, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Modal, ConfirmModal } from '../ui/Modal';
+import { ArrowLeft, Eraser, RotateCcw, CheckCircle2, AlertTriangle, Flag, Sparkles } from 'lucide-react';
 import { validateSudokuGrid } from '../../utils/puzzleGenerators';
 
 const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudoku Tournament" }) => {
@@ -10,7 +11,12 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
   const [initialGrid, setInitialGrid] = useState(null);
   const [selectedCell, setSelectedCell] = useState([0, 0]); // [r, c]
   const [history, setHistory] = useState([]);
-  const [confirmModal, setConfirmModal] = useState(false);
+  
+  // Themed in-built modal states (no plain browser popups)
+  const [submitConfirmModal, setSubmitConfirmModal] = useState(false);
+  const [resetModal, setResetModal] = useState(false);
+  const [surrenderModal, setSurrenderModal] = useState(false);
+
   const hasSubmittedRef = useRef(false);
 
   // Initialize or re-initialize board on puzzle change
@@ -41,7 +47,7 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
   }, [puzzle]);
 
   // Current validation status
-  const currentValidation = React.useMemo(() => {
+  const currentValidation = useMemo(() => {
     if (!userGrid || !initialGrid) {
       return { isComplete: false, accuracy: 0, points: 0, conflicts: [], filledCount: 0, emptyTarget: 0, conflictCount: 0 };
     }
@@ -49,7 +55,7 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
   }, [userGrid, initialGrid, puzzle?.solution]);
 
   // Digit counts (how many 1-9 are currently on the board)
-  const digitCounts = React.useMemo(() => {
+  const digitCounts = useMemo(() => {
     const counts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0 };
     if (!userGrid) return counts;
     for (let r = 0; r < 9; r++) {
@@ -125,7 +131,6 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
   // Keyboard navigation & number input
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Ignore if inside an input or textarea
       if (['INPUT', 'TEXTAREA'].includes(e.target?.tagName)) return;
 
       const [r, c] = selectedCell || [0, 0];
@@ -170,14 +175,14 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
         timeElapsed
       });
     } else {
-      setConfirmModal(true);
+      setSubmitConfirmModal(true);
     }
   };
 
   const handleConfirmSubmit = () => {
     if (hasSubmittedRef.current) return;
     hasSubmittedRef.current = true;
-    setConfirmModal(false);
+    setSubmitConfirmModal(false);
     onSolve({
       points: currentValidation.points,
       accuracy: currentValidation.accuracy,
@@ -186,13 +191,13 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
     });
   };
 
-  const handleResetUserEntries = () => {
+  // Themed Reset Confirmation (no window.confirm)
+  const handleConfirmReset = () => {
     if (!initialGrid) return;
-    if (window.confirm("Reset all user-filled numbers on the board?")) {
-      const reset = initialGrid.map(row => [...row]);
-      setUserGrid(reset);
-      setHistory([]);
-    }
+    const reset = initialGrid.map(row => [...row]);
+    setUserGrid(reset);
+    setHistory([]);
+    setResetModal(false);
   };
 
   if (!puzzle || !userGrid || !initialGrid) {
@@ -207,29 +212,54 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
       {/* Top Bar: Surrender & Timer */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <button 
-          onClick={onSurrender} 
+          onClick={() => setSurrenderModal(true)} 
           style={{ 
-            background: 'transparent', 
-            border: 'none', 
+            background: 'var(--surface)', 
+            border: '1px solid var(--border)', 
+            borderRadius: '8px',
             color: 'var(--text-secondary)', 
             display: 'flex', 
             alignItems: 'center', 
             gap: '0.5rem', 
             cursor: 'pointer', 
-            fontSize: '1rem', 
-            padding: 0 
+            fontSize: '0.9rem', 
+            padding: '0.5rem 0.85rem',
+            transition: 'all 0.15s ease'
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.color = 'var(--text-primary)';
+            e.currentTarget.style.borderColor = 'var(--border-focus)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.color = 'var(--text-secondary)';
+            e.currentTarget.style.borderColor = 'var(--border)';
           }}
         >
-          <ArrowLeft size={18} /> Surrender
+          <ArrowLeft size={16} /> Surrender
         </button>
-        <div style={{ color: 'var(--primary)', fontSize: '1.25rem', fontWeight: 'bold', fontFamily: 'var(--font-mono)', letterSpacing: '2px' }}>
+
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          background: 'var(--surface)',
+          padding: '0.4rem 1rem',
+          borderRadius: '20px',
+          border: '1px solid var(--border)',
+          color: 'var(--primary)',
+          fontSize: '1.15rem',
+          fontWeight: 'bold',
+          fontFamily: 'var(--font-mono)',
+          letterSpacing: '1px',
+          boxShadow: '0 2px 8px var(--primary-glow)'
+        }}>
           {String(Math.floor(timeElapsed / 60)).padStart(2, '0')}:{String(timeElapsed % 60).padStart(2, '0')}
         </div>
       </div>
 
       <Card style={{ marginBottom: '2rem', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', userSelect: 'none' }}>
         {/* Title & Badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', flexWrap: 'wrap', justifyContent: 'center' }}>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0, textAlign: 'center', color: 'var(--text-primary)' }}>
             {title}
           </h1>
@@ -238,7 +268,7 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
             fontWeight: '700',
             textTransform: 'uppercase',
             letterSpacing: '1px',
-            padding: '0.2rem 0.6rem',
+            padding: '0.2rem 0.65rem',
             borderRadius: '999px',
             background: puzzle.difficulty === 'easy' ? 'rgba(16, 185, 129, 0.15)' : puzzle.difficulty === 'hard' ? 'rgba(239, 68, 68, 0.15)' : 'var(--primary-glow)',
             color: puzzle.difficulty === 'easy' ? 'var(--success)' : puzzle.difficulty === 'hard' ? 'var(--danger)' : 'var(--primary)',
@@ -249,7 +279,7 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
         </div>
 
         <p style={{ color: 'var(--text-secondary)', textAlign: 'center', marginBottom: '1.25rem', maxWidth: '500px', fontSize: '0.875rem', lineHeight: 1.5 }}>
-          Fill every row, column, and 3×3 square with numbers 1 to 9. Click or use arrow keys + numpad.
+          Fill every row, column, and 3×3 in-built box with digits 1 to 9. Click or use arrow keys + numpad.
         </p>
 
         {/* Progress & Error HUD */}
@@ -258,8 +288,8 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
           gap: '1.5rem',
           alignItems: 'center',
           justifyContent: 'center',
-          marginBottom: '1.25rem',
-          fontSize: '0.85rem',
+          marginBottom: '1.5rem',
+          fontSize: '0.875rem',
           fontFamily: 'var(--font-mono)'
         }}>
           <div style={{ color: 'var(--text-secondary)' }}>
@@ -276,86 +306,121 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
           )}
         </div>
 
-        {/* Sudoku 9x9 Interactive Grid */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(9, minmax(28px, 46px))',
-          gridTemplateRows: 'repeat(9, minmax(28px, 46px))',
-          border: '3px solid var(--primary)',
-          borderRadius: '8px',
-          overflow: 'hidden',
-          boxShadow: '0 8px 24px -4px var(--primary-glow)',
-          background: 'var(--surface)',
-          touchAction: 'manipulation'
-        }}>
-          {userGrid.map((row, r) =>
-            row.map((val, c) => {
-              const isInitial = initialGrid[r]?.[c] !== null && initialGrid[r]?.[c] !== undefined;
-              const isSelected = selR === r && selC === c;
-              const isPeer = (selR === r || selC === c || (Math.floor(selR / 3) === Math.floor(r / 3) && Math.floor(selC / 3) === Math.floor(c / 3))) && !isSelected;
-              const isMatchingValue = selectedValue && val === selectedValue && !isSelected;
-              const hasConflict = currentValidation.conflicts?.[r]?.[c];
-
-              // Borders for 3x3 blocks and 1x1 cells
-              const borderRight = (c === 2 || c === 5) ? '2.5px solid var(--primary)' : (c === 8 ? 'none' : '1px solid var(--border)');
-              const borderBottom = (r === 2 || r === 5) ? '2.5px solid var(--primary)' : (r === 8 ? 'none' : '1px solid var(--border)');
-
-              // Cell Background
-              let bg = 'transparent';
-              if (isSelected) {
-                bg = 'var(--primary-glow)';
-              } else if (hasConflict) {
-                bg = 'rgba(239, 68, 68, 0.2)';
-              } else if (isMatchingValue) {
-                bg = 'var(--primary-glow)';
-              } else if (isPeer) {
-                bg = 'var(--surface-hover)';
-              }
-
-              // Text Color (strictly theme-adaptive via design tokens)
-              let textColor = 'var(--text-primary)';
-              if (hasConflict) {
-                textColor = 'var(--danger)';
-              } else if (isInitial) {
-                textColor = 'var(--text-primary)'; // Given clues: high-contrast text
-              } else {
-                textColor = 'var(--primary)'; // User entered numbers: distinct primary color
-              }
-
+        {/* ========================================================= */}
+        {/* Sudoku Board: 9 Distinct In-Built Boxes in Website's Theme */}
+        {/* ========================================================= */}
+        <div 
+          role="grid"
+          aria-label="Sudoku Board"
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gridTemplateRows: 'repeat(3, 1fr)',
+            gap: '8px',
+            padding: '10px',
+            background: 'var(--surface-2)',
+            borderRadius: '16px',
+            border: '2px solid var(--border)',
+            boxShadow: 'var(--glass-shadow)',
+            maxWidth: '480px',
+            width: '100%',
+            touchAction: 'manipulation'
+          }}
+        >
+          {[0, 1, 2].map(boxRow =>
+            [0, 1, 2].map(boxCol => {
+              const boxIndex = boxRow * 3 + boxCol;
               return (
                 <div
-                  key={`cell-${r}-${c}`}
-                  onClick={() => setSelectedCell([r, c])}
+                  key={`inbuilt-box-${boxIndex}`}
                   style={{
-                    width: '100%',
-                    height: '100%',
-                    aspectRatio: '1 / 1',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 'clamp(1rem, 2.5vw, 1.4rem)',
-                    fontWeight: isInitial ? '800' : '700',
-                    fontFamily: 'var(--font-mono)',
-                    color: textColor,
-                    background: bg,
-                    borderRight: borderRight,
-                    borderBottom: borderBottom,
-                    cursor: 'pointer',
-                    outline: isSelected ? '2px solid var(--primary)' : 'none',
-                    outlineOffset: '-2px',
-                    transition: 'background 0.1s ease',
-                    position: 'relative'
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gridTemplateRows: 'repeat(3, 1fr)',
+                    background: 'var(--surface)',
+                    borderRadius: '10px',
+                    overflow: 'hidden',
+                    border: '1.5px solid var(--border)',
+                    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.05)',
+                    transition: 'border-color 0.15s ease'
                   }}
                 >
-                  {val || ''}
+                  {[0, 1, 2].map(subR =>
+                    [0, 1, 2].map(subC => {
+                      const r = boxRow * 3 + subR;
+                      const c = boxCol * 3 + subC;
+                      const val = userGrid[r]?.[c];
+                      const isInitial = initialGrid[r]?.[c] !== null && initialGrid[r]?.[c] !== undefined;
+                      const isSelected = selR === r && selC === c;
+                      const isPeer = (selR === r || selC === c || (Math.floor(selR / 3) === boxRow && Math.floor(selC / 3) === boxCol)) && !isSelected;
+                      const isMatchingValue = selectedValue && val === selectedValue && !isSelected;
+                      const hasConflict = currentValidation.conflicts?.[r]?.[c];
+
+                      // Internal cell dividers within the 3x3 box
+                      const borderRight = subC < 2 ? '1px solid var(--border)' : 'none';
+                      const borderBottom = subR < 2 ? '1px solid var(--border)' : 'none';
+
+                      // Cell Background states
+                      let bg = 'transparent';
+                      if (isSelected) {
+                        bg = 'var(--primary-glow)';
+                      } else if (hasConflict) {
+                        bg = 'rgba(239, 68, 68, 0.2)';
+                      } else if (isMatchingValue) {
+                        bg = 'var(--primary-glow)';
+                      } else if (isPeer) {
+                        bg = 'var(--surface-hover)';
+                      }
+
+                      // Cell text color states
+                      let textColor = 'var(--text-primary)';
+                      if (hasConflict) {
+                        textColor = 'var(--danger)';
+                      } else if (isInitial) {
+                        textColor = 'var(--text-primary)';
+                      } else {
+                        textColor = 'var(--primary)';
+                      }
+
+                      return (
+                        <div
+                          key={`cell-${r}-${c}`}
+                          onClick={() => setSelectedCell([r, c])}
+                          style={{
+                            width: '100%',
+                            aspectRatio: '1 / 1',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: 'clamp(1.1rem, 2.7vw, 1.45rem)',
+                            fontWeight: isInitial ? '800' : '700',
+                            fontFamily: 'var(--font-mono)',
+                            color: textColor,
+                            background: bg,
+                            borderRight: borderRight,
+                            borderBottom: borderBottom,
+                            cursor: 'pointer',
+                            outline: isSelected ? '2px solid var(--primary)' : 'none',
+                            outlineOffset: '-2px',
+                            transition: 'background 0.1s ease',
+                            position: 'relative'
+                          }}
+                        >
+                          {val || ''}
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               );
             })
           )}
         </div>
 
-        {/* Numpad (1-9 + Clear + Undo) */}
-        <div style={{ marginTop: '1.75rem', width: '100%', maxWidth: '440px' }}>
+        {/* ========================================================= */}
+        {/* Numpad: 9 In-Built Themed Key Boxes */}
+        {/* ========================================================= */}
+        <div style={{ marginTop: '1.75rem', width: '100%', maxWidth: '480px' }}>
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(9, 1fr)',
@@ -377,28 +442,31 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
                     alignItems: 'center',
                     justifyContent: 'center',
                     padding: '0.65rem 0.2rem 0.45rem',
-                    borderRadius: '8px',
+                    borderRadius: '10px',
                     background: isFinished ? 'var(--surface-2)' : 'var(--surface)',
-                    border: `1px solid ${isFinished ? 'var(--border)' : 'var(--border)'}`,
+                    border: `1.5px solid ${isFinished ? 'var(--border)' : 'var(--border)'}`,
                     color: isFinished ? 'var(--text-tertiary)' : 'var(--text-primary)',
                     cursor: isFinished ? 'not-allowed' : 'pointer',
                     transition: 'all 0.15s ease',
+                    boxShadow: isFinished ? 'none' : '0 2px 4px rgba(0, 0, 0, 0.05)',
                     userSelect: 'none'
                   }}
                   onMouseEnter={e => {
                     if (!isFinished) {
                       e.currentTarget.style.background = 'var(--surface-hover)';
                       e.currentTarget.style.borderColor = 'var(--primary)';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
                     }
                   }}
                   onMouseLeave={e => {
                     if (!isFinished) {
                       e.currentTarget.style.background = 'var(--surface)';
                       e.currentTarget.style.borderColor = 'var(--border)';
+                      e.currentTarget.style.transform = 'translateY(0)';
                     }
                   }}
                 >
-                  <span style={{ fontSize: '1.2rem', fontWeight: 'bold', lineHeight: 1 }}>{num}</span>
+                  <span style={{ fontSize: '1.25rem', fontWeight: 'bold', lineHeight: 1 }}>{num}</span>
                   <span style={{ fontSize: '0.65rem', marginTop: '0.2rem', color: isFinished ? 'var(--text-tertiary)' : 'var(--text-secondary)' }}>
                     {isFinished ? '✓' : `${9 - count}`}
                   </span>
@@ -407,7 +475,7 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
             })}
           </div>
 
-          {/* Action Row: Erase, Undo */}
+          {/* Action Row: Erase Cell, Undo */}
           <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
             <Button
               type="button"
@@ -419,7 +487,7 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '0.4rem',
-                padding: '0.6rem 1rem',
+                padding: '0.65rem 1rem',
                 fontSize: '0.85rem'
               }}
             >
@@ -436,7 +504,7 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '0.4rem',
-                padding: '0.6rem 1rem',
+                padding: '0.65rem 1rem',
                 fontSize: '0.85rem',
                 opacity: history.length === 0 ? 0.4 : 1
               }}
@@ -447,10 +515,10 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
         </div>
 
         {/* Global Controls: Reset & Submit */}
-        <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem', width: '100%', maxWidth: '440px' }}>
+        <div style={{ marginTop: '2rem', display: 'flex', gap: '1rem', width: '100%', maxWidth: '480px' }}>
           <Button
             variant="secondary"
-            onClick={handleResetUserEntries}
+            onClick={() => setResetModal(true)}
             style={{
               flex: 1,
               padding: '0.75rem 1rem'
@@ -471,51 +539,75 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
         </div>
       </Card>
 
-      {/* Partial Submission Confirmation Modal */}
-      {confirmModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.75)',
-          backdropFilter: 'blur(8px)',
-          zIndex: 10000,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: '1.5rem'
-        }}>
-          <Card style={{ maxWidth: '480px', width: '100%', padding: '2rem', textAlign: 'center', border: '1px solid var(--border)' }}>
-            <h3 style={{ fontSize: '1.5rem', marginBottom: '1rem', color: 'var(--text-primary)' }}>Submit Incomplete Sudoku?</h3>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.95rem', lineHeight: '1.5' }}>
-              The board is not completely or correctly solved yet. If you submit now, you will receive partial marks based on your valid entries.
-            </p>
+      {/* ========================================================= */}
+      {/* In-Built Themed Modal Dialogs (Replaces All Browser Boxes) */}
+      {/* ========================================================= */}
 
-            <div style={{ background: 'var(--surface-2)', padding: '1.25rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-                <span>Cells Placed:</span>
-                <span style={{ color: 'var(--text-primary)', fontWeight: 'bold' }}>{currentValidation.filledCount} / {currentValidation.emptyTarget}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-                <span>Conflicts / Duplicates:</span>
-                <span style={{ color: currentValidation.conflictCount > 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 'bold' }}>{currentValidation.conflictCount}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
-                <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>Estimated Accuracy:</span>
-                <span style={{ fontWeight: 'bold', color: 'var(--primary)', fontSize: '1.1rem' }}>{currentValidation.accuracy}%</span>
-              </div>
-            </div>
+      {/* 1. Clear Entries Confirmation */}
+      <ConfirmModal
+        isOpen={resetModal}
+        onClose={() => setResetModal(false)}
+        onConfirm={handleConfirmReset}
+        title="Clear All Entries?"
+        message="This will reset all your entered numbers on the board. Original starter clues will remain unchanged."
+        confirmText="Clear Board"
+        cancelText="Cancel"
+        variant="danger"
+        icon={<RotateCcw size={26} />}
+      />
 
-            <div style={{ display: 'flex', gap: '1rem' }}>
-              <Button variant="secondary" onClick={() => setConfirmModal(false)} style={{ flex: 1 }}>
-                Keep Solving
-              </Button>
-              <Button onClick={handleConfirmSubmit} style={{ flex: 1 }}>
-                Confirm & Submit
-              </Button>
-            </div>
-          </Card>
+      {/* 2. Surrender Confirmation */}
+      <ConfirmModal
+        isOpen={surrenderModal}
+        onClose={() => setSurrenderModal(false)}
+        onConfirm={() => {
+          setSurrenderModal(false);
+          onSurrender();
+        }}
+        title="Surrender Match?"
+        message="Are you sure you want to surrender and exit to the dashboard? Your puzzle attempt will end."
+        confirmText="Surrender & Exit"
+        cancelText="Keep Playing"
+        variant="danger"
+        icon={<Flag size={26} />}
+      />
+
+      {/* 3. Partial Submission Confirmation Modal */}
+      <Modal
+        isOpen={submitConfirmModal}
+        onClose={() => setSubmitConfirmModal(false)}
+        title="Submit Incomplete Sudoku?"
+        icon={<Sparkles size={28} />}
+        maxWidth="480px"
+      >
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.95rem', lineHeight: '1.5', textAlign: 'center' }}>
+          The board is not completely solved yet. If you submit now, you will be awarded partial marks based on your valid entries.
+        </p>
+
+        <div style={{ background: 'var(--surface-2)', padding: '1.25rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
+            <span>Cells Placed:</span>
+            <span style={{ color: 'var(--text-primary)', fontWeight: 'bold' }}>{currentValidation.filledCount} / {currentValidation.emptyTarget}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
+            <span>Conflicts / Duplicates:</span>
+            <span style={{ color: currentValidation.conflictCount > 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 'bold' }}>{currentValidation.conflictCount}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
+            <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>Estimated Accuracy:</span>
+            <span style={{ fontWeight: 'bold', color: 'var(--primary)', fontSize: '1.1rem' }}>{currentValidation.accuracy}%</span>
+          </div>
         </div>
-      )}
+
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <Button variant="secondary" onClick={() => setSubmitConfirmModal(false)} style={{ flex: 1, padding: '0.75rem 1rem' }}>
+            Keep Solving
+          </Button>
+          <Button onClick={handleConfirmSubmit} style={{ flex: 1, padding: '0.75rem 1rem', fontWeight: 'bold' }}>
+            Confirm & Submit
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
+import { ConfirmModal } from '../../components/ui/Modal';
 import { dbService, authService } from '../../services/db';
 import { 
   Plus, Users, Calendar, Keyboard, Edit, Trash2, 
@@ -32,7 +33,8 @@ const AdminDashboard = () => {
   const [userList, setUserList] = useState([]);
   const [userLoading, setUserLoading] = useState(false);
   const [userSearch, setUserSearch] = useState('');
-  const [userStatusFilter, setUserStatusFilter] = useState('all'); // 'all' | 'active' | 'suspended' | 'banned'
+  const [userStatusFilter, setUserStatusFilter] = useState('all');
+  const [genericConfirm, setGenericConfirm] = useState(null); // 'all' | 'active' | 'suspended' | 'banned'
   const [userActionModal, setUserActionModal] = useState(null); // { user, type: 'suspend' | 'ban' } | null
   const [suspendDurationHours, setSuspendDurationHours] = useState('24');
   const [customHours, setCustomHours] = useState('');
@@ -87,26 +89,43 @@ const AdminDashboard = () => {
     fetchUsers();
   }, [navigate]);
 
-  const handleDelete = async (id, name) => {
-    if (window.confirm(`Are you sure you want to permanently delete "${name}"? This action cannot be undone.`)) {
-      try {
-        await dbService.deleteTournament(id);
-        fetchTournaments();
-      } catch (err) {
-        alert("Failed to delete tournament: " + err.message);
+  const handleDelete = (id, name) => {
+    setGenericConfirm({
+      title: "Delete Tournament?",
+      message: `Are you sure you want to permanently delete "${name}"? This action cannot be undone.`,
+      confirmText: "Delete Tournament",
+      variant: "danger",
+      icon: <Trash2 size={26} />,
+      onConfirm: async () => {
+        try {
+          await dbService.deleteTournament(id);
+          fetchTournaments();
+        } catch (err) {
+          console.error("Failed to delete tournament:", err);
+        } finally {
+          setGenericConfirm(null);
+        }
       }
-    }
+    });
   };
 
-  const handleResetLeaderboard = async (id, name) => {
-    if (window.confirm(`Are you sure you want to reset the leaderboard for "${name}"? All candidate scores and submissions will be wiped.`)) {
-      try {
-        await dbService.resetLeaderboard(id);
-        alert(`Leaderboard for "${name}" has been reset.`);
-      } catch (err) {
-        alert("Failed to reset leaderboard: " + err.message);
+  const handleResetLeaderboard = (id, name) => {
+    setGenericConfirm({
+      title: "Reset Leaderboard?",
+      message: `Are you sure you want to reset the leaderboard for "${name}"? All candidate scores and submissions will be wiped.`,
+      confirmText: "Reset Scores",
+      variant: "warning",
+      icon: <RotateCcw size={26} />,
+      onConfirm: async () => {
+        try {
+          await dbService.resetLeaderboard(id);
+        } catch (err) {
+          console.error("Failed to reset leaderboard:", err);
+        } finally {
+          setGenericConfirm(null);
+        }
       }
-    }
+    });
   };
 
   const toggleRevealCode = (id) => {
@@ -168,28 +187,44 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleReactivateUser = async (username) => {
-    if (!window.confirm(`Reactivate account for @${username}? Any active suspension or ban will be lifted immediately.`)) {
-      return;
-    }
-    try {
-      await dbService.reactivateUser(username);
-      fetchUsers();
-    } catch (err) {
-      alert("Error reactivating user: " + err.message);
-    }
+  const handleReactivateUser = (username) => {
+    setGenericConfirm({
+      title: "Reactivate Account?",
+      message: `Reactivate account for @${username}? Any active suspension or ban will be lifted immediately.`,
+      confirmText: "Reactivate Account",
+      variant: "primary",
+      icon: <UserCheck size={26} />,
+      onConfirm: async () => {
+        try {
+          await dbService.reactivateUser(username);
+          fetchUsers();
+        } catch (err) {
+          console.error("Error reactivating user:", err);
+        } finally {
+          setGenericConfirm(null);
+        }
+      }
+    });
   };
 
-  const handleDeleteUser = async (username) => {
-    if (!window.confirm(`Are you sure you want to PERMANENTLY delete user @${username}? This action is irreversible.`)) {
-      return;
-    }
-    try {
-      await dbService.deleteUser(username);
-      fetchUsers();
-    } catch (err) {
-      alert("Error deleting user: " + err.message);
-    }
+  const handleDeleteUser = (username) => {
+    setGenericConfirm({
+      title: "Delete User?",
+      message: `Are you sure you want to PERMANENTLY delete user @${username}? This action is irreversible.`,
+      confirmText: "Delete User",
+      variant: "danger",
+      icon: <Trash2 size={26} />,
+      onConfirm: async () => {
+        try {
+          await dbService.deleteUser(username);
+          fetchUsers();
+        } catch (err) {
+          console.error("Error deleting user:", err);
+        } finally {
+          setGenericConfirm(null);
+        }
+      }
+    });
   };
 
   const getStatus = (startStr, endStr) => {
@@ -1499,6 +1534,20 @@ const AdminDashboard = () => {
             </form>
           </Card>
         </div>
+      )}
+
+      {/* Themed In-Built Confirmation Dialog (Replaces Browser Dialog Boxes) */}
+      {genericConfirm && (
+        <ConfirmModal
+          isOpen={!!genericConfirm}
+          onClose={() => setGenericConfirm(null)}
+          onConfirm={genericConfirm.onConfirm}
+          title={genericConfirm.title}
+          message={genericConfirm.message}
+          confirmText={genericConfirm.confirmText}
+          variant={genericConfirm.variant}
+          icon={genericConfirm.icon}
+        />
       )}
     </div>
   );

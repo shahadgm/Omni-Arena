@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Card from '../ui/Card';
 import Button from '../ui/Button';
-import { ArrowLeft } from 'lucide-react';
+import { Modal, ConfirmModal } from '../ui/Modal';
+import { ArrowLeft, RotateCcw, Flag, Sparkles } from 'lucide-react';
 
 const getClues = (line) => {
   const clues = [];
@@ -40,6 +41,8 @@ const NonogramBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Non
   };
 
   const [confirmModal, setConfirmModal] = useState(false);
+  const [resetModal, setResetModal] = useState(false);
+  const [surrenderModal, setSurrenderModal] = useState(false);
   const hasSubmittedRef = useRef(false);
 
   const calculateScore = () => {
@@ -145,10 +148,48 @@ const NonogramBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Non
   return (
     <div className="container" style={{ maxWidth: '800px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <button onClick={onSurrender} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '1rem', padding: 0 }}>
-          <ArrowLeft size={18} /> Surrender
+        <button 
+          onClick={() => setSurrenderModal(true)} 
+          style={{ 
+            background: 'var(--surface)', 
+            border: '1px solid var(--border)', 
+            borderRadius: '8px',
+            color: 'var(--text-secondary)', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '0.5rem', 
+            cursor: 'pointer', 
+            fontSize: '0.9rem', 
+            padding: '0.5rem 0.85rem',
+            transition: 'all 0.15s ease'
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.color = 'var(--text-primary)';
+            e.currentTarget.style.borderColor = 'var(--border-focus)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.color = 'var(--text-secondary)';
+            e.currentTarget.style.borderColor = 'var(--border)';
+          }}
+        >
+          <ArrowLeft size={16} /> Surrender
         </button>
-        <div style={{ color: 'var(--primary)', fontSize: '1.25rem', fontWeight: 'bold', fontFamily: 'var(--font-mono)', letterSpacing: '2px' }}>
+
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          background: 'var(--surface)',
+          padding: '0.4rem 1rem',
+          borderRadius: '20px',
+          border: '1px solid var(--border)',
+          color: 'var(--primary)',
+          fontSize: '1.15rem',
+          fontWeight: 'bold',
+          fontFamily: 'var(--font-mono)',
+          letterSpacing: '1px',
+          boxShadow: '0 2px 8px var(--primary-glow)'
+        }}>
           {String(Math.floor(timeElapsed / 60)).padStart(2, '0')}:{String(timeElapsed % 60).padStart(2, '0')}
         </div>
       </div>
@@ -217,7 +258,7 @@ const NonogramBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Non
         </div>
 
         <div style={{ marginTop: '3rem', display: 'flex', gap: '1rem' }}>
-          <Button variant="secondary" onClick={() => setUserGrid(Array(puzzle.size).fill(null).map(() => Array(puzzle.size).fill(0)))} style={{ padding: '0.75rem 1.5rem' }}>
+          <Button variant="secondary" onClick={() => setResetModal(true)} style={{ padding: '0.75rem 1.5rem' }}>
             Clear All
           </Button>
           <Button onClick={handleSubmitClick} style={{ padding: '0.75rem 1.5rem', fontWeight: 'bold' }}>
@@ -227,46 +268,68 @@ const NonogramBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Non
 
       </Card>
 
-      {confirmModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.75)',
-          backdropFilter: 'blur(8px)',
-          zIndex: 10000,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: '1.5rem'
-        }}>
-          <Card style={{ maxWidth: '480px', width: '100%', padding: '2rem', textAlign: 'center', border: '1px solid var(--glass-border)' }}>
-            <h3 style={{ fontSize: '1.5rem', marginBottom: '1rem', color: 'var(--text-primary)' }}>Submit Solution?</h3>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '1rem', lineHeight: '1.5' }}>
-              Your puzzle is not fully solved yet. If you submit now, you will be awarded partial marks based on your correct clues and cells.
-            </p>
-            
-            <div style={{ background: 'var(--bg-tertiary)', padding: '1.25rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
-                <span>Satisfied Clues:</span>
-                <strong style={{ color: 'var(--text-primary)' }}>{calculateScore().satisfiedClues} / {calculateScore().totalClueLines}</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
-                <span>Calculated Score:</span>
-                <strong style={{ color: 'var(--success)', fontSize: '1.2rem' }}>{calculateScore().points} / 100 pts ({calculateScore().accuracy}%)</strong>
-              </div>
-            </div>
+      {/* Themed In-Built Modal Dialogs */}
+      <ConfirmModal
+        isOpen={resetModal}
+        onClose={() => setResetModal(false)}
+        onConfirm={() => {
+          setUserGrid(Array(puzzle.size).fill(null).map(() => Array(puzzle.size).fill(0)));
+          setResetModal(false);
+        }}
+        title="Clear Puzzle Grid?"
+        message="Are you sure you want to clear all your painted cells on this Nonogram?"
+        confirmText="Clear Grid"
+        cancelText="Cancel"
+        variant="danger"
+        icon={<RotateCcw size={26} />}
+      />
 
-            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-              <Button variant="secondary" onClick={() => setConfirmModal(false)} style={{ flex: 1 }}>
-                Keep Solving
-              </Button>
-              <Button onClick={handleConfirmSubmit} style={{ flex: 1, background: 'var(--accent-primary)' }}>
-                Submit Now
-              </Button>
-            </div>
-          </Card>
+      <ConfirmModal
+        isOpen={surrenderModal}
+        onClose={() => setSurrenderModal(false)}
+        onConfirm={() => {
+          setSurrenderModal(false);
+          onSurrender();
+        }}
+        title="Surrender Match?"
+        message="Are you sure you want to surrender and exit to the dashboard? Your puzzle attempt will end."
+        confirmText="Surrender & Exit"
+        cancelText="Keep Playing"
+        variant="danger"
+        icon={<Flag size={26} />}
+      />
+
+      <Modal
+        isOpen={confirmModal}
+        onClose={() => setConfirmModal(false)}
+        title="Submit Solution?"
+        icon={<Sparkles size={28} />}
+        maxWidth="480px"
+      >
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.95rem', lineHeight: '1.5', textAlign: 'center' }}>
+          Your puzzle is not fully solved yet. If you submit now, you will be awarded partial marks based on your correct clues and cells.
+        </p>
+
+        <div style={{ background: 'var(--surface-2)', padding: '1.25rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
+            <span>Satisfied Clues:</span>
+            <strong style={{ color: 'var(--text-primary)' }}>{calculateScore().satisfiedClues} / {calculateScore().totalClueLines}</strong>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)' }}>
+            <span>Calculated Score:</span>
+            <strong style={{ color: 'var(--success)', fontSize: '1.15rem' }}>{calculateScore().points} / 100 pts ({calculateScore().accuracy}%)</strong>
+          </div>
         </div>
-      )}
+
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+          <Button variant="secondary" onClick={() => setConfirmModal(false)} style={{ flex: 1, padding: '0.75rem 1rem' }}>
+            Keep Solving
+          </Button>
+          <Button onClick={handleConfirmSubmit} style={{ flex: 1, padding: '0.75rem 1rem', fontWeight: 'bold' }}>
+            Submit Now
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 };

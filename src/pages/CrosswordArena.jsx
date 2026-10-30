@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import { ConfirmModal } from '../components/ui/Modal';
 import { dbService, authService } from '../services/db';
 import { useAntiCheat } from '../hooks/useAntiCheat';
+import { Sparkles } from 'lucide-react';
 
 const CrosswordArena = () => {
   const { id } = useParams();
@@ -23,6 +25,7 @@ const CrosswordArena = () => {
   const [finalTime, setFinalTime] = useState(0);
   const [finalScoreWords, setFinalScoreWords] = useState(0);
   const [cellSize, setCellSize] = useState(36);
+  const [pendingSubmitModal, setPendingSubmitModal] = useState(null);
 
   const inputRefs = useRef({});
   const isSubmitting = useRef(false);
@@ -268,9 +271,10 @@ const CrosswordArena = () => {
     if (isSubmitting.current) return;
 
     if (!force && (filled < total || correctLetters < total)) {
-      if (!window.confirm(`You have filled ${filled} out of ${total} letters. ${correctLetters < total ? 'Some answers might be incomplete or incorrect. ' : ''}Are you sure you want to submit?`)) {
-        return;
-      }
+      setPendingSubmitModal({
+        message: `You have filled ${filled} out of ${total} letters.${correctLetters < total ? ' Some answers might be incomplete or incorrect.' : ''} Are you sure you want to submit?`
+      });
+      return;
     }
     
     isSubmitting.current = true;
@@ -505,6 +509,22 @@ const CrosswordArena = () => {
           </div>
         </div>
       )}
+
+      {/* Themed In-Built Submission Confirmation Dialog */}
+      <ConfirmModal
+        isOpen={!!pendingSubmitModal}
+        onClose={() => setPendingSubmitModal(null)}
+        onConfirm={() => {
+          setPendingSubmitModal(null);
+          handleFinish(true);
+        }}
+        title="Submit Incomplete Crossword?"
+        message={pendingSubmitModal?.message}
+        confirmText="Confirm & Submit"
+        cancelText="Keep Solving"
+        variant="warning"
+        icon={<Sparkles size={26} />}
+      />
     </div>
   );
 };
