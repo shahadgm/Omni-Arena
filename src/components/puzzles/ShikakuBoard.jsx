@@ -163,13 +163,13 @@ const ShikakuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Shik
         <button onClick={onSurrender} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '1rem', padding: 0 }}>
           <ArrowLeft size={18} /> Surrender
         </button>
-        <div style={{ color: '#60a5fa', fontSize: '1.25rem', fontWeight: 'bold', fontFamily: 'monospace', letterSpacing: '2px' }}>
+        <div style={{ color: 'var(--primary)', fontSize: '1.25rem', fontWeight: 'bold', fontFamily: 'var(--font-mono)', letterSpacing: '2px' }}>
           {String(Math.floor(timeElapsed / 60)).padStart(2, '0')}:{String(timeElapsed % 60).padStart(2, '0')}
         </div>
       </div>
 
       <Card style={{ marginBottom: '2rem', padding: '3rem', display: 'flex', flexDirection: 'column', alignItems: 'center', userSelect: 'none' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem', textAlign: 'center', color: 'white' }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem', textAlign: 'center', color: 'var(--text-primary)' }}>
           {title}
         </h1>
         <p style={{ color: 'var(--text-secondary)', textAlign: 'center', marginBottom: '3rem', maxWidth: '450px', fontSize: '0.9rem', lineHeight: 1.5 }}>
@@ -182,7 +182,7 @@ const ShikakuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Shik
               {row.map((val, c) => {
                 const cellRect = getCellRect(r, c);
                 const isDrawing = isDrawingCell(r, c);
-                const bgColor = isDrawing ? 'rgba(59, 130, 246, 0.3)' : (cellRect ? 'rgba(255,255,255,0.05)' : 'transparent');
+                const bgColor = isDrawing ? 'rgba(59, 130, 246, 0.3)' : (cellRect ? 'var(--primary-glow)' : 'transparent');
                 
                 return (
                   <div 
@@ -191,14 +191,15 @@ const ShikakuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Shik
                     onMouseEnter={() => handleMouseEnter(r, c)}
                     style={{ 
                       width: cellSize, height: cellSize, 
-                      borderRight: '1px solid rgba(255,255,255,0.15)',
-                      borderBottom: '1px solid rgba(255,255,255,0.15)',
-                      borderTop: r === 0 ? '1px solid rgba(255,255,255,0.15)' : 'none',
-                      borderLeft: c === 0 ? '1px solid rgba(255,255,255,0.15)' : 'none',
+                      borderRight: '1px solid var(--border)',
+                      borderBottom: '1px solid var(--border)',
+                      borderTop: r === 0 ? '1px solid var(--border)' : 'none',
+                      borderLeft: c === 0 ? '1px solid var(--border)' : 'none',
                       backgroundColor: bgColor,
                       display: 'flex', justifyContent: 'center', alignItems: 'center',
                       cursor: 'crosshair',
-                      fontSize: '1.25rem', fontWeight: 'bold', color: 'white'
+                      fontSize: '1.25rem', fontWeight: 'bold', color: 'var(--text-primary)',
+                      fontFamily: 'var(--font-mono)'
                     }}
                   >
                     {val !== null ? val : ''}
@@ -217,7 +218,7 @@ const ShikakuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Shik
                 left: `calc(${rect.c1} * ${cellSize})`,
                 width: `calc((${rect.c2 - rect.c1 + 1}) * ${cellSize})`,
                 height: `calc((${rect.r2 - rect.r1 + 1}) * ${cellSize})`,
-                border: '2px solid rgba(255,255,255,0.3)',
+                border: '2px solid var(--primary)',
                 pointerEvents: 'none',
                 zIndex: 10
               }}
@@ -226,10 +227,10 @@ const ShikakuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Shik
         </div>
         
         <div style={{ marginTop: '3rem', display: 'flex', gap: '1rem' }}>
-          <Button variant="secondary" onClick={() => setRects([])} style={{ padding: '0.75rem 1.5rem', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white' }}>
+          <Button variant="secondary" onClick={() => setRects([])} style={{ padding: '0.75rem 1.5rem' }}>
             Clear All
           </Button>
-          <Button onClick={handleSubmitClick} style={{ padding: '0.75rem 1.5rem', background: '#10b981', color: 'white', border: 'none', fontWeight: 'bold' }}>
+          <Button onClick={handleSubmitClick} style={{ padding: '0.75rem 1.5rem', fontWeight: 'bold' }}>
             Submit Solution
           </Button>
         </div>

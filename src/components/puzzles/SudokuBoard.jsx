@@ -222,7 +222,7 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
         >
           <ArrowLeft size={18} /> Surrender
         </button>
-        <div style={{ color: '#60a5fa', fontSize: '1.25rem', fontWeight: 'bold', fontFamily: 'monospace', letterSpacing: '2px' }}>
+        <div style={{ color: 'var(--primary)', fontSize: '1.25rem', fontWeight: 'bold', fontFamily: 'var(--font-mono)', letterSpacing: '2px' }}>
           {String(Math.floor(timeElapsed / 60)).padStart(2, '0')}:{String(timeElapsed % 60).padStart(2, '0')}
         </div>
       </div>
@@ -230,7 +230,7 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
       <Card style={{ marginBottom: '2rem', padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', userSelect: 'none' }}>
         {/* Title & Badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0, textAlign: 'center', color: 'white' }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0, textAlign: 'center', color: 'var(--text-primary)' }}>
             {title}
           </h1>
           <span style={{
@@ -240,9 +240,9 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
             letterSpacing: '1px',
             padding: '0.2rem 0.6rem',
             borderRadius: '999px',
-            background: puzzle.difficulty === 'easy' ? 'rgba(16, 185, 129, 0.2)' : puzzle.difficulty === 'hard' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(56, 189, 248, 0.2)',
-            color: puzzle.difficulty === 'easy' ? '#34d399' : puzzle.difficulty === 'hard' ? '#f87171' : '#38bdf8',
-            border: `1px solid ${puzzle.difficulty === 'easy' ? 'rgba(16, 185, 129, 0.4)' : puzzle.difficulty === 'hard' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(56, 189, 248, 0.4)'}`
+            background: puzzle.difficulty === 'easy' ? 'rgba(16, 185, 129, 0.15)' : puzzle.difficulty === 'hard' ? 'rgba(239, 68, 68, 0.15)' : 'var(--primary-glow)',
+            color: puzzle.difficulty === 'easy' ? 'var(--success)' : puzzle.difficulty === 'hard' ? 'var(--danger)' : 'var(--primary)',
+            border: `1px solid ${puzzle.difficulty === 'easy' ? 'rgba(16, 185, 129, 0.35)' : puzzle.difficulty === 'hard' ? 'rgba(239, 68, 68, 0.35)' : 'var(--primary)'}`
           }}>
             {puzzle.difficulty || 'Classic 9x9'}
           </span>
@@ -260,17 +260,17 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
           justifyContent: 'center',
           marginBottom: '1.25rem',
           fontSize: '0.85rem',
-          fontFamily: 'monospace'
+          fontFamily: 'var(--font-mono)'
         }}>
           <div style={{ color: 'var(--text-secondary)' }}>
-            Placed: <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>{currentValidation.filledCount}</span> / {currentValidation.emptyTarget}
+            Placed: <span style={{ color: 'var(--primary)', fontWeight: 'bold' }}>{currentValidation.filledCount}</span> / {currentValidation.emptyTarget}
           </div>
           {currentValidation.conflictCount > 0 ? (
-            <div style={{ color: '#f87171', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <div style={{ color: 'var(--danger)', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: '600' }}>
               <AlertTriangle size={15} /> {currentValidation.conflictCount} Conflict{currentValidation.conflictCount > 1 ? 's' : ''}
             </div>
           ) : (
-            <div style={{ color: '#34d399', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <div style={{ color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '0.35rem', fontWeight: '600' }}>
               <CheckCircle2 size={15} /> Valid Grid
             </div>
           )}
@@ -281,11 +281,11 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
           display: 'grid',
           gridTemplateColumns: 'repeat(9, minmax(28px, 46px))',
           gridTemplateRows: 'repeat(9, minmax(28px, 46px))',
-          border: '3px solid #38bdf8',
+          border: '3px solid var(--primary)',
           borderRadius: '8px',
           overflow: 'hidden',
-          boxShadow: '0 8px 24px -4px rgba(56, 189, 248, 0.25)',
-          background: 'var(--bg-secondary, #0f172a)',
+          boxShadow: '0 8px 24px -4px var(--primary-glow)',
+          background: 'var(--surface)',
           touchAction: 'manipulation'
         }}>
           {userGrid.map((row, r) =>
@@ -296,31 +296,30 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
               const isMatchingValue = selectedValue && val === selectedValue && !isSelected;
               const hasConflict = currentValidation.conflicts?.[r]?.[c];
 
-              // Borders for 3x3 blocks
-              const borderRightWidth = (c === 2 || c === 5) ? '2.5px' : (c === 8 ? '0px' : '1px');
-              const borderBottomWidth = (r === 2 || r === 5) ? '2.5px' : (r === 8 ? '0px' : '1px');
-              const borderColor = (c === 2 || c === 5 || r === 2 || r === 5) ? '#38bdf8' : 'rgba(255, 255, 255, 0.12)';
+              // Borders for 3x3 blocks and 1x1 cells
+              const borderRight = (c === 2 || c === 5) ? '2.5px solid var(--primary)' : (c === 8 ? 'none' : '1px solid var(--border)');
+              const borderBottom = (r === 2 || r === 5) ? '2.5px solid var(--primary)' : (r === 8 ? 'none' : '1px solid var(--border)');
 
               // Cell Background
               let bg = 'transparent';
               if (isSelected) {
-                bg = 'rgba(56, 189, 248, 0.35)';
+                bg = 'var(--primary-glow)';
               } else if (hasConflict) {
-                bg = 'rgba(239, 68, 68, 0.25)';
+                bg = 'rgba(239, 68, 68, 0.2)';
               } else if (isMatchingValue) {
-                bg = 'rgba(56, 189, 248, 0.22)';
+                bg = 'var(--primary-glow)';
               } else if (isPeer) {
-                bg = 'rgba(255, 255, 255, 0.04)';
+                bg = 'var(--surface-hover)';
               }
 
-              // Text Color
-              let textColor = '#ffffff';
+              // Text Color (strictly theme-adaptive via design tokens)
+              let textColor = 'var(--text-primary)';
               if (hasConflict) {
-                textColor = '#fca5a5';
+                textColor = 'var(--danger)';
               } else if (isInitial) {
-                textColor = '#ffffff';
+                textColor = 'var(--text-primary)'; // Given clues: high-contrast text
               } else {
-                textColor = '#38bdf8'; // user entered numbers
+                textColor = 'var(--primary)'; // User entered numbers: distinct primary color
               }
 
               return (
@@ -336,12 +335,13 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
                     justifyContent: 'center',
                     fontSize: 'clamp(1rem, 2.5vw, 1.4rem)',
                     fontWeight: isInitial ? '800' : '700',
+                    fontFamily: 'var(--font-mono)',
                     color: textColor,
                     background: bg,
-                    borderRight: `${borderRightWidth} solid ${borderColor}`,
-                    borderBottom: `${borderBottomWidth} solid ${borderColor}`,
+                    borderRight: borderRight,
+                    borderBottom: borderBottom,
                     cursor: 'pointer',
-                    outline: isSelected ? '2px solid #38bdf8' : 'none',
+                    outline: isSelected ? '2px solid var(--primary)' : 'none',
                     outlineOffset: '-2px',
                     transition: 'background 0.1s ease',
                     position: 'relative'
@@ -378,15 +378,25 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
                     justifyContent: 'center',
                     padding: '0.65rem 0.2rem 0.45rem',
                     borderRadius: '8px',
-                    background: isFinished ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.08)',
-                    border: `1px solid ${isFinished ? 'rgba(255, 255, 255, 0.08)' : 'rgba(56, 189, 248, 0.25)'}`,
-                    color: isFinished ? 'var(--text-tertiary)' : 'white',
+                    background: isFinished ? 'var(--surface-2)' : 'var(--surface)',
+                    border: `1px solid ${isFinished ? 'var(--border)' : 'var(--border)'}`,
+                    color: isFinished ? 'var(--text-tertiary)' : 'var(--text-primary)',
                     cursor: isFinished ? 'not-allowed' : 'pointer',
                     transition: 'all 0.15s ease',
                     userSelect: 'none'
                   }}
-                  onMouseEnter={e => { if (!isFinished) e.currentTarget.style.background = 'rgba(56, 189, 248, 0.2)'; }}
-                  onMouseLeave={e => { if (!isFinished) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'; }}
+                  onMouseEnter={e => {
+                    if (!isFinished) {
+                      e.currentTarget.style.background = 'var(--surface-hover)';
+                      e.currentTarget.style.borderColor = 'var(--primary)';
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!isFinished) {
+                      e.currentTarget.style.background = 'var(--surface)';
+                      e.currentTarget.style.borderColor = 'var(--border)';
+                    }
+                  }}
                 >
                   <span style={{ fontSize: '1.2rem', fontWeight: 'bold', lineHeight: 1 }}>{num}</span>
                   <span style={{ fontSize: '0.65rem', marginTop: '0.2rem', color: isFinished ? 'var(--text-tertiary)' : 'var(--text-secondary)' }}>
@@ -410,9 +420,7 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
                 justifyContent: 'center',
                 gap: '0.4rem',
                 padding: '0.6rem 1rem',
-                fontSize: '0.85rem',
-                background: 'rgba(255, 255, 255, 0.06)',
-                border: '1px solid var(--border)'
+                fontSize: '0.85rem'
               }}
             >
               <Eraser size={16} /> Erase Cell
@@ -430,8 +438,6 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
                 gap: '0.4rem',
                 padding: '0.6rem 1rem',
                 fontSize: '0.85rem',
-                background: 'rgba(255, 255, 255, 0.06)',
-                border: '1px solid var(--border)',
                 opacity: history.length === 0 ? 0.4 : 1
               }}
             >
@@ -447,10 +453,7 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
             onClick={handleResetUserEntries}
             style={{
               flex: 1,
-              padding: '0.75rem 1rem',
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: 'none',
-              color: 'white'
+              padding: '0.75rem 1rem'
             }}
           >
             Clear Entries
@@ -460,11 +463,7 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
             style={{
               flex: 1,
               padding: '0.75rem 1rem',
-              background: '#10b981',
-              color: 'white',
-              border: 'none',
-              fontWeight: 'bold',
-              boxShadow: '0 4px 14px rgba(16, 185, 129, 0.35)'
+              fontWeight: 'bold'
             }}
           >
             Submit Solution
@@ -485,24 +484,24 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
           alignItems: 'center',
           padding: '1.5rem'
         }}>
-          <Card style={{ maxWidth: '480px', width: '100%', padding: '2rem', textAlign: 'center', border: '1px solid var(--glass-border)' }}>
+          <Card style={{ maxWidth: '480px', width: '100%', padding: '2rem', textAlign: 'center', border: '1px solid var(--border)' }}>
             <h3 style={{ fontSize: '1.5rem', marginBottom: '1rem', color: 'var(--text-primary)' }}>Submit Incomplete Sudoku?</h3>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.95rem', lineHeight: '1.5' }}>
               The board is not completely or correctly solved yet. If you submit now, you will receive partial marks based on your valid entries.
             </p>
 
-            <div style={{ background: 'var(--bg-tertiary)', padding: '1.25rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
+            <div style={{ background: 'var(--surface-2)', padding: '1.25rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
                 <span>Cells Placed:</span>
-                <span style={{ color: 'white', fontWeight: 'bold' }}>{currentValidation.filledCount} / {currentValidation.emptyTarget}</span>
+                <span style={{ color: 'var(--text-primary)', fontWeight: 'bold' }}>{currentValidation.filledCount} / {currentValidation.emptyTarget}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>
                 <span>Conflicts / Duplicates:</span>
-                <span style={{ color: currentValidation.conflictCount > 0 ? '#f87171' : '#34d399', fontWeight: 'bold' }}>{currentValidation.conflictCount}</span>
+                <span style={{ color: currentValidation.conflictCount > 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 'bold' }}>{currentValidation.conflictCount}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
                 <span style={{ fontWeight: 'bold', color: 'var(--text-primary)' }}>Estimated Accuracy:</span>
-                <span style={{ fontWeight: 'bold', color: 'var(--accent-primary)', fontSize: '1.1rem' }}>{currentValidation.accuracy}%</span>
+                <span style={{ fontWeight: 'bold', color: 'var(--primary)', fontSize: '1.1rem' }}>{currentValidation.accuracy}%</span>
               </div>
             </div>
 
@@ -510,7 +509,7 @@ const SudokuBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Sudok
               <Button variant="secondary" onClick={() => setConfirmModal(false)} style={{ flex: 1 }}>
                 Keep Solving
               </Button>
-              <Button onClick={handleConfirmSubmit} style={{ flex: 1, background: '#10b981', color: 'white', border: 'none' }}>
+              <Button onClick={handleConfirmSubmit} style={{ flex: 1 }}>
                 Confirm & Submit
               </Button>
             </div>

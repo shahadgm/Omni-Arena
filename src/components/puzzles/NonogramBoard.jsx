@@ -148,13 +148,13 @@ const NonogramBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Non
         <button onClick={onSurrender} style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '1rem', padding: 0 }}>
           <ArrowLeft size={18} /> Surrender
         </button>
-        <div style={{ color: '#60a5fa', fontSize: '1.25rem', fontWeight: 'bold', fontFamily: 'monospace', letterSpacing: '2px' }}>
+        <div style={{ color: 'var(--primary)', fontSize: '1.25rem', fontWeight: 'bold', fontFamily: 'var(--font-mono)', letterSpacing: '2px' }}>
           {String(Math.floor(timeElapsed / 60)).padStart(2, '0')}:{String(timeElapsed % 60).padStart(2, '0')}
         </div>
       </div>
 
       <Card style={{ marginBottom: '2rem', padding: '3rem', display: 'flex', flexDirection: 'column', alignItems: 'center', userSelect: 'none' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem', textAlign: 'center', color: 'white' }}>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem', textAlign: 'center', color: 'var(--text-primary)' }}>
           {title}
         </h1>
         <p style={{ color: 'var(--text-secondary)', textAlign: 'center', marginBottom: '3rem', maxWidth: '450px', fontSize: '0.9rem', lineHeight: 1.5 }}>
@@ -169,7 +169,7 @@ const NonogramBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Non
                 paddingBottom: '0.5rem'
               }}>
                 {clueArr.map((clue, idx) => (
-                  <div key={idx} style={{ fontSize: puzzle.size === 15 ? '0.7rem' : '0.9rem', fontWeight: 'bold', color: 'white' }}>{clue}</div>
+                  <div key={idx} style={{ fontSize: puzzle.size === 15 ? '0.7rem' : '0.9rem', fontWeight: 'bold', color: 'var(--text-primary)' }}>{clue}</div>
                 ))}
               </div>
             ))}
@@ -183,13 +183,13 @@ const NonogramBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Non
                   paddingRight: '0.5rem'
                 }}>
                   {clueArr.map((clue, idx) => (
-                    <span key={idx} style={{ fontSize: puzzle.size === 15 ? '0.7rem' : '0.9rem', fontWeight: 'bold', marginLeft: '0.4rem', color: 'white' }}>{clue}</span>
+                    <span key={idx} style={{ fontSize: puzzle.size === 15 ? '0.7rem' : '0.9rem', fontWeight: 'bold', marginLeft: '0.4rem', color: 'var(--text-primary)' }}>{clue}</span>
                   ))}
                 </div>
               ))}
             </div>
 
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.15)', borderLeft: '1px solid rgba(255,255,255,0.15)' }}>
+            <div style={{ borderTop: '1px solid var(--border)', borderLeft: '1px solid var(--border)' }}>
               {userGrid.map((row, r) => (
                 <div key={`gr-${r}`} style={{ display: 'flex' }}>
                   {row.map((val, c) => (
@@ -199,14 +199,14 @@ const NonogramBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Non
                       onContextMenu={(e) => handleCellClick(r, c, e)}
                       style={{ 
                         width: cellSize, height: cellSize, 
-                        borderRight: '1px solid rgba(255,255,255,0.15)',
-                        borderBottom: '1px solid rgba(255,255,255,0.15)',
+                        borderRight: '1px solid var(--border)',
+                        borderBottom: '1px solid var(--border)',
                         background: val === 1 ? 'rgba(59, 130, 246, 0.5)' : 'transparent',
                         display: 'flex', justifyContent: 'center', alignItems: 'center',
                         cursor: 'pointer'
                       }}
                     >
-                      {val === 2 && <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '1.2rem', fontWeight: 'bold' }}>X</span>}
+                      {val === 2 && <span style={{ color: 'var(--text-secondary)', fontSize: '1.2rem', fontWeight: 'bold' }}>X</span>}
                     </div>
                   ))}
                 </div>
@@ -217,10 +217,10 @@ const NonogramBoard = ({ puzzle, onSolve, timeElapsed, onSurrender, title = "Non
         </div>
 
         <div style={{ marginTop: '3rem', display: 'flex', gap: '1rem' }}>
-          <Button variant="secondary" onClick={() => setUserGrid(Array(puzzle.size).fill(null).map(() => Array(puzzle.size).fill(0)))} style={{ padding: '0.75rem 1.5rem', background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white' }}>
+          <Button variant="secondary" onClick={() => setUserGrid(Array(puzzle.size).fill(null).map(() => Array(puzzle.size).fill(0)))} style={{ padding: '0.75rem 1.5rem' }}>
             Clear All
           </Button>
-          <Button onClick={handleSubmitClick} style={{ padding: '0.75rem 1.5rem', background: '#10b981', color: 'white', border: 'none', fontWeight: 'bold' }}>
+          <Button onClick={handleSubmitClick} style={{ padding: '0.75rem 1.5rem', fontWeight: 'bold' }}>
             Submit Solution
           </Button>
         </div>
