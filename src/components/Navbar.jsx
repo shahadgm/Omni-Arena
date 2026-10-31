@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../services/db';
-import { Keyboard, LogOut, Shield, Sun, Moon, PlusCircle, Trophy, User, Menu, X, Clock, MessageSquare } from 'lucide-react';
+import soundEngine from '../utils/soundEffects';
+import { Keyboard, LogOut, Shield, Sun, Moon, PlusCircle, Trophy, User, Menu, X, Clock, MessageSquare, Volume2, VolumeX } from 'lucide-react';
 
 const Navbar = ({ theme, toggleTheme }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isMuted, setIsMuted] = useState(() => soundEngine.isMuted());
+
+  useEffect(() => {
+    return soundEngine.subscribe(setIsMuted);
+  }, []);
   const isAdmin = authService.isAdmin();
   const isGuest = authService.isGuest();
   const currentUser = authService.getCurrentUser();
@@ -105,6 +111,20 @@ const Navbar = ({ theme, toggleTheme }) => {
             title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
           >
             {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+          </button>
+
+          <button 
+            onClick={() => soundEngine.toggleMute()}
+            style={{
+              background: 'none', border: 'none', color: isMuted ? 'var(--text-tertiary)' : 'var(--primary)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem',
+              padding: '0.5rem', borderRadius: '50%',
+              transition: 'all 0.15s ease'
+            }}
+            aria-label={isMuted ? 'Unmute game sounds' : 'Mute game sounds'}
+            title={isMuted ? 'Unmute game sounds' : 'Mute game sounds'}
+          >
+            {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
           </button>
 
           {isAuthenticated ? (
@@ -275,6 +295,52 @@ const Navbar = ({ theme, toggleTheme }) => {
               </Link>
             </>
           )}
+
+          {/* Quick Controls: Theme & Sound (Mobile) */}
+          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.25rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)' }}>
+            <button
+              onClick={toggleTheme}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                padding: '0.65rem',
+                borderRadius: '8px',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-primary)',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '0.85rem'
+              }}
+            >
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+            </button>
+            <button
+              onClick={() => soundEngine.toggleMute()}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                padding: '0.65rem',
+                borderRadius: '8px',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)',
+                color: isMuted ? 'var(--text-tertiary)' : 'var(--primary)',
+                cursor: 'pointer',
+                fontWeight: '600',
+                fontSize: '0.85rem'
+              }}
+            >
+              {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+              {isMuted ? 'Sound Off' : 'Sound On'}
+            </button>
+          </div>
         </div>
       )}
     </>
