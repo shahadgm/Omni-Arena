@@ -168,20 +168,48 @@ const AdminDashboard = () => {
       if (type === 'suspend') {
         const hours = suspendDurationHours === 'custom' ? parseFloat(customHours) : parseFloat(suspendDurationHours);
         if (!hours || isNaN(hours) || hours <= 0) {
-          alert("Please enter a valid positive duration in hours.");
+          setGenericConfirm({
+            title: "Invalid Duration",
+            message: "Please enter a valid positive duration in hours.",
+            confirmText: "Got it",
+            cancelText: null,
+            variant: "warning",
+            onConfirm: () => setGenericConfirm(null)
+          });
           setActionLoading(false);
           return;
         }
         await dbService.suspendUser(user.username, hours, actionReason);
-        alert(`User @${user.username} has been suspended for ${hours} hours.`);
+        setGenericConfirm({
+          title: "Account Suspended",
+          message: `User @${user.username} has been suspended for ${hours} hours.`,
+          confirmText: "Done",
+          cancelText: null,
+          variant: "primary",
+          onConfirm: () => setGenericConfirm(null)
+        });
       } else if (type === 'ban') {
         await dbService.banUser(user.username, actionReason);
-        alert(`User @${user.username} has been permanently banned.`);
+        setGenericConfirm({
+          title: "User Banned",
+          message: `User @${user.username} has been permanently banned.`,
+          confirmText: "Done",
+          cancelText: null,
+          variant: "danger",
+          onConfirm: () => setGenericConfirm(null)
+        });
       }
       setUserActionModal(null);
       fetchUsers();
     } catch (err) {
-      alert("Error: " + err.message);
+      setGenericConfirm({
+        title: "Action Failed",
+        message: err.message,
+        confirmText: "Close",
+        cancelText: null,
+        variant: "danger",
+        onConfirm: () => setGenericConfirm(null)
+      });
     } finally {
       setActionLoading(false);
     }
@@ -1545,6 +1573,7 @@ const AdminDashboard = () => {
           title={genericConfirm.title}
           message={genericConfirm.message}
           confirmText={genericConfirm.confirmText}
+          cancelText={genericConfirm.cancelText}
           variant={genericConfirm.variant}
           icon={genericConfirm.icon}
         />

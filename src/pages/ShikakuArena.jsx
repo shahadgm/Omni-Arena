@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import { AlertModal } from '../components/ui/Modal';
 import { dbService } from '../services/db';
 import { Trophy, Clock, Square, ArrowLeft } from 'lucide-react';
 
@@ -29,6 +30,7 @@ const ShikakuArena = () => {
   
   const [rects, setRects] = useState([]); // {r1, c1, r2, c2, colorIdx}
   const [drawing, setDrawing] = useState(null); // {r1, c1, r2, c2}
+  const [alertModal, setAlertModal] = useState(false);
 
   useEffect(() => {
     if (!studentId) {
@@ -192,7 +194,7 @@ const ShikakuArena = () => {
   };
 
   const handleDone = () => {
-    alert("Puzzle is not fully solved yet. Keep trying!");
+    setAlertModal(true);
   };
 
   return (
@@ -273,6 +275,15 @@ const ShikakuArena = () => {
           </Button>
         </div>
       </Card>
+
+      <AlertModal
+        isOpen={alertModal}
+        onClose={() => setAlertModal(false)}
+        title="Keep Solving"
+        message="Puzzle is not fully solved yet. Check your outlined rectangles, and keep trying!"
+        buttonText="Back to Puzzle"
+        variant="warning"
+      />
     </div>
   );
 };

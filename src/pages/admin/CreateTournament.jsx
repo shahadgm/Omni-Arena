@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
-import { ConfirmModal } from '../../components/ui/Modal';
+import { ConfirmModal, AlertModal } from '../../components/ui/Modal';
 import { dbService, authService } from '../../services/db';
 import { Plus, Trash2, Globe, Lock, Key, RefreshCw, UserPlus, LogIn } from 'lucide-react';
 import clg from 'crossword-layout-generator';
@@ -29,6 +29,10 @@ const CreateTournament = () => {
   const [tournamentData, setTournamentData] = useState(null);
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [pendingDeleteModal, setPendingDeleteModal] = useState(false);
+  const [alertInfo, setAlertInfo] = useState(null); // { message, title, variant, onConfirm }
+  const showAlert = (message, title = "Notice", variant = "warning", onConfirm = null) => {
+    setAlertInfo({ message, title, variant, onConfirm });
+  };
   
   const generateRandomCode = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -74,8 +78,7 @@ const CreateTournament = () => {
       const fetchT = async () => {
         const t = await dbService.getTournament(id);
         if (!t) {
-          alert("Tournament not found.");
-          navigate('/dashboard');
+          showAlert("Tournament not found.", "Tournament Missing", "danger", () => navigate('/dashboard'));
           return;
         }
         setTournamentData(t);
@@ -88,8 +91,7 @@ const CreateTournament = () => {
         if (isAdmin || isRegisteredOwner) {
           setIsUnlocked(true);
         } else {
-          alert("Only the tournament organizer can edit this tournament.");
-          navigate('/dashboard');
+          showAlert("Only the tournament organizer can edit this tournament.", "Access Denied", "warning", () => navigate('/dashboard'));
           return;
         }
 
@@ -243,9 +245,9 @@ const CreateTournament = () => {
       });
       setQuizQuestions([...quizQuestions, ...newQs]);
       setBulkText('');
-      alert(`Imported ${newQs.length} questions successfully!`);
+      showAlert(`Imported ${newQs.length} questions successfully!`, "Import Complete", "primary");
     } catch (err) {
-      alert("Error importing: Make sure format is correct (tab-separated). " + err.message);
+      showAlert("Error importing: Make sure format is correct (tab-separated). " + err.message, "Import Error", "danger");
     }
   };
 
@@ -257,26 +259,26 @@ const CreateTournament = () => {
       for (let line of lines) {
         const firstSpaceIndex = line.indexOf(' ');
         if (firstSpaceIndex === -1) {
-          alert(`Invalid line format: "${line}". Must be "word clue"`);
+          showAlert(`Invalid line format: "${line}". Must be "word clue"`, "Format Error", "warning");
           return;
         }
         const word = line.substring(0, firstSpaceIndex).trim().toLowerCase();
         const clue = line.substring(firstSpaceIndex + 1).trim();
         if (!word || !clue) {
-          alert(`Invalid line format: "${line}". Missing word or clue.`);
+          showAlert(`Invalid line format: "${line}". Missing word or clue.`, "Missing Field", "warning");
           return;
         }
         inputJson.push({ answer: word, clue });
       }
       const layout = clg.generateLayout(inputJson);
       if (layout.table.length === 0) {
-        alert("Could not generate a crossword from these words. Try adding more crossing letters.");
+        showAlert("Could not generate a crossword from these words. Try adding more crossing letters.", "Generation Issue", "warning");
         setCrosswordPreview(null);
       } else {
         setCrosswordPreview(layout.table);
       }
     } catch (err) {
-      alert("Error generating preview: " + err.message);
+      showAlert("Error generating preview: " + err.message, "Preview Error", "danger");
     }
   };
 
@@ -284,12 +286,12 @@ const CreateTournament = () => {
     e.preventDefault();
     
     if(!name || !startTime || !endTime) {
-      alert("Please fill all required fields");
+      showAlert("Please fill all required fields", "Incomplete Form", "warning");
       return;
     }
 
     if (isPrivate && !accessCode.trim()) {
-      alert("Please enter a tournament access code for this private tournament, or click 'Generate Code'.");
+      showAlert("Please enter a tournament access code for this private tournament, or click 'Generate Code'.", "Access Code Required", "warning");
       return;
     }
 
@@ -318,7 +320,7 @@ const CreateTournament = () => {
       if (gameType === 'typing') {
         if (useCustomText) {
           if(customSections.some(s => !s.text.trim())) {
-            alert("Please fill all custom text sections or disable custom text.");
+            showAlert("Please fill all custom text sections or disable custom text.", "Incomplete Custom Text", "warning");
             return;
           }
           tournament.customText = customSections;
@@ -335,7 +337,7 @@ const CreateTournament = () => {
           return false;
         });
         if(isInvalid) {
-          alert("Please fill all quiz questions, options, and answers completely.");
+          showAlert("Please fill all quiz questions, options, and answers completely.", "Incomplete Quiz", "warning");
           return;
         }
         tournament.quizQuestions = quizQuestions;
@@ -348,7 +350,7 @@ const CreateTournament = () => {
               customGridObj = JSON.parse(p.customGrid);
               if (!Array.isArray(customGridObj)) throw new Error("Must be a 2D array");
             } catch(err) {
-              alert("Invalid JSON for custom grid: " + err.message);
+              showAlert("Invalid JSON for custom grid: " + err.message, "JSON Parse Error", "danger");
               return;
             }
           }
@@ -358,13 +360,13 @@ const CreateTournament = () => {
       } else if (gameType === 'map') {
         const isInvalid = mapLocations.some(l => !l.prompt.trim() || !l.lat || !l.lng || !l.radiusKm);
         if (isInvalid) {
-          alert("Please fill all map location details.");
+          showAlert("Please fill all map location details.", "Incomplete Map Locations", "warning");
           return;
         }
         tournament.mapLocations = mapLocations;
       } else if (gameType === 'crossword') {
         if (!crosswordText.trim()) {
-          alert("Please enter crossword words and clues.");
+          showAlert("Please enter crossword words and clues.", "Crossword Required", "warning");
           return;
         }
         
@@ -373,13 +375,13 @@ const CreateTournament = () => {
         for (let line of lines) {
           const firstSpaceIndex = line.indexOf(' ');
           if (firstSpaceIndex === -1) {
-            alert(`Invalid line format: "${line}". Must be "word clue"`);
+            showAlert(`Invalid line format: "${line}". Must be "word clue"`, "Format Error", "warning");
             return;
           }
           const word = line.substring(0, firstSpaceIndex).trim().toLowerCase();
           const clue = line.substring(firstSpaceIndex + 1).trim();
           if (!word || !clue) {
-            alert(`Invalid line format: "${line}". Missing word or clue.`);
+            showAlert(`Invalid line format: "${line}". Missing word or clue.`, "Missing Word or Clue", "warning");
             return;
           }
           inputJson.push({ answer: word, clue });
@@ -387,7 +389,7 @@ const CreateTournament = () => {
         
         const layout = clg.generateLayout(inputJson);
         if (layout.table.length === 0) {
-          alert("Could not generate a crossword from these words. Try adding more crossing letters.");
+          showAlert("Could not generate a crossword from these words. Try adding more crossing letters.", "Crossword Error", "warning");
           return;
         }
         
@@ -402,8 +404,7 @@ const CreateTournament = () => {
       }
 
       if (!id && authService.isGuest()) {
-        alert("Hosting tournaments requires an Organizer account. Please log in or register.");
-        navigate('/?tab=account&mode=register');
+        showAlert("Hosting tournaments requires an Organizer account. Please log in or register.", "Organizer Required", "warning", () => navigate('/?tab=account&mode=register'));
         return;
       }
 
@@ -419,7 +420,7 @@ const CreateTournament = () => {
         navigate('/dashboard');
       }
     } catch (err) {
-      alert("Error saving tournament: " + err.message);
+      showAlert("Error saving tournament: " + err.message, "Save Error", "danger");
       console.error(err);
     }
   };
@@ -435,13 +436,13 @@ const CreateTournament = () => {
       const isRegisteredOwner = !isGuest && currentUser?.username && typeof tournament?.createdBy === 'string' && !tournament.createdBy.startsWith('guest:') && tournament.createdBy.toLowerCase() === currentUser.username.toLowerCase();
 
       if (!isAdmin && !isRegisteredOwner) {
-        alert("Only the tournament organizer can delete this tournament.");
+        showAlert("Only the tournament organizer can delete this tournament.", "Access Denied", "warning");
         return;
       }
 
       setPendingDeleteModal(true);
     } catch (err) {
-      alert("Error deleting tournament: " + err.message);
+      showAlert("Error deleting tournament: " + err.message, "Delete Error", "danger");
     }
   };
 
@@ -455,7 +456,7 @@ const CreateTournament = () => {
         navigate('/dashboard');
       }
     } catch (err) {
-      alert("Error deleting tournament: " + err.message);
+      showAlert("Error deleting tournament: " + err.message, "Delete Error", "danger");
       setPendingDeleteModal(false);
     }
   };
@@ -1276,6 +1277,21 @@ const CreateTournament = () => {
         variant="danger"
         icon={<Trash2 size={26} />}
       />
+
+      {/* Themed Alert Modal */}
+      {alertInfo && (
+        <AlertModal
+          isOpen={true}
+          onClose={() => {
+            const cb = alertInfo.onConfirm;
+            setAlertInfo(null);
+            if (cb) cb();
+          }}
+          title={alertInfo.title}
+          message={alertInfo.message}
+          variant={alertInfo.variant}
+        />
+      )}
     </div>
   );
 };

@@ -4,6 +4,7 @@ import { dbService, authService } from '../services/db';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
+import { AlertModal } from '../components/ui/Modal';
 import { Lock, Key, AlertCircle } from 'lucide-react';
 
 const CompetitionArena = lazy(() => import('./CompetitionArena'));
@@ -22,6 +23,7 @@ const ArenaRouter = () => {
   const [isCodeLocked, setIsCodeLocked] = useState(false);
   const [accessCodeInput, setAccessCodeInput] = useState('');
   const [accessCodeError, setAccessCodeError] = useState('');
+  const [routeModal, setRouteModal] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(() => {
     return !!(
       document.fullscreenElement ||
@@ -95,13 +97,21 @@ const ArenaRouter = () => {
           const start = new Date(t.startTime);
           const end = new Date(t.endTime);
           if (now < start) {
-            alert(`This tournament has not started yet. Starts on: ${start.toLocaleString()}`);
-            navigate('/dashboard');
+            setRouteModal({
+              title: "Tournament Not Started",
+              message: `This tournament has not started yet. Starts on: ${start.toLocaleString()}`,
+              buttonText: "Back to Dashboard",
+              onConfirm: () => navigate('/dashboard')
+            });
             return;
           }
           if (now > end) {
-            alert(`This tournament has already ended on: ${end.toLocaleString()}`);
-            navigate(`/leaderboard/${id}`);
+            setRouteModal({
+              title: "Tournament Concluded",
+              message: `This tournament has already ended on: ${end.toLocaleString()}`,
+              buttonText: "View Leaderboard",
+              onConfirm: () => navigate(`/leaderboard/${id}`)
+            });
             return;
           }
         }
@@ -121,14 +131,17 @@ const ArenaRouter = () => {
           const participated = await dbService.hasParticipated(id, studentId);
           if (participated) {
             localStorage.removeItem(antiCheatKey);
-            alert('You have already participated in this tournament! You can only play once.');
-            navigate(`/leaderboard/${id}`);
+            setRouteModal({
+              title: "Already Participated",
+              message: "You have already participated in this tournament! You can only play once.",
+              buttonText: "View Leaderboard",
+              onConfirm: () => navigate(`/leaderboard/${id}`)
+            });
             return;
           }
           
           if (localStorage.getItem(antiCheatKey)) {
             localStorage.removeItem(antiCheatKey);
-            alert('You left the tournament before finishing. Your attempt is void and has been submitted with a score of 0.');
             // Auto-submit 0 score so hasParticipated becomes true for future
             await dbService.saveResult(id, {
               studentId,
@@ -139,7 +152,12 @@ const ArenaRouter = () => {
               abandoned: true,
               timestamp: new Date().toISOString()
             });
-            navigate(`/leaderboard/${id}`);
+            setRouteModal({
+              title: "Attempt Voided",
+              message: "You left the tournament before finishing. Your attempt is void and has been submitted with a score of 0.",
+              buttonText: "View Leaderboard",
+              onConfirm: () => navigate(`/leaderboard/${id}`)
+            });
             return;
           }
         }
@@ -316,6 +334,20 @@ const ArenaRouter = () => {
           {renderArena()}
         </Suspense>
       </div>
+
+      {routeModal && (
+        <AlertModal
+          isOpen={true}
+          title={routeModal.title}
+          message={routeModal.message}
+          buttonText={routeModal.buttonText || "Return to Dashboard"}
+          onClose={() => {
+            const cb = routeModal.onConfirm;
+            setRouteModal(null);
+            if (cb) cb();
+          }}
+        />
+      )}
     </>
   );
 };

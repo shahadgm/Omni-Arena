@@ -243,22 +243,24 @@ export const ConfirmModal = ({
           </p>
         )}
 
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={onClose}
-            disabled={loading}
-            style={{ flex: 1, padding: '0.75rem 1rem' }}
-          >
-            {cancelText}
-          </Button>
+        <div style={{ display: 'flex', gap: '0.75rem', justifyContent: cancelText ? 'stretch' : 'center' }}>
+          {cancelText && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onClose}
+              disabled={loading}
+              style={{ flex: 1, padding: '0.75rem 1rem' }}
+            >
+              {cancelText}
+            </Button>
+          )}
           <Button
             type="button"
             variant={vStyles.buttonVariant}
             onClick={onConfirm}
             disabled={loading}
-            style={{ flex: 1, padding: '0.75rem 1rem', fontWeight: 'bold' }}
+            style={{ flex: cancelText ? 1 : '0 1 200px', padding: '0.75rem 1rem', fontWeight: 'bold' }}
           >
             {loading ? 'Processing...' : confirmText}
           </Button>
@@ -267,5 +269,27 @@ export const ConfirmModal = ({
     </Modal>
   );
 };
+
+export const AlertModal = ({
+  isOpen,
+  onClose,
+  title = "Notice",
+  message,
+  buttonText = "Understood",
+  variant = "primary",
+  icon = null
+}) => (
+  <ConfirmModal
+    isOpen={isOpen}
+    onClose={onClose}
+    onConfirm={onClose}
+    title={title}
+    message={message}
+    confirmText={buttonText}
+    cancelText={null}
+    variant={variant}
+    icon={icon}
+  />
+);
 
 export default Modal;

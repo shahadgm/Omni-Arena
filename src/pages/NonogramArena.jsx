@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import { AlertModal } from '../components/ui/Modal';
 import { dbService } from '../services/db';
 import { Trophy, Clock, Grid, ArrowLeft } from 'lucide-react';
 
@@ -82,6 +83,7 @@ const NonogramArena = () => {
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [completed, setCompleted] = useState(false);
   const [errorCount, setErrorCount] = useState(0);
+  const [alertModal, setAlertModal] = useState(false);
 
   useEffect(() => {
     if (!studentId) {
@@ -207,7 +209,7 @@ const NonogramArena = () => {
   const cellSize = puzzle.size === 15 ? '20px' : puzzle.size === 10 ? '30px' : '40px';
 
   const handleDone = () => {
-    alert("Puzzle is not fully solved yet. Keep trying!");
+    setAlertModal(true);
   };
 
   return (
@@ -298,6 +300,15 @@ const NonogramArena = () => {
         </div>
 
       </Card>
+
+      <AlertModal
+        isOpen={alertModal}
+        onClose={() => setAlertModal(false)}
+        title="Keep Solving"
+        message="Puzzle is not fully solved yet. Check your marked cells and clues, and keep trying!"
+        buttonText="Back to Puzzle"
+        variant="warning"
+      />
     </div>
   );
 };
