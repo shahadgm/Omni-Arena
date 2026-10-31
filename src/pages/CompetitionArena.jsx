@@ -6,6 +6,7 @@ import { dbService } from '../services/db';
 import { generateCompetitionText } from '../utils/textGenerator';
 import { Trophy, Clock, Target, Zap, Activity, CheckCircle2 } from 'lucide-react';
 import { useAntiCheat } from '../hooks/useAntiCheat';
+import soundEngine from '../utils/soundEffects';
 
 const CompetitionArena = () => {
   const { id } = useParams();
@@ -87,6 +88,7 @@ const CompetitionArena = () => {
 
   const handleInput = (e) => {
     if (!startTime) setStartTime(Date.now());
+    soundEngine.playClick();
     const val = e.target.value;
     const currentTarget = sections[currentSectionIdx]?.text || '';
     
@@ -154,6 +156,7 @@ const CompetitionArena = () => {
 
   const handleFinish = () => {
     if (!startTime) setStartTime(Date.now());
+    soundEngine.playVictory();
     const end = Date.now();
     setEndTime(end);
     setCompleted(true);
@@ -335,30 +338,43 @@ const CompetitionArena = () => {
 
     return tokens.map((token, idx) => {
       if (token.isSpace) {
-        const isSpacePassed = token.end <= inputLength;
-        const isSpaceActive = token.start <= inputLength && inputLength < token.end;
-        
-        let spaceBg = 'transparent';
-        if (isSpacePassed) {
-          const userTypedSpace = currentInput.slice(token.start, token.end);
-          if (userTypedSpace !== token.text) {
-            spaceBg = 'rgba(239, 68, 68, 0.4)';
+        return token.text.split('').map((ch, chIdx) => {
+          const globalIdx = token.start + chIdx;
+          const isSpacePassed = globalIdx < inputLength;
+          const isSpaceActive = globalIdx === inputLength;
+
+          if (ch === '\n') {
+            return (
+              <br 
+                key={'br_' + globalIdx}
+                ref={isSpaceActive ? activeCharRef : null}
+              />
+            );
           }
-        }
-        return (
-          <span 
-            key={'sp_' + idx}
-            ref={isSpaceActive ? activeCharRef : null}
-            style={{ 
-              background: spaceBg,
-              display: 'inline',
-              whiteSpace: 'pre',
-              borderRadius: '2px'
-            }}
-          >
-            {token.text}
-          </span>
-        );
+
+          let spaceBg = 'transparent';
+          if (isSpacePassed) {
+            const userTypedSpace = currentInput[globalIdx];
+            if (userTypedSpace !== ch) {
+              spaceBg = 'rgba(239, 68, 68, 0.4)';
+            }
+          }
+          return (
+            <span 
+              key={'sp_' + globalIdx}
+              ref={isSpaceActive ? activeCharRef : null}
+              style={{ 
+                background: spaceBg,
+                display: 'inline',
+                whiteSpace: 'pre-wrap',
+                borderRadius: '2px',
+                borderBottom: isSpaceActive ? '2.5px solid var(--accent-primary)' : 'none'
+              }}
+            >
+              {' '}
+            </span>
+          );
+        });
       }
 
       // Word token
@@ -374,7 +390,8 @@ const CompetitionArena = () => {
             style={{
               color: isCorrect ? 'var(--success)' : 'var(--error)',
               textDecoration: isCorrect ? 'none' : 'underline wavy var(--error)',
-              display: 'inline',
+              display: 'inline-block',
+              whiteSpace: 'nowrap',
               transition: 'color 0.1s ease'
             }}
           >
@@ -395,7 +412,8 @@ const CompetitionArena = () => {
             key={'w_' + idx}
             ref={activeCharRef}
             style={{
-              display: 'inline',
+              display: 'inline-block',
+              whiteSpace: 'nowrap',
               padding: '0.1rem 0.35rem',
               margin: '0 -0.1rem',
               background: 'var(--surface-2)',
@@ -420,7 +438,8 @@ const CompetitionArena = () => {
           key={'w_' + idx}
           style={{
             color: 'var(--text-tertiary)',
-            display: 'inline'
+            display: 'inline-block',
+            whiteSpace: 'nowrap'
           }}
         >
           {token.text}
@@ -429,40 +448,109 @@ const CompetitionArena = () => {
     });
   };
 
-  // LTR Character-by-character Renderer (for English, code, etc.)
+  // LTR Character-by-character Renderer with clean Word-Wrapping & Paragraph layout
   const renderLtrText = () => {
-    return targetText.split('').map((char, idx) => {
-      let color = 'var(--text-tertiary)';
-      let bg = 'transparent';
-      const isTyped = idx < inputLength;
-      const isCurrent = idx === inputLength;
+    const tokens = [];
+    const regex = /(\S+|\s+)/g;
+    let match;
+    while ((match = regex.exec(targetText)) !== null) {
+      tokens.push({
+        text: match[0],
+        isSpace: /^\s+$/.test(match[0]),
+        start: match.index,
+        end: match.index + match[0].length
+      });
+    }
 
-      if (isTyped) {
-        const isCorrect = currentInput[idx] === char;
-        color = isCorrect ? 'var(--success)' : 'var(--error)';
-        if (!isCorrect) {
-          bg = char === ' ' ? 'rgba(239, 68, 68, 0.35)' : 'rgba(239, 68, 68, 0.18)';
-        }
-      } else if (isCurrent) {
-        color = 'var(--text-primary)';
+    return tokens.map((token, tIdx) => {
+      if (token.isSpace) {
+        return token.text.split('').map((ch, chIdx) => {
+          const globalIdx = token.start + chIdx;
+          const isTyped = globalIdx < inputLength;
+          const isCurrent = globalIdx === inputLength;
+
+          if (ch === '\n') {
+            return (
+              <br 
+                key={`br_${globalIdx}`} 
+                ref={isCurrent ? activeCharRef : null} 
+              />
+            );
+          }
+
+          let bg = 'transparent';
+          if (isTyped) {
+            const isCorrect = currentInput[globalIdx] === ch;
+            if (!isCorrect) {
+              bg = 'rgba(239, 68, 68, 0.4)';
+            }
+          }
+
+          return (
+            <span
+              key={`sp_${globalIdx}`}
+              ref={isCurrent ? activeCharRef : null}
+              style={{
+                display: 'inline',
+                whiteSpace: 'pre-wrap',
+                background: bg,
+                borderRadius: '2px',
+                borderBottom: isCurrent ? '2.5px solid var(--accent-primary)' : 'none',
+                position: 'relative'
+              }}
+            >
+              {' '}
+            </span>
+          );
+        });
       }
 
+      // Word token: wrap in inline-block so word never breaks mid-word across lines
       return (
-        <span 
-          key={idx} 
-          ref={isCurrent ? activeCharRef : null}
-          style={{ 
-            color, 
-            background: bg,
-            position: 'relative',
-            display: 'inline',
-            borderRadius: bg !== 'transparent' ? '3px' : '0',
-            fontWeight: isCurrent ? '700' : '400',
-            borderBottom: isCurrent ? '2px solid var(--accent-primary)' : 'none',
-            transition: 'color 0.05s ease, background 0.05s ease'
+        <span
+          key={`w_${tIdx}`}
+          style={{
+            display: 'inline-block',
+            whiteSpace: 'nowrap'
           }}
         >
-          {char === ' ' ? '\u00A0' : char}
+          {token.text.split('').map((char, chIdx) => {
+            const globalIdx = token.start + chIdx;
+            const isTyped = globalIdx < inputLength;
+            const isCurrent = globalIdx === inputLength;
+
+            let color = 'var(--text-tertiary)';
+            let bg = 'transparent';
+
+            if (isTyped) {
+              const isCorrect = currentInput[globalIdx] === char;
+              color = isCorrect ? 'var(--success)' : 'var(--error)';
+              if (!isCorrect) {
+                bg = 'rgba(239, 68, 68, 0.2)';
+              }
+            } else if (isCurrent) {
+              color = 'var(--text-primary)';
+            }
+
+            return (
+              <span
+                key={`ch_${globalIdx}`}
+                ref={isCurrent ? activeCharRef : null}
+                style={{
+                  color,
+                  background: bg,
+                  position: 'relative',
+                  display: 'inline',
+                  borderRadius: bg !== 'transparent' ? '3px' : '0',
+                  fontWeight: isCurrent ? '700' : '400',
+                  borderBottom: isCurrent ? '2.5px solid var(--accent-primary)' : 'none',
+                  transition: 'color 0.05s ease, background 0.05s ease'
+                }}
+              >
+                {char}
+              </span>
+            );
+          })}
         </span>
       );
     });
@@ -593,17 +681,22 @@ const CompetitionArena = () => {
         <div 
           ref={containerRef}
           style={{ 
-            fontSize: isRtl ? (isUrdu ? '1.85rem' : '1.75rem') : '1.5rem', 
-            lineHeight: isRtl ? (isUrdu ? '3.5rem' : '3.2rem') : '2.6rem', 
-            letterSpacing: isRtl ? 'normal' : '0.025em',
+            fontSize: isRtl ? (isUrdu ? '1.85rem' : '1.75rem') : '1.45rem', 
+            lineHeight: isRtl ? (isUrdu ? '3.5rem' : '3.2rem') : '2.5rem', 
+            letterSpacing: isRtl ? 'normal' : '0.02em',
             direction: isRtl ? 'rtl' : 'ltr',
+            textAlign: isRtl ? 'right' : 'left',
             fontFamily: fontStack,
-            height: '210px',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            overflowWrap: 'break-word',
+            height: '230px',
             overflowY: 'hidden',
             position: 'relative',
             userSelect: 'none',
             WebkitUserSelect: 'none',
-            transition: 'scrollTop 0.15s ease'
+            transition: 'scrollTop 0.15s ease',
+            padding: '0.25rem 0'
           }}
         >
           {isRtl ? renderRtlText() : renderLtrText()}
