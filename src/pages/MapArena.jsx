@@ -8,29 +8,50 @@ import {
   Volume2, VolumeX, RotateCcw, CheckCircle2, XCircle, Target, ArrowRight 
 } from 'lucide-react';
 import { useAntiCheat } from '../hooks/useAntiCheat';
-import { MapContainer, TileLayer, Marker, useMapEvents, Circle, Polyline } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMapEvents, Circle, Polyline, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { getRandomPracticeLocations } from '../utils/mapPresets';
 import { soundEngine } from '../utils/soundEffects';
 
-// Fix for default Leaflet marker icons not loading in React
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+// Custom high-contrast distinct markers so players instantly distinguish their pin from the target
+const userGuessIcon = L.divIcon({
+  className: 'user-guess-pin',
+  html: `
+    <div style="display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -100%); pointer-events: none;">
+      <div style="background: #ef4444; color: #ffffff; padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.35); border: 1.5px solid #ffffff; margin-bottom: 2px; text-shadow: 0 1px 2px rgba(0,0,0,0.4);">
+        Your Guess
+      </div>
+      <div style="width: 22px; height: 22px; background: #ef4444; border: 3px solid #ffffff; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 3px 8px rgba(0,0,0,0.45);"></div>
+    </div>
+  `,
+  iconSize: [0, 0],
+  iconAnchor: [0, 0]
 });
 
-// Haversine distance formula (in km)
+const targetLocationIcon = L.divIcon({
+  className: 'target-location-pin',
+  html: `
+    <div style="display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -100%); pointer-events: none;">
+      <div style="background: #10b981; color: #ffffff; padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.35); border: 1.5px solid #ffffff; margin-bottom: 2px; text-shadow: 0 1px 2px rgba(0,0,0,0.4);">
+        🎯 Target
+      </div>
+      <div style="width: 24px; height: 24px; background: #10b981; border: 3px solid #ffffff; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 3px 8px rgba(0,0,0,0.45);"></div>
+    </div>
+  `,
+  iconSize: [0, 0],
+  iconAnchor: [0, 0]
+});
+
+// Accurate Haversine distance formula (in km)
 const getDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371; // km
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
             Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-            Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
 
@@ -51,18 +72,66 @@ const calculatePrecisionRating = (distance, radiusKm) => {
   return { tier: 'miss', label: 'Missed Zone', points: 0, color: '#ef4444', badgeBg: 'rgba(239, 68, 68, 0.15)' };
 };
 
+// Geodesic shortest path calculation for polyline to prevent wrapping across the globe
+const getShortestPolylinePositions = (userPos, targetLat, targetLng) => {
+  if (!userPos) return [];
+  const uLat = userPos.lat;
+  const uLng = userPos.lng;
+  let tLng = targetLng;
+  const diff = tLng - uLng;
+  if (diff > 180) tLng -= 360;
+  if (diff < -180) tLng += 360;
+  return [
+    [uLat, uLng],
+    [targetLat, tLng]
+  ];
+};
+
 const LocationMarker = ({ position, setPosition, readOnly }) => {
   useMapEvents({
     click(e) {
       if (!readOnly) {
         soundEngine.playClick();
-        setPosition(e.latlng);
+        // Wrap coordinate so longitude is strictly inside [-180, 180]
+        const wrapped = e.latlng.wrap();
+        setPosition(wrapped);
       }
     },
   });
   return position === null ? null : (
-    <Marker position={position} />
+    <Marker position={position} icon={userGuessIcon}>
+      <Tooltip direction="top" offset={[0, -28]} opacity={0.95}>
+        📍 Your Pin: [{position.lat.toFixed(2)}°, {position.lng.toFixed(2)}°]
+      </Tooltip>
+    </Marker>
   );
+};
+
+// Map camera controller to smoothly auto-zoom on feedback and reset on next question
+const MapCameraController = ({ feedback, currentIdx }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (feedback && feedback.userPos) {
+      try {
+        const bounds = L.latLngBounds(
+          [feedback.userPos.lat, feedback.userPos.lng],
+          [feedback.targetLat, feedback.targetLng]
+        );
+        map.flyToBounds(bounds, {
+          padding: [70, 70],
+          maxZoom: 6,
+          duration: 1.0
+        });
+      } catch (e) {
+        console.debug('flyToBounds error:', e);
+      }
+    } else {
+      map.flyTo([20, 0], 2, { duration: 0.8 });
+    }
+  }, [feedback, currentIdx, map]);
+
+  return null;
 };
 
 const MapArena = () => {
@@ -153,7 +222,7 @@ const MapArena = () => {
     }
   }, id.startsWith('practice-'));
 
-  if (!tournament) return <div className="page-wrapper">Loading Geography Study Arena...</div>;
+  if (!tournament) return <div className="page-wrapper" style={{ paddingTop: '4rem', textAlign: 'center' }}>Loading Geography Study Arena...</div>;
 
   const handleSubmit = () => {
     if (!markerPosition || !currentLoc) return;
@@ -239,7 +308,7 @@ const MapArena = () => {
     const accuracy = Math.round((score / (locations.length || 1)) * 100);
 
     return (
-      <div className="container" style={{ maxWidth: '850px', margin: '0 auto', paddingBottom: '4rem' }}>
+      <div className="container" style={{ maxWidth: '850px', margin: '0 auto', paddingTop: '1.75rem', paddingBottom: '4rem' }}>
         <Card style={{ textAlign: 'center', padding: '3rem 2rem', marginBottom: '2rem' }}>
           <Trophy size={64} color="var(--primary)" style={{ margin: '0 auto 1.25rem' }} />
           <h2 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Map Study Complete!</h2>
@@ -365,12 +434,12 @@ const MapArena = () => {
   }
 
   return (
-    <div className="container" style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 100px)' }}>
+    <div className="container" style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 100px)', paddingTop: '1.75rem' }}>
       {/* Top Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
           <h1 style={{ fontSize: '1.75rem', margin: 0 }}>Map Study Arena</h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: '0.2rem 0 0 0' }}>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: '0.25rem 0 0 0' }}>
             Pinpoint locations across the globe to hone your geographical literacy.
           </p>
         </div>
@@ -460,24 +529,35 @@ const MapArena = () => {
         )}
         
         {/* Leaflet Map Canvas */}
-        <div style={{ flex: 1, borderRadius: '12px', overflow: 'hidden', border: '2px solid var(--glass-border)', position: 'relative', minHeight: '380px' }}>
+        <div style={{ flex: 1, borderRadius: '12px', overflow: 'hidden', border: '2px solid var(--glass-border)', position: 'relative', minHeight: '400px' }}>
           {currentLoc && (
             <MapContainer 
               key={currentIdx} 
               center={[20, 0]} 
               zoom={2} 
-              style={{ height: '100%', width: '100%', background: '#aadaff', minHeight: '380px' }}
+              minZoom={2}
+              maxBounds={[[-85, -180], [85, 180]]}
+              maxBoundsViscosity={1.0}
+              worldCopyJump={false}
+              style={{ height: '100%', width: '100%', background: '#aadaff', minHeight: '400px' }}
             >
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                noWrap={true}
+                bounds={[[-85, -180], [85, 180]]}
               />
+              <MapCameraController feedback={feedback} currentIdx={currentIdx} />
               <LocationMarker position={markerPosition} setPosition={setMarkerPosition} readOnly={!!feedback} />
               
               {feedback && (
                 <>
-                  {/* True target location marker */}
-                  <Marker position={[feedback.targetLat, feedback.targetLng]} />
+                  {/* True target location marker with high-contrast green pin */}
+                  <Marker position={[feedback.targetLat, feedback.targetLng]} icon={targetLocationIcon}>
+                    <Tooltip direction="top" offset={[0, -28]} opacity={0.95} permanent>
+                      🎯 {currentLoc.prompt}
+                    </Tooltip>
+                  </Marker>
 
                   {/* Target tolerance radius boundary */}
                   <Circle 
@@ -486,23 +566,20 @@ const MapArena = () => {
                     pathOptions={{ 
                       color: feedback.isCorrect ? '#10b981' : '#ef4444', 
                       fillColor: feedback.isCorrect ? '#10b981' : '#ef4444', 
-                      fillOpacity: 0.18,
-                      weight: 2
+                      fillOpacity: 0.22,
+                      weight: 2.5
                     }}
                   />
 
-                  {/* Trajectory Polyline connecting player guess pin to actual target */}
+                  {/* Geodesic shortest trajectory line connecting player guess to actual target */}
                   {markerPosition && (
                     <Polyline 
-                      positions={[
-                        [markerPosition.lat, markerPosition.lng],
-                        [feedback.targetLat, feedback.targetLng]
-                      ]}
+                      positions={getShortestPolylinePositions(markerPosition, feedback.targetLat, feedback.targetLng)}
                       pathOptions={{
                         color: feedback.isCorrect ? '#10b981' : '#ef4444',
                         dashArray: '6, 8',
-                        weight: 3,
-                        opacity: 0.85
+                        weight: 3.5,
+                        opacity: 0.9
                       }}
                     />
                   )}
@@ -536,7 +613,7 @@ const MapArena = () => {
         <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ color: 'var(--text-secondary)' }}>
             {feedback ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
                 <span style={{ 
                   color: feedback.rating?.color || (feedback.isCorrect ? 'var(--success)' : 'var(--error)'), 
                   fontSize: '1.1rem', 

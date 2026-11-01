@@ -18,9 +18,10 @@ L.Icon.Default.mergeOptions({
 const ClickMarker = ({ position, setPosition }) => {
   useMapEvents({
     click(e) {
+      const wrapped = e.latlng.wrap();
       setPosition({
-        lat: parseFloat(e.latlng.lat.toFixed(4)),
-        lng: parseFloat(e.latlng.lng.toFixed(4))
+        lat: parseFloat(wrapped.lat.toFixed(4)),
+        lng: parseFloat(wrapped.lng.toFixed(4))
       });
     }
   });
@@ -80,11 +81,17 @@ export const MapPinPickerModal = ({
         <MapContainer
           center={[position.lat || 20, position.lng || 0]}
           zoom={2}
+          minZoom={2}
+          maxBounds={[[-85, -180], [85, 180]]}
+          maxBoundsViscosity={1.0}
+          worldCopyJump={false}
           style={{ height: '100%', width: '100%', background: '#aadaff' }}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            noWrap={true}
+            bounds={[[-85, -180], [85, 180]]}
           />
           <ClickMarker position={position} setPosition={setPosition} />
           {position && radiusKm > 0 && (
