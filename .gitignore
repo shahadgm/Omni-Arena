@@ -31,3 +31,5 @@ firebase-key*.json
 .env
 .env.*
 !.env.example
+branding/
+

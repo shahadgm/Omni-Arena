@@ -4,8 +4,10 @@ import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import { ConfirmModal, AlertModal } from '../../components/ui/Modal';
+import MapPinPickerModal from '../../components/map/MapPinPickerModal';
+import MapPresetPickerModal from '../../components/map/MapPresetPickerModal';
 import { dbService, authService } from '../../services/db';
-import { Plus, Trash2, Globe, Lock, Key, RefreshCw, UserPlus, LogIn } from 'lucide-react';
+import { Plus, Trash2, Globe, Lock, Key, RefreshCw, UserPlus, LogIn, MapPin, Navigation, BookOpen } from 'lucide-react';
 import clg from 'crossword-layout-generator';
 
 const CreateTournament = () => {
@@ -60,10 +62,14 @@ const CreateTournament = () => {
     { type: 'nonogram', size: '10x10', customGrid: '' }
   ]);
 
-  // Map options
+  // Map options & interactive authoring
   const [mapLocations, setMapLocations] = useState([
-    { prompt: 'Spot India', lat: 20.5937, lng: 78.9629, radiusKm: 500 }
+    { prompt: 'Spot India', lat: 20.5937, lng: 78.9629, radiusKm: 500, fact: 'Home to the ancient Indus Valley Civilization and the Himalayas.' }
   ]);
+  const [activeMapPickerIdx, setActiveMapPickerIdx] = useState(null);
+  const [showMapPresetsModal, setShowMapPresetsModal] = useState(false);
+  const [showMapBulk, setShowMapBulk] = useState(false);
+  const [mapBulkText, setMapBulkText] = useState('');
 
   // Crossword options
   const [crosswordText, setCrosswordText] = useState('angle A shape made by two lines meeting\nbrake Stop a vehicle / sounds like something broken');
@@ -279,6 +285,38 @@ const CreateTournament = () => {
       }
     } catch (err) {
       showAlert("Error generating preview: " + err.message, "Preview Error", "danger");
+    }
+  };
+
+  const handleBulkImportMap = () => {
+    if (!mapBulkText.trim()) return;
+    try {
+      const lines = mapBulkText.split('\n').filter(l => l.trim());
+      const newLocs = [];
+      for (const line of lines) {
+        // Formats supported: Prompt | Lat | Lng | Radius | Fact
+        const parts = line.includes('|') ? line.split('|').map(s => s.trim()) : line.split('\t').map(s => s.trim());
+        if (parts.length >= 3) {
+          const prompt = parts[0];
+          const lat = parseFloat(parts[1]);
+          const lng = parseFloat(parts[2]);
+          const radiusKm = parts[3] ? parseInt(parts[3], 10) : 150;
+          const fact = parts[4] || '';
+          if (!isNaN(lat) && !isNaN(lng)) {
+            newLocs.push({ prompt, lat, lng, radiusKm, fact });
+          }
+        }
+      }
+      if (newLocs.length > 0) {
+        setMapLocations(prev => [...prev, ...newLocs]);
+        setMapBulkText('');
+        setShowMapBulk(false);
+        showAlert(`Imported ${newLocs.length} map locations successfully!`, "Import Successful", "primary");
+      } else {
+        showAlert("Could not parse map lines. Use: 'Prompt | Lat | Lng | Radius'", "Format Error", "warning");
+      }
+    } catch (e) {
+      showAlert("Error parsing text: " + e.message, "Import Error", "danger");
     }
   };
 
@@ -1074,35 +1112,154 @@ const CreateTournament = () => {
 
         {gameType === 'map' && (
           <Card style={{ marginBottom: '2rem' }}>
-            <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Map Locations Configuration</h2>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.25rem', margin: '0 0 0.25rem 0' }}>Map Locations Configuration</h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
+                  Build custom target locations or pick from our curated geography library with calibrated coordinates.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setShowMapPresetsModal(true)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+                >
+                  <Globe size={15} /> Geography Library
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setShowMapBulk(!showMapBulk)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+                >
+                  <BookOpen size={15} /> {showMapBulk ? 'Hide Bulk Import' : 'Bulk Import'}
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={() => setMapLocations([...mapLocations, { prompt: '', lat: 20, lng: 0, radiusKm: 500, fact: '' }])}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
+                >
+                  <Plus size={15} /> Add Custom
+                </Button>
+              </div>
+            </div>
+
+            {/* Bulk Import Drawer */}
+            {showMapBulk && (
+              <div style={{
+                background: 'var(--surface-2)',
+                padding: '1.25rem',
+                borderRadius: '10px',
+                border: '1px solid var(--border)',
+                marginBottom: '1.5rem'
+              }}>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', marginBottom: '0.4rem' }}>
+                  Bulk Import Map Locations
+                </h3>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.75rem' }}>
+                  Paste locations line by line in the format: <br />
+                  <code style={{ background: 'var(--surface)', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
+                    Prompt | Latitude | Longitude | AllowedRadiusKm | EducationalFact
+                  </code>
+                </p>
+                <textarea
+                  rows={4}
+                  value={mapBulkText}
+                  onChange={e => setMapBulkText(e.target.value)}
+                  placeholder={`Tokyo, Japan | 35.6762 | 139.6503 | 150 | Most populous city in the world\nPyramids of Giza | 29.9792 | 31.1342 | 80 | The oldest of the Seven Wonders\nSahara Desert | 23.4162 | 25.6628 | 1500 | Largest hot desert on Earth`}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    borderRadius: '8px',
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-primary)',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.85rem',
+                    marginBottom: '0.75rem'
+                  }}
+                />
+                <Button type="button" onClick={handleBulkImportMap} style={{ fontSize: '0.85rem' }}>
+                  Import Into Tournament
+                </Button>
+              </div>
+            )}
+
+            {/* Locations List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
               {mapLocations.map((loc, idx) => (
                 <div key={idx} style={{ 
-                  background: 'var(--bg-tertiary)', 
-                  padding: '1.5rem', 
+                  background: 'var(--surface-2)', 
+                  padding: '1.25rem', 
                   borderRadius: '12px',
-                  border: '1px solid var(--glass-border)'
+                  border: '1px solid var(--border)'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>Location {idx + 1}</h3>
-                    {mapLocations.length > 1 && (
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          const updated = mapLocations.filter((_, i) => i !== idx);
-                          setMapLocations(updated);
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{
+                        background: 'var(--primary)',
+                        color: '#fff',
+                        borderRadius: '50%',
+                        width: '24px',
+                        height: '24px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold'
+                      }}>
+                        {idx + 1}
+                      </span>
+                      <h3 style={{ fontSize: '1rem', fontWeight: 'bold', margin: 0 }}>
+                        {loc.prompt || `Location ${idx + 1}`}
+                      </h3>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={() => setActiveMapPickerIdx(idx)}
+                        style={{
+                          background: 'var(--surface)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '6px',
+                          color: 'var(--primary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          padding: '0.4rem 0.75rem',
+                          fontSize: '0.8rem',
+                          fontWeight: '600',
+                          cursor: 'pointer'
                         }}
-                        style={{ background: 'transparent', border: 'none', color: 'var(--error)', cursor: 'pointer' }}
                       >
-                        <Trash2 size={18} />
+                        <MapPin size={14} /> Pick on Map
                       </button>
-                    )}
+
+                      {mapLocations.length > 1 && (
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            const updated = mapLocations.filter((_, i) => i !== idx);
+                            setMapLocations(updated);
+                          }}
+                          style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '0.4rem' }}
+                          title="Delete location"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                   
-                  <div style={{ marginBottom: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1rem', marginBottom: '0.85rem' }}>
                     <Input 
-                      label="Prompt (e.g. Spot India)" 
+                      label="Location Prompt (e.g. Spot Tokyo, Japan)" 
                       value={loc.prompt}
                       onChange={e => {
                         const updated = [...mapLocations];
@@ -1111,9 +1268,19 @@ const CreateTournament = () => {
                       }}
                       required
                     />
+                    <Input 
+                      label="Study Fact / Hint (Revealed upon spotting)" 
+                      value={loc.fact || ''}
+                      placeholder="e.g. Home to over 37 million people"
+                      onChange={e => {
+                        const updated = [...mapLocations];
+                        updated[idx].fact = e.target.value;
+                        setMapLocations(updated);
+                      }}
+                    />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', alignItems: 'start' }}>
                     <Input 
                       type="number"
                       step="any"
@@ -1121,7 +1288,7 @@ const CreateTournament = () => {
                       value={loc.lat}
                       onChange={e => {
                         const updated = [...mapLocations];
-                        updated[idx].lat = parseFloat(e.target.value);
+                        updated[idx].lat = parseFloat(e.target.value) || 0;
                         setMapLocations(updated);
                       }}
                       required
@@ -1133,35 +1300,56 @@ const CreateTournament = () => {
                       value={loc.lng}
                       onChange={e => {
                         const updated = [...mapLocations];
-                        updated[idx].lng = parseFloat(e.target.value);
+                        updated[idx].lng = parseFloat(e.target.value) || 0;
                         setMapLocations(updated);
                       }}
                       required
                     />
-                    <Input 
-                      type="number"
-                      label="Allowed Radius (km)" 
-                      value={loc.radiusKm}
-                      onChange={e => {
-                        const updated = [...mapLocations];
-                        updated[idx].radiusKm = parseInt(e.target.value);
-                        setMapLocations(updated);
-                      }}
-                      required
-                    />
+                    <div>
+                      <Input 
+                        type="number"
+                        label="Allowed Radius (km)" 
+                        value={loc.radiusKm}
+                        onChange={e => {
+                          const updated = [...mapLocations];
+                          updated[idx].radiusKm = parseInt(e.target.value, 10) || 50;
+                          setMapLocations(updated);
+                        }}
+                        required
+                      />
+                      {/* Radius quick presets */}
+                      <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.35rem', flexWrap: 'wrap' }}>
+                        {[
+                          { label: 'Landmark (80 km)', r: 80 },
+                          { label: 'City (180 km)', r: 180 },
+                          { label: 'Country (600 km)', r: 600 }
+                        ].map(preset => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => {
+                              const updated = [...mapLocations];
+                              updated[idx].radiusKm = preset.r;
+                              setMapLocations(updated);
+                            }}
+                            style={{
+                              padding: '0.2rem 0.45rem',
+                              borderRadius: '4px',
+                              background: loc.radiusKm === preset.r ? 'var(--primary)' : 'var(--surface)',
+                              color: loc.radiusKm === preset.r ? '#fff' : 'var(--text-secondary)',
+                              border: '1px solid var(--border)',
+                              fontSize: '0.7rem',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                  <p style={{ color: 'var(--text-tertiary)', fontSize: '0.8rem', marginTop: '0.5rem' }}>Use Google Maps to find exact Latitude and Longitude.</p>
                 </div>
               ))}
-              
-              <Button 
-                type="button" 
-                variant="secondary" 
-                onClick={() => setMapLocations([...mapLocations, { prompt: '', lat: 0, lng: 0, radiusKm: 500 }])}
-                style={{ alignSelf: 'flex-start' }}
-              >
-                <Plus size={16} /> Add Location
-              </Button>
             </div>
           </Card>
         )}
@@ -1292,6 +1480,37 @@ const CreateTournament = () => {
           variant={alertInfo.variant}
         />
       )}
+
+      {/* Interactive Map Pin Picker Modal */}
+      {activeMapPickerIdx !== null && (
+        <MapPinPickerModal
+          isOpen={true}
+          onClose={() => setActiveMapPickerIdx(null)}
+          initialLat={mapLocations[activeMapPickerIdx]?.lat || 20}
+          initialLng={mapLocations[activeMapPickerIdx]?.lng || 0}
+          initialRadius={mapLocations[activeMapPickerIdx]?.radiusKm || 500}
+          locationTitle={mapLocations[activeMapPickerIdx]?.prompt || `Location ${activeMapPickerIdx + 1}`}
+          onConfirm={({ lat, lng, radiusKm }) => {
+            const updated = [...mapLocations];
+            updated[activeMapPickerIdx] = { 
+              ...updated[activeMapPickerIdx], 
+              lat, 
+              lng, 
+              radiusKm 
+            };
+            setMapLocations(updated);
+          }}
+        />
+      )}
+
+      {/* Geography Library Preset Picker Modal */}
+      <MapPresetPickerModal
+        isOpen={showMapPresetsModal}
+        onClose={() => setShowMapPresetsModal(false)}
+        onAddLocations={(newPresets) => {
+          setMapLocations(prev => [...prev, ...newPresets]);
+        }}
+      />
     </div>
   );
 };
