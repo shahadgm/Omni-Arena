@@ -1,308 +1,53 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { dbService } from '../services/db';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { 
-  Trophy, MapPin, Navigation, Lightbulb, Sparkles, 
-  Volume2, VolumeX, RotateCcw, CheckCircle2, XCircle, Target, ArrowRight,
-  Maximize2, Minimize2, Eye, Compass, HelpCircle, Layers, Check, X
+  Trophy, RotateCcw, Volume2, VolumeX, Maximize2, Minimize2,
+  CheckCircle2, XCircle, ArrowRight, Target, Sparkles, AlertCircle
 } from 'lucide-react';
 import { useAntiCheat } from '../hooks/useAntiCheat';
-import { MapContainer, TileLayer, Marker, useMapEvents, Circle, Polyline, Tooltip, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import { 
-  MAP_STUDY_CATEGORIES, 
-  getPlacesByCategory, 
-  generateMultipleChoiceOptions,
-  getRandomTrainerLocations 
-} from '../utils/mapCategoriesData';
 import { soundEngine } from '../utils/soundEffects';
-
-// High-contrast distinct marker for student's pin
-const userGuessIcon = L.divIcon({
-  className: 'user-guess-pin',
-  html: `
-    <div style="display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -100%); pointer-events: none;">
-      <div style="background: #ef4444; color: #ffffff; padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.35); border: 1.5px solid #ffffff; margin-bottom: 2px; text-shadow: 0 1px 2px rgba(0,0,0,0.4);">
-        Your Pin
-      </div>
-      <div style="width: 22px; height: 22px; background: #ef4444; border: 3px solid #ffffff; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 3px 8px rgba(0,0,0,0.45);"></div>
-    </div>
-  `,
-  iconSize: [0, 0],
-  iconAnchor: [0, 0]
-});
-
-// "Here it is" badge marker shown when player clicks "Show me" or reveals answer
-const hereItIsIcon = (label = "Here it is") => L.divIcon({
-  className: 'here-it-is-pin',
-  html: `
-    <div style="display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -100%); pointer-events: none;">
-      <div style="background: #047857; color: #ffffff; padding: 3px 9px; border-radius: 12px; font-size: 12px; font-weight: 800; white-space: nowrap; box-shadow: 0 3px 10px rgba(0,0,0,0.35); border: 1.5px solid #ffffff; margin-bottom: 3px; letter-spacing: 0.02em;">
-        ${label}
-      </div>
-      <div style="width: 22px; height: 22px; background: #047857; border: 3px solid #ffffff; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); box-shadow: 0 3px 8px rgba(0,0,0,0.45);"></div>
-    </div>
-  `,
-  iconSize: [0, 0],
-  iconAnchor: [0, 0]
-});
-
-// Accurate Haversine distance formula (in km)
-const getDistance = (lat1, lon1, lat2, lon2) => {
-  const R = 6371; // km
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-};
-
-// Calculate precision tier & points
-const calculatePrecisionRating = (distance, radiusKm) => {
-  if (distance <= 60) {
-    return { tier: 'bullseye', label: 'Bullseye! 🎯', points: 1000, color: '#10b981', badgeBg: 'rgba(16, 185, 129, 0.15)' };
-  }
-  if (distance <= Math.max(250, radiusKm * 0.4)) {
-    return { tier: 'gold', label: 'Gold Spot! 🥇', points: 800, color: '#eab308', badgeBg: 'rgba(234, 179, 8, 0.15)' };
-  }
-  if (distance <= radiusKm) {
-    return { tier: 'bronze', label: 'Target Zone! 🥉', points: 500, color: '#047857', badgeBg: 'rgba(4, 120, 87, 0.15)' };
-  }
-  return { tier: 'miss', label: 'Missed Zone', points: 0, color: '#ef4444', badgeBg: 'rgba(239, 68, 68, 0.15)' };
-};
-
-// Geodesic shortest path calculation
-const getShortestPolylinePositions = (userPos, targetLat, targetLng) => {
-  if (!userPos) return [];
-  const uLat = userPos.lat;
-  const uLng = userPos.lng;
-  let tLng = targetLng;
-  const diff = tLng - uLng;
-  if (diff > 180) tLng -= 360;
-  if (diff < -180) tLng += 360;
-  return [
-    [uLat, uLng],
-    [targetLat, tLng]
-  ];
-};
-
-const LocationMarker = ({ position, setPosition, readOnly }) => {
-  useMapEvents({
-    click(e) {
-      if (!readOnly) {
-        soundEngine.playClick();
-        const wrapped = e.latlng.wrap();
-        setPosition(wrapped);
-      }
-    },
-  });
-  return position === null ? null : (
-    <Marker position={position} icon={userGuessIcon}>
-      <Tooltip direction="top" offset={[0, -28]} opacity={0.95}>
-        📍 Your Pin: [{position.lat.toFixed(2)}°, {position.lng.toFixed(2)}°]
-      </Tooltip>
-    </Marker>
-  );
-};
-
-// Map camera controller that animates ONLY on question transition or reveal
-const MapCameraController = ({ 
-  targetLat, 
-  targetLng, 
-  categoryCenter, 
-  categoryZoom, 
-  showSolution, 
-  isHighlightMode, 
-  questionKey 
-}) => {
-  const map = useMap();
-  const lastKeyRef = useRef(null);
-  const solutionShownRef = useRef(false);
-
-  // When question index or category changes, animate camera ONCE
-  useEffect(() => {
-    if (questionKey && questionKey !== lastKeyRef.current) {
-      lastKeyRef.current = questionKey;
-      solutionShownRef.current = false;
-
-      if (isHighlightMode && targetLat != null && targetLng != null) {
-        // In "Name the place" mode, smoothly zoom in to highlight the target
-        map.flyTo([targetLat, targetLng], 5, { duration: 0.8 });
-      } else {
-        // In "Find on map" mode, smoothly center on the category view
-        const center = categoryCenter || [20, 0];
-        const zoom = categoryZoom || 2;
-        map.flyTo(center, zoom, { duration: 0.8 });
-      }
-    }
-  }, [questionKey, isHighlightMode, targetLat, targetLng, categoryCenter, categoryZoom, map]);
-
-  // When "Show me" or solution reveal is triggered, zoom to target location ONCE
-  useEffect(() => {
-    if (showSolution && !solutionShownRef.current && targetLat != null && targetLng != null) {
-      solutionShownRef.current = true;
-      map.flyTo([targetLat, targetLng], 5, { duration: 0.8 });
-    }
-  }, [showSolution, targetLat, targetLng, map]);
-
-  return null;
-};
-
-// In-map custom control buttons (Zoom In, Zoom Out, Fullscreen, Basemap, Labels)
-const MapControls = ({ 
-  onToggleFullscreen, 
-  isFullscreen, 
-  basemapStyle, 
-  setBasemapStyle, 
-  showLabels, 
-  setShowLabels, 
-  allowLabelsToggle 
-}) => {
-  const map = useMap();
-
-  return (
-    <div 
-      onMouseDown={(e) => e.stopPropagation()}
-      onClick={(e) => e.stopPropagation()}
-      onDoubleClick={(e) => e.stopPropagation()}
-      onPointerDown={(e) => e.stopPropagation()}
-      style={{
-        position: 'absolute',
-        top: '12px',
-        right: '12px',
-        zIndex: 1000,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '4px',
-        background: 'rgba(255, 255, 255, 0.95)',
-        backdropFilter: 'blur(4px)',
-        borderRadius: '8px',
-        padding: '4px',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.18)',
-        border: '1px solid var(--border)',
-        pointerEvents: 'auto'
-      }}
-    >
-      <button
-        type="button"
-        onClick={() => map.zoomIn()}
-        style={{
-          width: '32px', height: '32px', background: 'transparent', border: 'none',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '20px', fontWeight: 'bold', color: '#1f2937', cursor: 'pointer',
-          borderRadius: '4px', userSelect: 'none'
-        }}
-        title="Zoom in (+)"
-      >
-        +
-      </button>
-
-      <button
-        type="button"
-        onClick={() => map.zoomOut()}
-        style={{
-          width: '32px', height: '32px', background: 'transparent', border: 'none',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '20px', fontWeight: 'bold', color: '#1f2937', cursor: 'pointer',
-          borderRadius: '4px', userSelect: 'none'
-        }}
-        title="Zoom out (&minus;)"
-      >
-        &minus;
-      </button>
-
-      <button
-        type="button"
-        onClick={onToggleFullscreen}
-        style={{
-          width: '32px', height: '32px', background: 'transparent', border: 'none',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#1f2937', cursor: 'pointer', borderRadius: '4px'
-        }}
-        title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-      >
-        {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-      </button>
-
-      <div style={{ height: '1px', background: 'var(--border)', margin: '2px 0' }} />
-
-      {/* Cycle Basemap Layer: Voyager (Blank) -> Physical Terrain (Blank) -> Satellite (Blank) */}
-      <button
-        type="button"
-        onClick={() => {
-          setBasemapStyle(prev => {
-            if (prev === 'voyager') return 'terrain';
-            if (prev === 'terrain') return 'satellite';
-            return 'voyager';
-          });
-        }}
-        style={{
-          width: '32px', height: '32px', background: 'transparent', border: 'none',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: '#1f2937', cursor: 'pointer', borderRadius: '4px', fontSize: '13px'
-        }}
-        title={`Current Map Layer: ${basemapStyle === 'voyager' ? 'Voyager (No Labels)' : (basemapStyle === 'terrain' ? 'Physical Terrain' : 'Satellite')}. Click to change.`}
-      >
-        {basemapStyle === 'voyager' ? '🗺️' : (basemapStyle === 'terrain' ? '🏔️' : '🛰️')}
-      </button>
-
-      {/* Place Labels Toggle: strictly off by default so zooming doesn't spoil answers */}
-      {allowLabelsToggle && (
-        <button
-          type="button"
-          onClick={() => setShowLabels(prev => !prev)}
-          style={{
-            width: '32px', height: '32px', 
-            background: showLabels ? 'rgba(16, 185, 129, 0.2)' : 'transparent', 
-            border: showLabels ? '1px solid #10b981' : 'none',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: showLabels ? '#047857' : '#6b7280', 
-            cursor: 'pointer', borderRadius: '4px', fontSize: '13px'
-          }}
-          title={showLabels ? "Hide Place Names (Quiz Mode)" : "Show Place Names (Study Mode)"}
-        >
-          {showLabels ? '🏷️' : '🚫'}
-        </button>
-      )}
-    </div>
-  );
-};
+import { 
+  CATEGORY_DEFINITIONS, 
+  getCategoryDefinition, 
+  getMapData, 
+  getRandomQuestionsForCategory, 
+  generateMultipleChoiceOptions 
+} from '../utils/svgMapService';
+import SvgInteractiveMap from '../components/map/SvgInteractiveMap';
 
 const MapArena = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const studentId = localStorage.getItem('studentId') || 'PracticeUser';
-  const isPractice = id.startsWith('practice-');
+  const isPractice = (id || '').startsWith('practice-');
   const isSubmitting = useRef(false);
-  const mapContainerRef = useRef(null);
+  const containerRef = useRef(null);
 
-  // Tournament / Set State
+  // Tournament / Question state
   const [tournament, setTournament] = useState(null);
+  const [questions, setQuestions] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [markerPosition, setMarkerPosition] = useState(null);
+
+  // Sound & Display
   const [isMuted, setIsMuted] = useState(soundEngine.isMuted());
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Practice Trainer State
-  const [trainerCategory, setTrainerCategory] = useState('india-states');
+  // Practice Category & Mode
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialCat = urlParams.get('category') || 'india-states';
+  const [trainerCategory, setTrainerCategory] = useState(initialCat);
   const [trainerMode, setTrainerMode] = useState('find-on-map'); // 'find-on-map' | 'name-the-place'
 
-  // Basemap style and labels state (unlabeled by default to prevent cheating)
-  const [basemapStyle, setBasemapStyle] = useState('voyager'); // 'voyager' | 'terrain' | 'satellite'
-  const [showLabels, setShowLabels] = useState(false);
-
-  // Gameplay Mode States
+  // Question interaction state
+  const [feedback, setFeedback] = useState(null); // { ok: boolean, tappedId: string, tappedName: string } | null
   const [showSolution, setShowSolution] = useState(false);
-  const [feedback, setFeedback] = useState(null);
   const [selectedOptionId, setSelectedOptionId] = useState(null);
   const [optionAnswered, setOptionAnswered] = useState(false);
-  
-  // Results and Scoring
+
+  // Scoring & Timer
   const [results, setResults] = useState([]);
   const [completed, setCompleted] = useState(false);
   const [globalStartTime, setGlobalStartTime] = useState(null);
@@ -315,7 +60,7 @@ const MapArena = () => {
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
-      mapContainerRef.current?.requestFullscreen().catch(() => {});
+      containerRef.current?.requestFullscreen().catch(() => {});
       setIsFullscreen(true);
     } else {
       document.exitFullscreen().catch(() => {});
@@ -323,21 +68,33 @@ const MapArena = () => {
     }
   };
 
-  const loadTrainerRound = (cat = trainerCategory, mode = trainerMode) => {
-    const locations = getRandomTrainerLocations(cat, mode, 10);
-    const catObj = MAP_STUDY_CATEGORIES.find(c => c.id === cat);
+  // Determine active category and question type
+  const activeCategoryId = tournament?.category || trainerCategory;
+  const activeQuestionType = tournament?.questionType || trainerMode;
+  const isNameThePlace = activeQuestionType === 'name-the-place';
+
+  // Load vector map data for the category
+  const mapData = useMemo(() => {
+    return getMapData(activeCategoryId);
+  }, [activeCategoryId]);
+
+  const currentCategory = mapData.def;
+
+  // Initialize or reload round
+  const loadTrainerRound = useCallback((cat = trainerCategory, mode = trainerMode) => {
+    const freshQuestions = getRandomQuestionsForCategory(cat, 10);
+    const catDef = getCategoryDefinition(cat);
+
     setTournament({
       id: `practice-map-${cat}`,
-      name: `${catObj?.name || 'Map Study'} Trainer`,
+      name: `${catDef.name} Trainer`,
       category: cat,
-      questionType: mode,
-      mapLocations: locations
+      questionType: mode
     });
+    setQuestions(freshQuestions);
     setCurrentIdx(0);
-    setMarkerPosition(null);
     setFeedback(null);
     setShowSolution(false);
-    setShowLabels(false);
     setSelectedOptionId(null);
     setOptionAnswered(false);
     setResults([]);
@@ -345,20 +102,38 @@ const MapArena = () => {
     isSubmitting.current = false;
     setGlobalStartTime(Date.now());
     setSecondsElapsed(0);
-  };
+  }, [trainerCategory, trainerMode]);
 
   useEffect(() => {
-    const fetchT = async () => {
+    const init = async () => {
       if (isPractice) {
         loadTrainerRound(trainerCategory, trainerMode);
       } else {
         const t = await dbService.getTournament(id);
         setTournament(t);
+        if (t?.mapLocations && t.mapLocations.length > 0) {
+          // Match tournament locations with vector features by name
+          const cat = t.category || 'india-states';
+          const md = getMapData(cat);
+          const mapped = t.mapLocations.map((loc, idx) => {
+            const locName = loc.name || loc.prompt;
+            const match = md.targets.find(
+              f => f.properties?.name?.toLowerCase() === locName.toLowerCase()
+            );
+            return match || {
+              id: `custom-${idx}`,
+              properties: { name: locName }
+            };
+          });
+          setQuestions(mapped);
+        } else {
+          setQuestions(getRandomQuestionsForCategory(t?.category || 'india-states', 10));
+        }
         setGlobalStartTime(Date.now());
       }
     };
-    fetchT();
-  }, [id]);
+    init();
+  }, [id, isPractice, loadTrainerRound, trainerCategory, trainerMode]);
 
   // Elapsed timer ticker
   useEffect(() => {
@@ -370,107 +145,87 @@ const MapArena = () => {
     }
   }, [completed, globalStartTime]);
 
-  const locations = tournament?.mapLocations || [];
-  const currentLoc = locations[currentIdx];
-  
-  // Determine if active question is "name-the-place" or "find-on-map"
-  const activeQuestionType = currentLoc?.questionType || tournament?.questionType || trainerMode;
-  const isNameThePlace = activeQuestionType === 'name-the-place';
+  const currentFeature = questions[currentIdx];
 
-  // Category metadata
-  const currentCategory = useMemo(() => {
-    const catId = currentLoc?.categoryId || tournament?.category || trainerCategory;
-    return MAP_STUDY_CATEGORIES.find(c => c.id === catId) || MAP_STUDY_CATEGORIES[0];
-  }, [currentLoc, tournament, trainerCategory]);
-
-  // Generate or retrieve options for "Name the place" mode
+  // Generate options for "Name the place" mode
   const currentOptions = useMemo(() => {
-    if (!currentLoc) return [];
-    if (currentLoc.options && currentLoc.options.length > 0) return currentLoc.options;
-    return generateMultipleChoiceOptions(currentLoc, currentLoc.categoryId || currentCategory.id);
-  }, [currentLoc, currentCategory]);
+    if (!currentFeature || !isNameThePlace) return [];
+    return generateMultipleChoiceOptions(currentFeature, mapData.targets);
+  }, [currentFeature, isNameThePlace, mapData.targets]);
 
-  const correctCount = results.filter(r => r.isCorrect).length;
+  const correctCount = results.filter(r => r.ok).length;
 
+  // Anti-cheat hook for competitive tournaments
   useAntiCheat(() => {
     if (!completed && !isSubmitting.current) {
       isSubmitting.current = true;
-      try {
-        localStorage.removeItem(`started_${id}_${studentId}`);
-      } catch (e) {}
-
       setCompleted(true);
-      const score = results.filter(r => r.isCorrect).length;
-
+      const score = results.filter(r => r.ok).length;
       if (!isPractice) {
         dbService.saveResult(id, {
           studentId,
           score,
-          accuracy: Math.round((score / (locations.length || 1)) * 100) || 0,
+          accuracy: Math.round((score / (questions.length || 1)) * 100) || 0,
           timeElapsed: secondsElapsed,
           mapDetails: results
-        }).then(() => {
-          navigate(`/leaderboard/${id}`);
-        }).catch(err => {
-          console.error('Failed to save map anti-cheat result:', err);
-          navigate(`/leaderboard/${id}`);
-        });
+        }).finally(() => navigate(`/leaderboard/${id}`));
       } else {
         navigate(`/leaderboard/${id}`);
       }
     }
   }, isPractice);
 
-  if (!tournament) return <div className="page-wrapper" style={{ paddingTop: '4rem', textAlign: 'center' }}>Loading Map Study Arena...</div>;
+  // --- FEATURE CLICK HANDLER (Find it on the map mode) ---
+  const handleFeatureClick = (clickedFeature) => {
+    if (showSolution || (feedback && feedback.ok) || !currentFeature) return;
 
-  // --- SUBMIT PIN GUESS (Find it on the map mode) ---
-  const handleSpotSubmit = () => {
-    if (!markerPosition || !currentLoc) return;
-    
-    const distance = getDistance(markerPosition.lat, markerPosition.lng, currentLoc.lat, currentLoc.lng);
-    const isCorrect = distance <= (currentLoc.radiusKm || 200);
-    const rating = calculatePrecisionRating(distance, currentLoc.radiusKm || 200);
+    const targetName = currentFeature.properties?.name?.toLowerCase();
+    const clickedName = clickedFeature.properties?.name?.toLowerCase();
+    const isCorrect = clickedFeature.id === currentFeature.id || clickedName === targetName;
 
     if (isCorrect) {
       soundEngine.playBoxComplete();
+      setFeedback({
+        ok: true,
+        tappedId: clickedFeature.id,
+        tappedName: clickedFeature.properties.name
+      });
+      setResults(prev => [...prev, {
+        name: currentFeature.properties.name,
+        ok: true
+      }]);
     } else {
       soundEngine.playConflict();
+      setFeedback({
+        ok: false,
+        tappedId: clickedFeature.id,
+        tappedName: clickedFeature.properties.name
+      });
     }
-    
-    setFeedback({
-      distance: Math.round(distance),
-      isCorrect,
-      rating,
-      targetLat: currentLoc.lat,
-      targetLng: currentLoc.lng,
-      radiusKm: currentLoc.radiusKm || 200,
-      userPos: markerPosition
-    });
   };
 
-  // --- SHOW ME (Reveals the target location with "Here it is" badge) ---
+  // --- "SHOW ME" BUTTON HANDLER ---
   const handleShowMe = () => {
-    if (!currentLoc) return;
-    soundEngine.playClick();
+    if (showSolution || !currentFeature) return;
     setShowSolution(true);
     setFeedback({
-      distance: 0,
-      isCorrect: false,
-      rating: { tier: 'revealed', label: 'Revealed', color: '#047857', badgeBg: 'rgba(4, 120, 87, 0.15)' },
-      targetLat: currentLoc.lat,
-      targetLng: currentLoc.lng,
-      radiusKm: currentLoc.radiusKm || 200,
-      userPos: null
+      ok: false,
+      tappedId: null,
+      tappedName: 'skipped'
     });
+    setResults(prev => [...prev, {
+      name: currentFeature.properties.name,
+      ok: false
+    }]);
   };
 
-  // --- SELECT OPTION (Name the place mode) ---
-  const handleSelectOption = (option) => {
-    if (optionAnswered || !currentLoc) return;
+  // --- OPTION CLICK HANDLER (Name the place mode) ---
+  const handleOptionSelect = (option) => {
+    if (optionAnswered || !currentFeature) return;
     setOptionAnswered(true);
     setSelectedOptionId(option.id);
 
-    const isCorrect = option.id === currentLoc.id || option.isCorrect;
+    const isCorrect = option.isCorrect || option.name === currentFeature.properties.name;
 
     if (isCorrect) {
       soundEngine.playBoxComplete();
@@ -478,79 +233,61 @@ const MapArena = () => {
       soundEngine.playConflict();
     }
 
-    const detail = {
-      prompt: currentLoc.name || currentLoc.prompt,
-      userAnswer: option.name,
-      correctAnswer: currentLoc.name || currentLoc.prompt,
-      isCorrect,
-      fact: currentLoc.fact || ''
-    };
+    setFeedback({
+      ok: isCorrect,
+      tappedId: currentFeature.id,
+      tappedName: option.name
+    });
 
-    const newResults = [...results, detail];
+    const newResults = [...results, {
+      name: currentFeature.properties.name,
+      ok: isCorrect
+    }];
     setResults(newResults);
 
-    // Auto-advance after brief pause
+    // Auto-advance
     setTimeout(() => {
-      if (currentIdx + 1 >= locations.length) {
+      if (currentIdx + 1 >= questions.length) {
         finishArena(newResults);
       } else {
         setCurrentIdx(prev => prev + 1);
+        setFeedback(null);
         setSelectedOptionId(null);
         setOptionAnswered(false);
-        setShowLabels(false);
+        setShowSolution(false);
       }
     }, isCorrect ? 900 : 1600);
   };
 
   // --- ADVANCE TO NEXT QUESTION ---
   const handleNextQuestion = () => {
-    const detail = {
-      prompt: currentLoc.name || currentLoc.prompt,
-      userLat: markerPosition?.lat || null,
-      userLng: markerPosition?.lng || null,
-      targetLat: currentLoc.lat,
-      targetLng: currentLoc.lng,
-      distanceKm: feedback?.distance || 0,
-      isCorrect: feedback?.isCorrect || false,
-      rating: feedback?.rating || null,
-      fact: currentLoc.fact || ''
-    };
-
-    const newResults = [...results, detail];
-    
-    if (currentIdx + 1 >= locations.length) {
-      finishArena(newResults);
+    if (currentIdx + 1 >= questions.length) {
+      finishArena(results);
     } else {
-      setResults(newResults);
-      setCurrentIdx(currentIdx + 1);
-      setMarkerPosition(null);
+      setCurrentIdx(prev => prev + 1);
       setFeedback(null);
-      setShowSolution(false);
-      setShowLabels(false);
       setSelectedOptionId(null);
       setOptionAnswered(false);
+      setShowSolution(false);
     }
   };
 
+  // --- FINISH ARENA ---
   const finishArena = async (finalResults) => {
     if (isSubmitting.current) return;
     isSubmitting.current = true;
-    try {
-      localStorage.removeItem(`started_${id}_${studentId}`);
-    } catch (e) {}
-
-    setResults(finalResults);
     setCompleted(true);
     soundEngine.playVictory();
-    
-    const finalScore = finalResults.filter(r => r.isCorrect).length;
-    
+
+    const score = finalResults.filter(r => r.ok).length;
+    const total = finalResults.length || 1;
+
     if (!isPractice) {
       try {
         await dbService.saveResult(id, {
           studentId,
-          score: finalScore,
-          accuracy: Math.round((finalScore / locations.length) * 100),
+          score,
+          accuracy: Math.round((score / total) * 100),
           timeElapsed: secondsElapsed,
           mapDetails: finalResults
         });
@@ -560,33 +297,41 @@ const MapArena = () => {
     }
   };
 
-  // Format timer MM:SS
+  // Format time MM:SS
   const formatTime = (secs) => {
     const m = Math.floor(secs / 60);
     const s = secs % 60;
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  // --- RESULTS / COMPLETION SCREEN ---
+  if (!tournament || questions.length === 0) {
+    return (
+      <div className="page-wrapper" style={{ paddingTop: '4rem', textAlign: 'center' }}>
+        Loading Map Study Arena...
+      </div>
+    );
+  }
+
+  // --- RESULTS SCREEN ---
   if (completed) {
-    const score = results.filter(r => r.isCorrect).length;
-    const accuracy = Math.round((score / (locations.length || 1)) * 100);
+    const score = results.filter(r => r.ok).length;
+    const accuracy = Math.round((score / (questions.length || 1)) * 100);
 
     return (
       <div className="container" style={{ maxWidth: '850px', margin: '0 auto', paddingTop: '1.75rem', paddingBottom: '4rem' }}>
         <Card style={{ textAlign: 'center', padding: '3rem 2rem', marginBottom: '2rem' }}>
           <Trophy size={60} color="#047857" style={{ margin: '0 auto 1.25rem' }} />
           <h2 style={{ fontSize: '2rem', marginBottom: '0.4rem', fontWeight: '800' }}>
-            Map Study Complete!
+            Map Round Complete!
           </h2>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem' }}>
-            Excellent geographical identification, {studentId}!
+            Great effort in geographical identification, {studentId}!
           </p>
           
           <div style={{ display: 'flex', justifyContent: 'center', gap: '2.5rem', marginBottom: '2.5rem', flexWrap: 'wrap' }}>
             <div>
               <div style={{ fontSize: '2.75rem', fontWeight: '800', color: '#047857' }}>
-                {score} / {locations.length}
+                {score} / {questions.length}
               </div>
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '0.2rem', fontWeight: '600' }}>
                 Places Identified
@@ -631,135 +376,82 @@ const MapArena = () => {
             )}
           </div>
         </Card>
-
-        {/* Detailed Review Cards with Facts */}
-        <h3 style={{ fontSize: '1.3rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Target size={20} color="#047857" /> Places Review &amp; Study Notes
-        </h3>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {results.map((res, i) => (
-            <Card 
-              key={i} 
-              style={{ 
-                padding: '1.25rem 1.5rem', 
-                borderLeft: `5px solid ${res.isCorrect ? '#10b981' : '#ef4444'}` 
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
-                <div>
-                  <h4 style={{ fontSize: '1.15rem', fontWeight: '700', margin: '0 0 0.35rem 0' }}>
-                    {i + 1}. {res.prompt}
-                  </h4>
-                  {res.userAnswer && (
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                      Your answer: <strong style={{ color: res.isCorrect ? '#10b981' : '#ef4444' }}>{res.userAnswer}</strong>
-                    </div>
-                  )}
-                  {res.distanceKm > 0 && (
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                      Off by <strong>{res.distanceKm.toLocaleString()} km</strong>
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ 
-                  display: 'inline-flex', 
-                  alignItems: 'center', 
-                  gap: '0.4rem', 
-                  padding: '0.35rem 0.8rem', 
-                  borderRadius: '20px', 
-                  fontSize: '0.85rem', 
-                  fontWeight: '700',
-                  background: res.isCorrect ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-                  color: res.isCorrect ? '#10b981' : '#ef4444',
-                  border: `1px solid ${res.isCorrect ? '#10b981' : '#ef4444'}`
-                }}>
-                  {res.isCorrect ? <Check size={16} /> : <X size={16} />}
-                  {res.isCorrect ? 'Correct' : 'Missed'}
-                </div>
-              </div>
-
-              {res.fact && (
-                <div style={{
-                  marginTop: '0.85rem',
-                  padding: '0.75rem 1rem',
-                  borderRadius: '8px',
-                  background: 'var(--surface-2)',
-                  border: '1px solid var(--border)',
-                  fontSize: '0.875rem',
-                  lineHeight: '1.45',
-                  color: 'var(--text-secondary)',
-                  display: 'flex',
-                  gap: '0.6rem',
-                  alignItems: 'flex-start'
-                }}>
-                  <Lightbulb size={18} color="#047857" style={{ flexShrink: 0, marginTop: '2px' }} />
-                  <div>
-                    <strong style={{ color: 'var(--text-primary)' }}>Fact: </strong>
-                    {res.fact}
-                  </div>
-                </div>
-              )}
-            </Card>
-          ))}
-        </div>
       </div>
     );
   }
 
+  const isAnswered = (feedback && feedback.ok) || showSolution;
+
   return (
     <div 
-      ref={mapContainerRef}
+      ref={containerRef}
       className="container" 
       style={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        minHeight: 'calc(100vh - 100px)', 
-        paddingTop: '1.25rem',
-        paddingBottom: '2rem',
-        maxWidth: isFullscreen ? '100%' : '980px',
-        width: '100%'
+        maxWidth: mapData.kind === 'india' ? '700px' : '960px', 
+        margin: '0 auto', 
+        paddingTop: '1.25rem', 
+        paddingBottom: '3rem',
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column'
       }}
     >
-      {/* Top Header Bar matching SIBAQ Tracker Model */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <div>
-          <div style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-primary)', margin: 0 }}>
-            {tournament.name || currentCategory.name}
-          </div>
-          <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginTop: '0.15rem' }}>
-            Question {currentIdx + 1} of {locations.length} &bull; <strong style={{ color: '#047857' }}>{correctCount} right</strong>
-          </div>
+      {/* Top Header matching SIBAQ Tracker UI */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: '0.75rem',
+        flexWrap: 'wrap',
+        gap: '0.5rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <span style={{ fontSize: '1.3rem' }}>{currentCategory.icon}</span>
+          <span style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--text-secondary)' }}>
+            Question {currentIdx + 1} of {questions.length} • {correctCount} right
+          </span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <button
-            type="button"
             onClick={toggleSound}
             style={{
               background: 'var(--surface-2)',
               border: '1px solid var(--border)',
               borderRadius: '8px',
-              padding: '0.4rem 0.65rem',
+              padding: '0.4rem',
               color: 'var(--text-secondary)',
               cursor: 'pointer',
               display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-              fontSize: '0.85rem'
+              alignItems: 'center'
             }}
-            title={isMuted ? "Unmute audio" : "Mute audio"}
+            title={isMuted ? 'Unmute Sound' : 'Mute Sound'}
           >
             {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
           </button>
 
+          <button
+            onClick={toggleFullscreen}
+            style={{
+              background: 'var(--surface-2)',
+              border: '1px solid var(--border)',
+              borderRadius: '8px',
+              padding: '0.4rem',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center'
+            }}
+            title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+          >
+            {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          </button>
+
           <div style={{ 
             fontFamily: 'var(--font-mono)', 
-            fontSize: '1.25rem', 
+            fontSize: '1.2rem', 
             fontWeight: '800', 
-            color: 'var(--text-primary)',
-            letterSpacing: '0.02em'
+            color: 'var(--text-primary)'
           }}>
             {formatTime(secondsElapsed)}
           </div>
@@ -800,7 +492,7 @@ const MapArena = () => {
               cursor: 'pointer'
             }}
           >
-            {MAP_STUDY_CATEGORIES.map(c => (
+            {CATEGORY_DEFINITIONS.map(c => (
               <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
             ))}
           </select>
@@ -852,10 +544,10 @@ const MapArena = () => {
         </div>
       )}
 
-      {/* Main Question Card matching SIBAQ Model */}
+      {/* Main Question Card */}
       <Card style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', flex: 1, boxShadow: 'var(--glass-shadow)' }}>
         
-        {/* Question Header Box */}
+        {/* Question Prompt Header with Status Chip */}
         <div style={{
           background: 'var(--surface)',
           border: '1.5px solid var(--border)',
@@ -864,7 +556,9 @@ const MapArena = () => {
           marginBottom: '1rem',
           display: 'flex',
           justifyContent: 'space-between',
-          alignItems: 'center'
+          alignItems: 'center',
+          gap: '1rem',
+          minHeight: '64px'
         }}>
           {isNameThePlace ? (
             <div style={{ fontSize: '1.15rem', fontWeight: '700', color: 'var(--text-primary)' }}>
@@ -876,195 +570,54 @@ const MapArena = () => {
                 Find this {currentCategory.singular}:
               </div>
               <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-primary)', marginTop: '0.1rem' }}>
-                {currentLoc?.name || currentLoc?.prompt}
+                {currentFeature?.properties?.name}
               </div>
             </div>
           )}
 
-          {showSolution && (
+          {/* SIBAQ Status Chip */}
+          {feedback && (
             <div style={{
-              background: 'rgba(239, 68, 68, 0.12)',
-              color: 'var(--error)',
-              padding: '0.25rem 0.65rem',
-              borderRadius: '20px',
-              fontSize: '0.8rem',
-              fontWeight: '700',
-              border: '1px solid rgba(239, 68, 68, 0.3)'
+              padding: '0.35rem 0.85rem',
+              borderRadius: '999px',
+              fontSize: '0.85rem',
+              fontWeight: '800',
+              whiteSpace: 'nowrap',
+              background: feedback.ok ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+              color: feedback.ok ? '#10b981' : '#ef4444',
+              border: `1px solid ${feedback.ok ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
             }}>
-              Here it is
+              {feedback.ok
+                ? 'Right'
+                : !isNameThePlace
+                ? feedback.tappedName && feedback.tappedName !== 'skipped'
+                  ? `That's ${feedback.tappedName}`
+                  : 'Here it is'
+                : 'Not quite'}
             </div>
           )}
         </div>
 
-        {/* Leaflet Map Canvas */}
-        <div style={{
-          flex: 1,
-          borderRadius: '12px',
-          overflow: 'hidden',
-          border: '1.5px solid var(--border)',
-          position: 'relative',
-          minHeight: '380px'
-        }}>
-          {currentLoc && (
-            <MapContainer
-              key={`map-${trainerCategory}-${tournament?.id || 'main'}`}
-              center={isNameThePlace ? [currentLoc.lat, currentLoc.lng] : (currentCategory.center || [20, 0])}
-              zoom={isNameThePlace ? 5 : (currentCategory.defaultZoom || 2)}
-              minZoom={2}
-              maxZoom={18}
-              maxBounds={[[-85, -180], [85, 180]]}
-              maxBoundsViscosity={1.0}
-              worldCopyJump={false}
-              zoomControl={false}
-              style={{ height: '100%', width: '100%', background: '#dbeafe', minHeight: '380px' }}
-            >
-              {/* Basemap Tile Layer - NO LABELS so zooming in does NOT spoil place names! */}
-              {basemapStyle === 'voyager' && (
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                  url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png"
-                  subdomains="abcd"
-                  maxZoom={19}
-                  noWrap={true}
-                  bounds={[[-85, -180], [85, 180]]}
-                />
-              )}
-
-              {basemapStyle === 'terrain' && (
-                <TileLayer
-                  attribution='&copy; <a href="https://www.esri.com/">Esri</a>, USGS, NOAA'
-                  url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}"
-                  maxZoom={8}
-                  noWrap={true}
-                  bounds={[[-85, -180], [85, 180]]}
-                />
-              )}
-
-              {basemapStyle === 'satellite' && (
-                <TileLayer
-                  attribution='&copy; <a href="https://www.esri.com/">Esri</a>, Earthstar Geographics'
-                  url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                  maxZoom={18}
-                  noWrap={true}
-                  bounds={[[-85, -180], [85, 180]]}
-                />
-              )}
-
-              {/* Place Name Labels Overlay - ONLY rendered when explicitly enabled in Study Mode or after revealing */}
-              {showLabels && (
-                <TileLayer
-                  attribution='&copy; <a href="https://carto.com/attributions">CARTO</a>'
-                  url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png"
-                  subdomains="abcd"
-                  maxZoom={19}
-                  noWrap={true}
-                  bounds={[[-85, -180], [85, 180]]}
-                />
-              )}
-
-              {/* Map Camera Controller - strictly transitions on question changes or solution reveal */}
-              <MapCameraController 
-                targetLat={currentLoc?.lat}
-                targetLng={currentLoc?.lng}
-                categoryCenter={currentCategory?.center || [20, 0]}
-                categoryZoom={currentCategory?.defaultZoom || 2}
-                showSolution={showSolution}
-                isHighlightMode={isNameThePlace}
-                questionKey={`${currentIdx}-${trainerCategory}-${trainerMode}-${tournament?.id || 't'}`}
-              />
-
-              {/* In-Map Controls: Zoom In, Zoom Out, Fullscreen, Basemap Layer, Labels */}
-              <MapControls
-                onToggleFullscreen={toggleFullscreen}
-                isFullscreen={isFullscreen}
-                basemapStyle={basemapStyle}
-                setBasemapStyle={setBasemapStyle}
-                showLabels={showLabels}
-                setShowLabels={setShowLabels}
-                allowLabelsToggle={isPractice || showSolution || !!feedback}
-              />
-
-              {/* Pin dropper for "Find it on the map" mode */}
-              {!isNameThePlace && (
-                <LocationMarker 
-                  position={markerPosition} 
-                  setPosition={setMarkerPosition} 
-                  readOnly={!!feedback || showSolution} 
-                />
-              )}
-
-              {/* In "Name the place" mode: Highlight the target location with focal ring and amber fill (as in SIBAQ) */}
-              {isNameThePlace && (
-                <>
-                  <Circle
-                    center={[currentLoc.lat, currentLoc.lng]}
-                    radius={(currentLoc.radiusKm || 180) * 1000}
-                    pathOptions={{
-                      color: '#b45309', // Amber / brown fill as in SIBAQ Tracker
-                      fillColor: '#d97706',
-                      fillOpacity: 0.55,
-                      weight: 3
-                    }}
-                  />
-                  {/* Outer focal pulse circle */}
-                  <Circle
-                    center={[currentLoc.lat, currentLoc.lng]}
-                    radius={(currentLoc.radiusKm || 180) * 1600}
-                    pathOptions={{
-                      color: '#ef4444', // Red focal ring
-                      fillOpacity: 0,
-                      weight: 2.5,
-                      dashArray: '5, 5'
-                    }}
-                  />
-                </>
-              )}
-
-              {/* In "Find it on the map" mode: Reveal target if feedback or "Show me" clicked */}
-              {!isNameThePlace && (feedback || showSolution) && (
-                <>
-                  <Marker 
-                    position={[currentLoc.lat, currentLoc.lng]} 
-                    icon={hereItIsIcon(currentLoc.name || "Here it is")} 
-                  />
-
-                  <Circle
-                    center={[currentLoc.lat, currentLoc.lng]}
-                    radius={(currentLoc.radiusKm || 200) * 1000}
-                    pathOptions={{
-                      color: feedback?.isCorrect ? '#10b981' : '#047857',
-                      fillColor: feedback?.isCorrect ? '#10b981' : '#047857',
-                      fillOpacity: 0.22,
-                      weight: 2.5
-                    }}
-                  />
-
-                  {markerPosition && (
-                    <Polyline
-                      positions={getShortestPolylinePositions(markerPosition, currentLoc.lat, currentLoc.lng)}
-                      pathOptions={{
-                        color: feedback?.isCorrect ? '#10b981' : '#ef4444',
-                        dashArray: '6, 8',
-                        weight: 3.5,
-                        opacity: 0.9
-                      }}
-                    />
-                  )}
-                </>
-              )}
-            </MapContainer>
-          )}
+        {/* 100% Vector Self-Contained SVG Map (NO API KEY, NO WATERMARK) */}
+        <div style={{ flex: 1, minHeight: '380px', position: 'relative' }}>
+          <SvgInteractiveMap
+            mapData={mapData}
+            targetFeature={currentFeature}
+            questionMode={activeQuestionType}
+            feedback={feedback}
+            showSolution={showSolution}
+            onFeatureClick={handleFeatureClick}
+            disabled={isAnswered}
+          />
         </div>
 
-        {/* FOOTER CONTROLS MATCHING SIBAQ TRACKER */}
-
-        {/* 1. "Name the place" Mode Options Grid (2x2) */}
-        {isNameThePlace ? (
+        {/* Options Grid (Name the place mode) */}
+        {isNameThePlace && (
           <div style={{ marginTop: '1rem' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
               {currentOptions.map(option => {
                 const isSelected = selectedOptionId === option.id;
-                const isCorrect = option.id === currentLoc.id || option.isCorrect;
+                const isCorrect = option.id === currentFeature.properties?.name || option.isCorrect;
                 
                 let btnBg = 'var(--surface)';
                 let btnBorder = 'var(--border)';
@@ -1085,133 +638,94 @@ const MapArena = () => {
                 return (
                   <button
                     key={option.id}
-                    type="button"
+                    onClick={() => handleOptionSelect(option)}
                     disabled={optionAnswered}
-                    onClick={() => handleSelectOption(option)}
                     style={{
-                      padding: '1rem 1.25rem',
-                      borderRadius: '10px',
                       background: btnBg,
                       border: `1.5px solid ${btnBorder}`,
-                      color: btnColor,
-                      fontSize: '1rem',
-                      fontWeight: isSelected ? '700' : '600',
+                      borderRadius: '8px',
+                      padding: '0.85rem 1rem',
                       textAlign: 'left',
+                      fontSize: '0.95rem',
+                      fontWeight: '700',
+                      color: btnColor,
                       cursor: optionAnswered ? 'default' : 'pointer',
-                      transition: 'all 0.15s ease',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
                       display: 'flex',
+                      alignItems: 'center',
                       justifyContent: 'space-between',
-                      alignItems: 'center'
+                      transition: 'all 0.15s ease'
                     }}
                   >
                     <span>{option.name}</span>
-                    {optionAnswered && isCorrect && <Check size={18} color="#10b981" strokeWidth={3} />}
-                    {optionAnswered && isSelected && !isCorrect && <X size={18} color="#ef4444" strokeWidth={3} />}
+                    {optionAnswered && isCorrect && <CheckCircle2 size={18} color="#10b981" />}
+                    {optionAnswered && isSelected && !isCorrect && <XCircle size={18} color="#ef4444" />}
                   </button>
                 );
               })}
             </div>
           </div>
-        ) : (
-          /* 2. "Find it on the map" Controls Bar */
-          <div style={{ marginTop: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-              
-              {/* Show Me Button (left) */}
-              {!feedback && !showSolution ? (
-                <button
-                  type="button"
-                  onClick={handleShowMe}
-                  style={{
-                    background: 'var(--surface)',
-                    border: '1.5px solid var(--border)',
-                    borderRadius: '8px',
-                    padding: '0.65rem 1.5rem',
-                    fontSize: '0.95rem',
-                    fontWeight: '600',
-                    color: 'var(--text-primary)',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Show me
-                </button>
-              ) : (
-                <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                  {feedback?.isCorrect ? (
-                    <span style={{ color: '#10b981', fontWeight: '700' }}>
-                      Spot On! Found within {feedback.distance} km.
-                    </span>
-                  ) : showSolution ? (
-                    <span style={{ color: '#047857', fontWeight: '700' }}>
-                      Location revealed on map.
-                    </span>
-                  ) : (
-                    <span style={{ color: '#ef4444', fontWeight: '700' }}>
-                      Missed by {feedback?.distance.toLocaleString()} km.
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Action Buttons (right) */}
-              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                {!feedback && !showSolution ? (
-                  <Button
-                    onClick={handleSpotSubmit}
-                    disabled={!markerPosition}
-                    style={{
-                      padding: '0.65rem 1.75rem',
-                      fontSize: '0.95rem',
-                      background: '#047857',
-                      borderColor: '#047857'
-                    }}
-                  >
-                    Spot Location
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={handleNextQuestion}
-                    style={{
-                      padding: '0.65rem 2rem',
-                      fontSize: '0.95rem',
-                      background: '#047857',
-                      borderColor: '#047857',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.4rem'
-                    }}
-                  >
-                    {currentIdx + 1 >= locations.length ? 'Finish' : 'Next'} <ArrowRight size={16} />
-                  </Button>
-                )}
-
-                <button
-                  type="button"
-                  onClick={() => finishArena(results)}
-                  style={{
-                    background: 'var(--surface)',
-                    border: '1.5px solid var(--border)',
-                    borderRadius: '8px',
-                    padding: '0.65rem 1.25rem',
-                    fontSize: '0.95rem',
-                    fontWeight: '600',
-                    color: 'var(--text-secondary)',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Stop
-                </button>
-              </div>
-            </div>
-          </div>
         )}
 
-        {/* Bottom Helper Hint matching SIBAQ screenshot */}
-        <div style={{ marginTop: '0.75rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-          Pinch or scroll to zoom, drag to move the map.
+        {/* Footer Actions (Show Me / Next / Stop) */}
+        <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem' }}>
+          {isAnswered ? (
+            <Button
+              onClick={handleNextQuestion}
+              style={{
+                flex: 1,
+                padding: '0.85rem',
+                fontSize: '1rem',
+                fontWeight: '800',
+                background: '#047857',
+                borderColor: '#047857',
+                color: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              {currentIdx + 1 >= questions.length ? 'See Results' : 'Next Question'}
+              <ArrowRight size={18} />
+            </Button>
+          ) : (
+            !isNameThePlace && (
+              <Button
+                variant="secondary"
+                onClick={handleShowMe}
+                style={{
+                  flex: 1,
+                  padding: '0.85rem',
+                  fontSize: '0.95rem',
+                  fontWeight: '700'
+                }}
+              >
+                Show me
+              </Button>
+            )
+          )}
+
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/dashboard')}
+            style={{
+              padding: '0.85rem 1.25rem',
+              fontSize: '0.9rem',
+              color: 'var(--text-secondary)'
+            }}
+          >
+            Stop
+          </Button>
         </div>
 
+        <p style={{
+          textAlign: 'center',
+          fontSize: '0.78rem',
+          color: 'var(--text-tertiary)',
+          margin: '0.75rem 0 0'
+        }}>
+          Pinch or scroll to zoom, drag to move the map.
+        </p>
       </Card>
     </div>
   );
