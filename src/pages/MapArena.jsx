@@ -110,67 +110,108 @@ const LocationMarker = ({ position, setPosition, readOnly }) => {
   );
 };
 
-// Map camera controller that zooms in during feedback or highlight
-const MapCameraController = ({ targetPos, showSolution, isHighlightMode, currentIdx }) => {
+// Map camera controller that animates ONLY on question transition or reveal
+const MapCameraController = ({ 
+  targetLat, 
+  targetLng, 
+  categoryCenter, 
+  categoryZoom, 
+  showSolution, 
+  isHighlightMode, 
+  questionKey 
+}) => {
   const map = useMap();
+  const lastKeyRef = useRef(null);
+  const solutionShownRef = useRef(false);
 
+  // When question index or category changes, animate camera ONCE
   useEffect(() => {
-    if (isHighlightMode && targetPos) {
-      // In "Name the place" mode, automatically zoom to frame the highlighted region
-      map.flyTo([targetPos.lat, targetPos.lng], 5, { duration: 1.0 });
-    } else if (showSolution && targetPos) {
-      // When "Show me" is clicked in "Find it on the map" mode
-      map.flyTo([targetPos.lat, targetPos.lng], 5, { duration: 1.0 });
-    } else if (!isHighlightMode && !showSolution) {
-      // Reset view to global on next question
-      map.flyTo([20, 0], 2, { duration: 0.8 });
+    if (questionKey && questionKey !== lastKeyRef.current) {
+      lastKeyRef.current = questionKey;
+      solutionShownRef.current = false;
+
+      if (isHighlightMode && targetLat != null && targetLng != null) {
+        // In "Name the place" mode, smoothly zoom in to highlight the target
+        map.flyTo([targetLat, targetLng], 5, { duration: 0.8 });
+      } else {
+        // In "Find on map" mode, smoothly center on the category view
+        const center = categoryCenter || [20, 0];
+        const zoom = categoryZoom || 2;
+        map.flyTo(center, zoom, { duration: 0.8 });
+      }
     }
-  }, [targetPos, showSolution, isHighlightMode, currentIdx, map]);
+  }, [questionKey, isHighlightMode, targetLat, targetLng, categoryCenter, categoryZoom, map]);
+
+  // When "Show me" or solution reveal is triggered, zoom to target location ONCE
+  useEffect(() => {
+    if (showSolution && !solutionShownRef.current && targetLat != null && targetLng != null) {
+      solutionShownRef.current = true;
+      map.flyTo([targetLat, targetLng], 5, { duration: 0.8 });
+    }
+  }, [showSolution, targetLat, targetLng, map]);
 
   return null;
 };
 
-// In-map custom control buttons (Zoom In, Zoom Out, Fullscreen)
-const MapControlsOverlay = ({ onZoomIn, onZoomOut, onToggleFullscreen, isFullscreen }) => {
+// In-map custom control buttons (Zoom In, Zoom Out, Fullscreen, Basemap, Labels)
+const MapControls = ({ 
+  onToggleFullscreen, 
+  isFullscreen, 
+  basemapStyle, 
+  setBasemapStyle, 
+  showLabels, 
+  setShowLabels, 
+  allowLabelsToggle 
+}) => {
+  const map = useMap();
+
   return (
-    <div style={{
-      position: 'absolute',
-      top: '12px',
-      right: '12px',
-      zIndex: 1000,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '4px',
-      background: 'rgba(255, 255, 255, 0.95)',
-      borderRadius: '8px',
-      padding: '4px',
-      boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-      border: '1px solid var(--border)'
-    }}>
+    <div 
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      style={{
+        position: 'absolute',
+        top: '12px',
+        right: '12px',
+        zIndex: 1000,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px',
+        background: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(4px)',
+        borderRadius: '8px',
+        padding: '4px',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.18)',
+        border: '1px solid var(--border)',
+        pointerEvents: 'auto'
+      }}
+    >
       <button
         type="button"
-        onClick={onZoomIn}
+        onClick={() => map.zoomIn()}
         style={{
           width: '32px', height: '32px', background: 'transparent', border: 'none',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '18px', fontWeight: 'bold', color: '#1f2937', cursor: 'pointer',
-          borderRadius: '4px'
+          fontSize: '20px', fontWeight: 'bold', color: '#1f2937', cursor: 'pointer',
+          borderRadius: '4px', userSelect: 'none'
         }}
-        title="Zoom in"
+        title="Zoom in (+)"
       >
         +
       </button>
 
       <button
         type="button"
-        onClick={onZoomOut}
+        onClick={() => map.zoomOut()}
         style={{
           width: '32px', height: '32px', background: 'transparent', border: 'none',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '18px', fontWeight: 'bold', color: '#1f2937', cursor: 'pointer',
-          borderRadius: '4px'
+          fontSize: '20px', fontWeight: 'bold', color: '#1f2937', cursor: 'pointer',
+          borderRadius: '4px', userSelect: 'none'
         }}
-        title="Zoom out"
+        title="Zoom out (&minus;)"
       >
         &minus;
       </button>
@@ -187,6 +228,47 @@ const MapControlsOverlay = ({ onZoomIn, onZoomOut, onToggleFullscreen, isFullscr
       >
         {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
       </button>
+
+      <div style={{ height: '1px', background: 'var(--border)', margin: '2px 0' }} />
+
+      {/* Cycle Basemap Layer: Voyager (Blank) -> Physical Terrain (Blank) -> Satellite (Blank) */}
+      <button
+        type="button"
+        onClick={() => {
+          setBasemapStyle(prev => {
+            if (prev === 'voyager') return 'terrain';
+            if (prev === 'terrain') return 'satellite';
+            return 'voyager';
+          });
+        }}
+        style={{
+          width: '32px', height: '32px', background: 'transparent', border: 'none',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: '#1f2937', cursor: 'pointer', borderRadius: '4px', fontSize: '13px'
+        }}
+        title={`Current Map Layer: ${basemapStyle === 'voyager' ? 'Voyager (No Labels)' : (basemapStyle === 'terrain' ? 'Physical Terrain' : 'Satellite')}. Click to change.`}
+      >
+        {basemapStyle === 'voyager' ? '🗺️' : (basemapStyle === 'terrain' ? '🏔️' : '🛰️')}
+      </button>
+
+      {/* Place Labels Toggle: strictly off by default so zooming doesn't spoil answers */}
+      {allowLabelsToggle && (
+        <button
+          type="button"
+          onClick={() => setShowLabels(prev => !prev)}
+          style={{
+            width: '32px', height: '32px', 
+            background: showLabels ? 'rgba(16, 185, 129, 0.2)' : 'transparent', 
+            border: showLabels ? '1px solid #10b981' : 'none',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: showLabels ? '#047857' : '#6b7280', 
+            cursor: 'pointer', borderRadius: '4px', fontSize: '13px'
+          }}
+          title={showLabels ? "Hide Place Names (Quiz Mode)" : "Show Place Names (Study Mode)"}
+        >
+          {showLabels ? '🏷️' : '🚫'}
+        </button>
+      )}
     </div>
   );
 };
@@ -209,6 +291,10 @@ const MapArena = () => {
   // Practice Trainer State
   const [trainerCategory, setTrainerCategory] = useState('india-states');
   const [trainerMode, setTrainerMode] = useState('find-on-map'); // 'find-on-map' | 'name-the-place'
+
+  // Basemap style and labels state (unlabeled by default to prevent cheating)
+  const [basemapStyle, setBasemapStyle] = useState('voyager'); // 'voyager' | 'terrain' | 'satellite'
+  const [showLabels, setShowLabels] = useState(false);
 
   // Gameplay Mode States
   const [showSolution, setShowSolution] = useState(false);
@@ -251,6 +337,7 @@ const MapArena = () => {
     setMarkerPosition(null);
     setFeedback(null);
     setShowSolution(false);
+    setShowLabels(false);
     setSelectedOptionId(null);
     setOptionAnswered(false);
     setResults([]);
@@ -410,6 +497,7 @@ const MapArena = () => {
         setCurrentIdx(prev => prev + 1);
         setSelectedOptionId(null);
         setOptionAnswered(false);
+        setShowLabels(false);
       }
     }, isCorrect ? 900 : 1600);
   };
@@ -438,6 +526,7 @@ const MapArena = () => {
       setMarkerPosition(null);
       setFeedback(null);
       setShowSolution(false);
+      setShowLabels(false);
       setSelectedOptionId(null);
       setOptionAnswered(false);
     }
@@ -818,28 +907,81 @@ const MapArena = () => {
         }}>
           {currentLoc && (
             <MapContainer
-              key={`${currentIdx}-${trainerCategory}-${trainerMode}`}
+              key={`map-${trainerCategory}-${tournament?.id || 'main'}`}
               center={isNameThePlace ? [currentLoc.lat, currentLoc.lng] : (currentCategory.center || [20, 0])}
               zoom={isNameThePlace ? 5 : (currentCategory.defaultZoom || 2)}
               minZoom={2}
+              maxZoom={18}
               maxBounds={[[-85, -180], [85, 180]]}
               maxBoundsViscosity={1.0}
               worldCopyJump={false}
               zoomControl={false}
               style={{ height: '100%', width: '100%', background: '#dbeafe', minHeight: '380px' }}
             >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                noWrap={true}
-                bounds={[[-85, -180], [85, 180]]}
-              />
+              {/* Basemap Tile Layer - NO LABELS so zooming in does NOT spoil place names! */}
+              {basemapStyle === 'voyager' && (
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                  url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png"
+                  subdomains="abcd"
+                  maxZoom={19}
+                  noWrap={true}
+                  bounds={[[-85, -180], [85, 180]]}
+                />
+              )}
 
+              {basemapStyle === 'terrain' && (
+                <TileLayer
+                  attribution='&copy; <a href="https://www.esri.com/">Esri</a>, USGS, NOAA'
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Physical_Map/MapServer/tile/{z}/{y}/{x}"
+                  maxZoom={8}
+                  noWrap={true}
+                  bounds={[[-85, -180], [85, 180]]}
+                />
+              )}
+
+              {basemapStyle === 'satellite' && (
+                <TileLayer
+                  attribution='&copy; <a href="https://www.esri.com/">Esri</a>, Earthstar Geographics'
+                  url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                  maxZoom={18}
+                  noWrap={true}
+                  bounds={[[-85, -180], [85, 180]]}
+                />
+              )}
+
+              {/* Place Name Labels Overlay - ONLY rendered when explicitly enabled in Study Mode or after revealing */}
+              {showLabels && (
+                <TileLayer
+                  attribution='&copy; <a href="https://carto.com/attributions">CARTO</a>'
+                  url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png"
+                  subdomains="abcd"
+                  maxZoom={19}
+                  noWrap={true}
+                  bounds={[[-85, -180], [85, 180]]}
+                />
+              )}
+
+              {/* Map Camera Controller - strictly transitions on question changes or solution reveal */}
               <MapCameraController 
-                targetPos={currentLoc ? { lat: currentLoc.lat, lng: currentLoc.lng } : null}
+                targetLat={currentLoc?.lat}
+                targetLng={currentLoc?.lng}
+                categoryCenter={currentCategory?.center || [20, 0]}
+                categoryZoom={currentCategory?.defaultZoom || 2}
                 showSolution={showSolution}
                 isHighlightMode={isNameThePlace}
-                currentIdx={currentIdx}
+                questionKey={`${currentIdx}-${trainerCategory}-${trainerMode}-${tournament?.id || 't'}`}
+              />
+
+              {/* In-Map Controls: Zoom In, Zoom Out, Fullscreen, Basemap Layer, Labels */}
+              <MapControls
+                onToggleFullscreen={toggleFullscreen}
+                isFullscreen={isFullscreen}
+                basemapStyle={basemapStyle}
+                setBasemapStyle={setBasemapStyle}
+                showLabels={showLabels}
+                setShowLabels={setShowLabels}
+                allowLabelsToggle={isPractice || showSolution || !!feedback}
               />
 
               {/* Pin dropper for "Find it on the map" mode */}
@@ -912,20 +1054,6 @@ const MapArena = () => {
               )}
             </MapContainer>
           )}
-
-          {/* On-Map Floating Zoom & Fullscreen Controls */}
-          <MapControlsOverlay
-            onZoomIn={() => {
-              const map = L.DomUtil.get(mapContainerRef.current)?.querySelector('.leaflet-container')?._leaflet_map;
-              if (map) map.zoomIn();
-            }}
-            onZoomOut={() => {
-              const map = L.DomUtil.get(mapContainerRef.current)?.querySelector('.leaflet-container')?._leaflet_map;
-              if (map) map.zoomOut();
-            }}
-            onToggleFullscreen={toggleFullscreen}
-            isFullscreen={isFullscreen}
-          />
         </div>
 
         {/* FOOTER CONTROLS MATCHING SIBAQ TRACKER */}
