@@ -1,22 +1,40 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { dbService } from '../services/db';
-import { generateCompetitionText } from '../utils/textGenerator';
-import { Trophy, Clock, Target, Zap, Activity, CheckCircle2 } from 'lucide-react';
+import { 
+  generateCompetitionText, 
+  getDrillInitialSections, 
+  getNextDrillParagraph 
+} from '../utils/textGenerator';
+import { 
+  TYPING_DRILL_PRESETS, 
+  getDrillPreset, 
+  parseDrillParams 
+} from '../utils/typingDrills';
+import { 
+  Trophy, Clock, Target, Zap, Activity, CheckCircle2, 
+  RotateCcw, ArrowRight, Sparkles, Flame, Award, Home 
+} from 'lucide-react';
 import { useAntiCheat } from '../hooks/useAntiCheat';
 import soundEngine from '../utils/soundEffects';
 
 const CompetitionArena = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const studentId = localStorage.getItem('studentId');
+  const isPractice = id.startsWith('practice-');
+  
+  // Drill duration in minutes (1, 2, 5, 10, 15, 30, or 0 for untimed)
+  const [drillMinutes, setDrillMinutes] = useState(() => parseDrillParams(id, searchParams));
   
   const [sections, setSections] = useState([]);
   const [currentSectionIdx, setCurrentSectionIdx] = useState(0);
   const [inputs, setInputs] = useState([]);
   const [timeLeft, setTimeLeft] = useState(null);
+  const [totalTimeSecs, setTotalTimeSecs] = useState(null);
   const [isFocused, setIsFocused] = useState(true);
   
   // Stats
@@ -29,6 +47,47 @@ const CompetitionArena = () => {
   const activeCharRef = useRef(null);
   const isSubmitting = useRef(false);
 
+  // Extract base language for practice mode
+  const getPracticeLanguage = () => {
+    if (!isPractice) return 'English';
+    const clean = id.replace('practice-', '').replace(/-[0-9]+m$/, '').replace(/-free$/, '');
+    if (clean.toLowerCase().includes('arabic')) return 'Arabic';
+    if (clean.toLowerCase().includes('urdu')) return 'Urdu';
+    return 'English';
+  };
+
+  const loadDrill = (mins) => {
+    const lang = getPracticeLanguage();
+    const duration = mins !== undefined ? mins : drillMinutes;
+    setDrillMinutes(duration);
+
+    // Initial sections buffer
+    const initialSections = getDrillInitialSections(lang, duration);
+    setSections(initialSections);
+    setInputs(Array(initialSections.length).fill(''));
+    setCurrentSectionIdx(0);
+
+    const initialSecs = duration > 0 ? duration * 60 : null;
+    setTimeLeft(initialSecs);
+    setTotalTimeSecs(initialSecs);
+    setStartTime(null);
+    setEndTime(null);
+    setCompleted(false);
+    isSubmitting.current = false;
+
+    // Update URL query param cleanly without reloading
+    if (duration > 0) {
+      setSearchParams({ duration: duration.toString() });
+    } else {
+      setSearchParams({ duration: 'free' });
+    }
+
+    setTimeout(() => {
+      inputRef.current?.focus();
+      setIsFocused(true);
+    }, 50);
+  };
+
   useEffect(() => {
     if (!studentId) {
       navigate('/');
@@ -36,27 +95,29 @@ const CompetitionArena = () => {
     }
     
     const initializeArena = async () => {
-      let textSections = [];
-      if (id.startsWith('practice-')) {
-        const type = id.replace('practice-', '');
-        textSections = generateCompetitionText(type.charAt(0).toUpperCase() + type.slice(1));
+      if (isPractice) {
+        const initialMins = parseDrillParams(id, searchParams);
+        loadDrill(initialMins);
       } else {
         const tournament = await dbService.getTournament(id);
+        let textSections = [];
         if (tournament && tournament.customText) {
-           textSections = tournament.customText;
+          textSections = tournament.customText;
         } else if (tournament) {
-           textSections = generateCompetitionText(tournament.type);
+          textSections = generateCompetitionText(tournament.type);
         } else {
-           navigate('/dashboard');
-           return;
+          navigate('/dashboard');
+          return;
         }
         
         if (tournament && tournament.timeLimit > 0) {
-          setTimeLeft(tournament.timeLimit * 60);
+          const limitSecs = tournament.timeLimit * 60;
+          setTimeLeft(limitSecs);
+          setTotalTimeSecs(limitSecs);
         }
+        setSections(textSections);
+        setInputs(Array(textSections.length).fill(''));
       }
-      setSections(textSections);
-      setInputs(Array(textSections.length).fill(''));
     };
     
     initializeArena();
@@ -101,19 +162,38 @@ const CompetitionArena = () => {
 
     // Auto-advance if reached the end of the current text
     if (val.length === currentTarget.length) {
-      if (currentSectionIdx < sections.length - 1) {
-        setTimeout(() => {
-          setCurrentSectionIdx(prev => prev + 1);
-        }, 150);
+      // In practice mode or timed drills: continuously stream paragraphs until timer runs out!
+      if (isPractice) {
+        if (currentSectionIdx < sections.length - 1) {
+          setTimeout(() => {
+            setCurrentSectionIdx(prev => prev + 1);
+          }, 120);
+        } else {
+          // Seamlessly append next paragraph from generator so the user NEVER runs out of words!
+          const lang = currentSection.language || getPracticeLanguage();
+          const nextP = getNextDrillParagraph(lang);
+          setSections(prev => [...prev, nextP.section]);
+          setInputs(prev => [...prev, '']);
+          setTimeout(() => {
+            setCurrentSectionIdx(prev => prev + 1);
+          }, 120);
+        }
       } else {
-        setTimeout(() => {
-          handleFinish();
-        }, 150);
+        // Tournament mode with fixed sections
+        if (currentSectionIdx < sections.length - 1) {
+          setTimeout(() => {
+            setCurrentSectionIdx(prev => prev + 1);
+          }, 150);
+        } else {
+          setTimeout(() => {
+            handleFinish();
+          }, 150);
+        }
       }
     }
   };
 
-  // Smooth Monkeytype-style auto-scrolling to keep active line centered
+  // Smooth auto-scrolling to keep active line centered
   useEffect(() => {
     if (activeCharRef.current && containerRef.current) {
       const container = containerRef.current;
@@ -129,6 +209,7 @@ const CompetitionArena = () => {
     }
   }, [inputs, currentSectionIdx]);
 
+  // Countdown timer effect
   useEffect(() => {
     let timer;
     if (startTime && !completed && timeLeft !== null && timeLeft > 0) {
@@ -144,6 +225,12 @@ const CompetitionArena = () => {
   const handleNext = () => {
     if (!startTime) setStartTime(Date.now());
     if (currentSectionIdx < sections.length - 1) {
+      setCurrentSectionIdx(prev => prev + 1);
+    } else if (isPractice) {
+      const lang = currentSection.language || getPracticeLanguage();
+      const nextP = getNextDrillParagraph(lang);
+      setSections(prev => [...prev, nextP.section]);
+      setInputs(prev => [...prev, '']);
       setCurrentSectionIdx(prev => prev + 1);
     }
   };
@@ -185,8 +272,8 @@ const CompetitionArena = () => {
       totalTargetChars += targetChars;
 
       let secErrs = 0;
-      for(let i = 0; i < secChars; i++) {
-        if(secInput[i] !== target[i]) secErrs++;
+      for (let i = 0; i < secChars; i++) {
+        if (secInput[i] !== target[i]) secErrs++;
       }
       totalErrs += secErrs;
 
@@ -196,7 +283,6 @@ const CompetitionArena = () => {
       const secAccuracy = secChars === 0 ? 0 : Math.max(0, ((secChars - secErrs) / secChars) * 100);
       const secProgress = targetChars === 0 ? 0 : Math.min(100, (secChars / targetChars) * 100);
       
-      // Section Score (WPM * Accuracy/100 * Progress/100)
       const secScore = secNetWpm * (secAccuracy / 100) * (secProgress / 100);
       totalScore += secScore;
       
@@ -216,11 +302,15 @@ const CompetitionArena = () => {
     
     return { 
       wpm: Math.round(netWpm), 
+      grossWpm: Math.round(grossWpm),
       accuracy: Math.round(overallAccuracy), 
       chars: totalChars,
+      errors: totalErrs,
+      wordsTyped: Math.round(totalChars / 5),
       progress: Math.round(overallProgress),
       finalScore: totalScore,
-      sectionDetails: sectionStats
+      sectionDetails: sectionStats,
+      timeElapsedSecs: Math.round(timeMs / 1000)
     };
   };
 
@@ -242,51 +332,148 @@ const CompetitionArena = () => {
         charsTyped: stats.chars,
         progress: stats.progress,
         score: stats.finalScore,
-        sectionDetails: stats.sectionDetails
+        sectionDetails: stats.sectionDetails,
+        drillMinutes: isPractice ? drillMinutes : undefined
       });
     } catch (err) {
       console.error('Failed to save result:', err);
     }
-    setTimeout(() => {
-      navigate(`/leaderboard/${id}`);
-    }, 2000);
+
+    // Only auto-redirect for tournaments; practice mode keeps player on drill summary!
+    if (!isPractice) {
+      setTimeout(() => {
+        navigate(`/leaderboard/${id}`);
+      }, 2000);
+    }
   };
   
   useAntiCheat(() => {
     if (!completed && !isSubmitting.current) {
       setCompleted(true);
       setEndTime(Date.now());
-      if (!id.startsWith('practice-')) {
+      if (!isPractice) {
         saveResult(Date.now());
       } else {
         navigate(`/leaderboard/${id}`);
       }
     }
-  }, id.startsWith('practice-'));
+  }, isPractice);
   
-  if (sections.length === 0) return <div className="page-wrapper">Loading...</div>;
+  if (sections.length === 0) return <div className="page-wrapper" style={{ paddingTop: '4rem', textAlign: 'center' }}>Loading Typing Arena...</div>;
+
+  // Active drill preset details
+  const activePreset = getDrillPreset(drillMinutes);
 
   if (completed) {
     const stats = calculateStats(endTime || Date.now());
+    const elapsedMinutes = Math.floor(stats.timeElapsedSecs / 60);
+    const elapsedSeconds = stats.timeElapsedSecs % 60;
+    const formattedDuration = `${elapsedMinutes}m ${elapsedSeconds.toString().padStart(2, '0')}s`;
+
     return (
-      <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-        <Card style={{ textAlign: 'center', padding: '3.5rem 2rem', maxWidth: '500px', width: '100%', boxShadow: 'var(--glass-shadow)' }}>
-          <Trophy size={60} color="var(--accent-primary)" style={{ margin: '0 auto 1.25rem' }} />
-          <h2 style={{ fontSize: '1.85rem', marginBottom: '0.4rem', fontWeight: '700' }}>Competition Complete!</h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', fontSize: '0.95rem' }}>Great job, {studentId}!</p>
+      <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '75vh', paddingTop: '1.5rem', paddingBottom: '3rem' }}>
+        <Card style={{ textAlign: 'center', padding: '3rem 2.5rem', maxWidth: '640px', width: '100%', boxShadow: 'var(--glass-shadow)' }}>
+          <Trophy size={60} color="var(--primary)" style={{ margin: '0 auto 1rem' }} />
           
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
-            <div style={{ background: 'var(--surface-2)', padding: '1.25rem 1rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
-              <div style={{ fontSize: '2.5rem', fontWeight: '800', color: 'var(--primary-text)', lineHeight: 1.1 }}>{stats.wpm}</div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.35rem', fontWeight: '600' }}>NET WPM</div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.3rem 0.8rem', borderRadius: '20px', background: 'var(--surface-2)', border: '1px solid var(--border)', fontSize: '0.85rem', fontWeight: '700', color: 'var(--primary)', marginBottom: '0.75rem' }}>
+            <span>{activePreset.icon}</span> {isPractice ? `${activePreset.label} Typing Drill` : 'Tournament Match'}
+          </div>
+
+          <h2 style={{ fontSize: '2rem', marginBottom: '0.35rem', fontWeight: '800' }}>
+            {isPractice ? 'Drill Complete!' : 'Competition Complete!'}
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', fontSize: '0.95rem' }}>
+            Great endurance and focus, {studentId}!
+          </p>
+          
+          {/* Main Key Metrics */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.25rem', marginBottom: '1.5rem' }}>
+            <div style={{ background: 'var(--surface-2)', padding: '1.5rem 1rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '3rem', fontWeight: '800', color: 'var(--primary)', lineHeight: 1.1 }}>
+                {stats.wpm}
+              </div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.35rem', fontWeight: '700' }}>
+                NET WPM
+              </div>
             </div>
-            <div style={{ background: 'var(--surface-2)', padding: '1.25rem 1rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
-              <div style={{ fontSize: '2.5rem', fontWeight: '800', color: 'var(--success)', lineHeight: 1.1 }}>{stats.accuracy}%</div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.35rem', fontWeight: '600' }}>ACCURACY</div>
+
+            <div style={{ background: 'var(--surface-2)', padding: '1.5rem 1rem', borderRadius: '12px', border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '3rem', fontWeight: '800', color: '#10b981', lineHeight: 1.1 }}>
+                {stats.accuracy}%
+              </div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.35rem', fontWeight: '700' }}>
+                ACCURACY
+              </div>
             </div>
           </div>
-          
-          <p style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>Redirecting to tournament leaderboard...</p>
+
+          {/* Secondary Detailed Breakdown */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(3, 1fr)', 
+            gap: '0.75rem', 
+            marginBottom: '2rem', 
+            background: 'var(--surface-2)', 
+            padding: '1rem', 
+            borderRadius: '10px', 
+            border: '1px solid var(--border)' 
+          }}>
+            <div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>CHARS TYPED</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-primary)' }}>{stats.chars}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>WORDS TYPED</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-primary)' }}>{stats.wordsTyped}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>TIME TYPED</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-primary)' }}>{formattedDuration}</div>
+            </div>
+          </div>
+
+          {/* Drill Options for Practice Mode */}
+          {isPractice ? (
+            <div>
+              <div style={{ marginBottom: '1.25rem' }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.65rem' }}>
+                  Try another timed drill duration:
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  {[1, 2, 5, 10, 15, 30].map(mins => (
+                    <button
+                      key={mins}
+                      type="button"
+                      onClick={() => loadDrill(mins)}
+                      style={{
+                        padding: '0.4rem 0.8rem',
+                        borderRadius: '8px',
+                        fontSize: '0.85rem',
+                        fontWeight: '600',
+                        background: drillMinutes === mins ? 'var(--primary)' : 'var(--surface-2)',
+                        color: drillMinutes === mins ? '#ffffff' : 'var(--text-primary)',
+                        border: '1px solid ' + (drillMinutes === mins ? 'var(--primary)' : 'var(--border)'),
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {mins} Min
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Button onClick={() => loadDrill(drillMinutes)} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.5rem' }}>
+                  <RotateCcw size={16} /> Restart {activePreset.label} Drill
+                </Button>
+                <Button variant="secondary" onClick={() => navigate('/dashboard')} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Home size={16} /> Dashboard
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Redirecting to tournament leaderboard...</p>
+          )}
         </Card>
       </div>
     );
@@ -310,19 +497,32 @@ const CompetitionArena = () => {
       ? "'Segoe UI', 'Noto Sans Arabic', Tahoma, 'Traditional Arabic', sans-serif" 
       : 'var(--font-mono)';
 
-  // Real-time HUD metrics
+  // Cumulative Real-Time HUD Metrics across all sections
   const elapsedSecs = startTime ? Math.max(1, Math.floor((Date.now() - startTime) / 1000)) : 0;
   const elapsedMins = elapsedSecs / 60;
-  const currentChars = currentInput.length;
-  let currentErrors = 0;
-  for (let i = 0; i < currentChars; i++) {
-    if (currentInput[i] !== targetText[i]) currentErrors++;
-  }
-  const liveNetWpm = elapsedMins > 0 ? Math.round(Math.max(0, (currentChars / 5) / elapsedMins - (currentErrors / elapsedMins))) : 0;
-  const liveAccuracy = currentChars > 0 ? Math.round(Math.max(0, ((currentChars - currentErrors) / currentChars) * 100)) : 100;
-  const sectionProgress = targetText.length > 0 ? Math.min(100, Math.round((currentChars / targetText.length) * 100)) : 0;
+  
+  let cumulativeChars = 0;
+  let cumulativeErrors = 0;
+  inputs.forEach((inp, idx) => {
+    const text = inp || '';
+    cumulativeChars += text.length;
+    const tgt = sections[idx]?.text || '';
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] !== tgt[i]) cumulativeErrors++;
+    }
+  });
 
-  // RTL Cursive Renderer (Preserves authentic Arabic & Urdu cursive joining across words)
+  const liveNetWpm = elapsedMins > 0 
+    ? Math.round(Math.max(0, (cumulativeChars / 5) / elapsedMins - (cumulativeErrors / elapsedMins))) 
+    : 0;
+  const liveAccuracy = cumulativeChars > 0 
+    ? Math.round(Math.max(0, ((cumulativeChars - cumulativeErrors) / cumulativeChars) * 100)) 
+    : 100;
+  const sectionProgress = targetText.length > 0 
+    ? Math.min(100, Math.round((currentInput.length / targetText.length) * 100)) 
+    : 0;
+
+  // RTL Cursive Renderer
   const renderRtlText = () => {
     const tokens = [];
     const regex = /(\S+|\s+)/g;
@@ -448,7 +648,7 @@ const CompetitionArena = () => {
     });
   };
 
-  // LTR Character-by-character Renderer with clean Word-Wrapping & Paragraph layout
+  // LTR Character-by-character Renderer
   const renderLtrText = () => {
     const tokens = [];
     const regex = /(\S+|\s+)/g;
@@ -505,7 +705,7 @@ const CompetitionArena = () => {
         });
       }
 
-      // Word token: wrap in inline-block so word never breaks mid-word across lines
+      // Word token
       return (
         <span
           key={`w_${tIdx}`}
@@ -557,21 +757,26 @@ const CompetitionArena = () => {
   };
 
   return (
-    <div className="container" style={{ maxWidth: '980px', width: '100%', paddingBottom: '3rem' }}>
+    <div className="container" style={{ maxWidth: '980px', width: '100%', paddingBottom: '3rem', paddingTop: '1.25rem' }}>
       
       {/* Top Header Bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <h1 style={{ fontSize: '1.85rem', fontWeight: '800', margin: 0, letterSpacing: '-0.02em' }}>
-          Arena <span style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--text-tertiary)', marginLeft: '0.4rem' }}>Typing</span>
-        </h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: '800', margin: 0, letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span>Arena</span> 
+            <span style={{ fontSize: '0.95rem', fontWeight: '700', padding: '0.2rem 0.6rem', borderRadius: '8px', background: 'var(--surface-2)', border: '1px solid var(--border)', color: 'var(--primary)' }}>
+              {isPractice ? `${activePreset.label} Drill` : 'Typing Tournament'}
+            </span>
+          </h1>
+        </div>
         
-        <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--surface-2)', padding: '0.4rem 0.85rem', borderRadius: '20px', border: '1px solid var(--border)', fontSize: '0.85rem', fontWeight: '600' }}>
-            <Target size={16} className="text-gradient" /> Section {currentSectionIdx + 1} of {sections.length}
+            <Target size={15} className="text-gradient" /> Section {currentSectionIdx + 1} of {sections.length}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'var(--surface-2)', padding: '0.4rem 0.85rem', borderRadius: '20px', border: '1px solid var(--border)', fontSize: '0.85rem', fontWeight: '600' }}>
-            <Zap size={16} className="text-gradient" /> {currentSection.language || 'English'}
+            <Zap size={15} className="text-gradient" /> {currentSection.language || 'English'}
           </div>
 
           {timeLeft !== null && (
@@ -588,11 +793,78 @@ const CompetitionArena = () => {
               fontFamily: 'var(--font-mono)',
               fontSize: '0.9rem'
             }}>
-              <Clock size={16} /> {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+              <Clock size={15} /> {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
             </div>
           )}
         </div>
       </div>
+
+      {/* Practice Drill Switcher Toolbar (1m, 2m, 5m, 10m, 15m, 30m, Untimed) */}
+      {isPractice && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.4rem',
+          marginBottom: '1rem',
+          padding: '0.5rem 0.75rem',
+          background: 'var(--surface)',
+          borderRadius: '12px',
+          border: '1px solid var(--border)',
+          flexWrap: 'wrap'
+        }}>
+          <span style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-secondary)', marginRight: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+            <Clock size={14} color="var(--primary)" /> Drill:
+          </span>
+          {TYPING_DRILL_PRESETS.map(preset => {
+            const isActive = drillMinutes === preset.durationMinutes;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => loadDrill(preset.durationMinutes)}
+                style={{
+                  background: isActive ? 'var(--primary)' : 'var(--surface-2)',
+                  color: isActive ? '#ffffff' : 'var(--text-secondary)',
+                  border: isActive ? '1px solid var(--primary)' : '1px solid var(--border)',
+                  padding: '0.3rem 0.65rem',
+                  borderRadius: '8px',
+                  fontSize: '0.8rem',
+                  fontWeight: isActive ? '700' : '500',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.25rem'
+                }}
+                title={preset.title}
+              >
+                <span>{preset.icon}</span>
+                <span>{preset.label}</span>
+              </button>
+            );
+          })}
+
+          {startTime && !completed && (
+            <button
+              type="button"
+              onClick={handleFinish}
+              style={{
+                marginLeft: 'auto',
+                background: 'rgba(239, 68, 68, 0.12)',
+                color: 'var(--error)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                padding: '0.3rem 0.75rem',
+                borderRadius: '8px',
+                fontSize: '0.8rem',
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}
+            >
+              Finish Early
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Real-Time Live Performance Ribbon */}
       <div style={{ 
@@ -602,31 +874,31 @@ const CompetitionArena = () => {
         marginBottom: '1rem' 
       }}>
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.65rem 1rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-          <Zap size={18} style={{ color: 'var(--primary-text)' }} />
+          <Zap size={18} style={{ color: 'var(--primary)' }} />
           <div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: '600' }}>LIVE SPEED</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>NET SPEED</div>
             <div style={{ fontSize: '1.25rem', fontWeight: '800', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
-              {liveNetWpm} <span style={{ fontSize: '0.75rem', fontWeight: '500', color: 'var(--text-tertiary)' }}>WPM</span>
+              {liveNetWpm} <span style={{ fontSize: '0.75rem', fontWeight: '500', color: 'var(--text-secondary)' }}>WPM</span>
             </div>
           </div>
         </div>
 
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.65rem 1rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-          <Activity size={18} style={{ color: 'var(--success)' }} />
+          <Activity size={18} style={{ color: '#10b981' }} />
           <div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: '600' }}>ACCURACY</div>
-            <div style={{ fontSize: '1.25rem', fontWeight: '800', fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>ACCURACY</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: '800', fontFamily: 'var(--font-mono)', color: '#10b981' }}>
               {liveAccuracy}%
             </div>
           </div>
         </div>
 
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '10px', padding: '0.65rem 1rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-          <CheckCircle2 size={18} style={{ color: 'var(--gold)' }} />
+          <CheckCircle2 size={18} style={{ color: '#eab308' }} />
           <div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', fontWeight: '600' }}>PROGRESS</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: '600' }}>SECTION PROGRESS</div>
             <div style={{ fontSize: '1.25rem', fontWeight: '800', fontFamily: 'var(--font-mono)', color: 'var(--text-primary)' }}>
-              {sectionProgress}% <span style={{ fontSize: '0.75rem', fontWeight: '500', color: 'var(--text-tertiary)' }}>({currentChars}/{targetText.length})</span>
+              {sectionProgress}% <span style={{ fontSize: '0.75rem', fontWeight: '500', color: 'var(--text-secondary)' }}>({currentInput.length}/{targetText.length})</span>
             </div>
           </div>
         </div>
@@ -640,7 +912,7 @@ const CompetitionArena = () => {
           marginBottom: '1.25rem',
           boxShadow: 'var(--glass-shadow)',
           cursor: 'text',
-          border: isFocused ? '1px solid var(--accent-primary)' : '1px solid var(--border)',
+          border: isFocused ? '1px solid var(--primary)' : '1px solid var(--border)',
           transition: 'border-color 0.2s ease',
           outline: 'none'
         }}
@@ -734,7 +1006,7 @@ const CompetitionArena = () => {
               color: 'var(--text-primary)',
               boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
             }}>
-              <Zap size={16} color="var(--accent-primary)" /> Click or press any key to focus &amp; type
+              <Zap size={16} color="var(--primary)" /> Click or press any key to focus &amp; type
             </div>
           </div>
         )}
@@ -742,11 +1014,11 @@ const CompetitionArena = () => {
 
       {/* Helper & Navigation Footer */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)' }}>
+        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
           {currentSection.dir === 'rtl' ? (
-            <span style={{ color: 'var(--warning)' }}>⚠️ Switch keyboard layout to {currentSection.language}.</span>
+            <span style={{ color: '#eab308' }}>⚠️ Switch keyboard layout to {currentSection.language}.</span>
           ) : (
-            <span>💡 <strong>Tip:</strong> Type directly on the words. Text auto-scrolls smoothly as you type.</span>
+            <span>💡 <strong>Tip:</strong> Text auto-advances through paragraphs as you type. Stay focused on rhythm and accuracy.</span>
           )}
         </div>
 
@@ -757,15 +1029,13 @@ const CompetitionArena = () => {
             </Button>
           )}
 
-          {currentSectionIdx < sections.length - 1 ? (
-            <Button onClick={handleNext} style={{ padding: '0.65rem 1.5rem', fontSize: '0.95rem' }}>
-              Next Section
-            </Button>
-          ) : (
-            <Button onClick={handleFinish} style={{ padding: '0.65rem 1.75rem', fontSize: '0.95rem' }}>
-              Submit &amp; Finish
-            </Button>
-          )}
+          <Button onClick={handleNext} variant="secondary" style={{ padding: '0.65rem 1.25rem', fontSize: '0.95rem' }}>
+            Next Paragraph <ArrowRight size={15} />
+          </Button>
+
+          <Button onClick={handleFinish} style={{ padding: '0.65rem 1.5rem', fontSize: '0.95rem' }}>
+            Finish Drill
+          </Button>
         </div>
       </div>
 

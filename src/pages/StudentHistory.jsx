@@ -75,8 +75,9 @@ const StudentHistory = () => {
     const tInfo = tournamentsMap[entry.competitionId];
     if (tInfo?.name) return tInfo.name;
     if (entry.competitionId.startsWith('practice-')) {
-      const pName = entry.competitionId.replace('practice-', '');
-      return `${pName.charAt(0).toUpperCase() + pName.slice(1)} Solo Practice`;
+      const pName = entry.competitionId.replace('practice-', '').replace(/-[0-9]+m$/, '');
+      const drillLabel = entry.drillMinutes ? ` (${entry.drillMinutes}m Drill)` : '';
+      return `${pName.charAt(0).toUpperCase() + pName.slice(1)}${drillLabel} Solo Practice`;
     }
     return `Match #${entry.competitionId.slice(0, 6)}`;
   };

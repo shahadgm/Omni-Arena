@@ -8,7 +8,7 @@ import { dbService, authService } from '../services/db';
 import { 
   Play, Trophy, Keyboard, Grid, Square, Grid3X3, HelpCircle, 
   Globe, Copy, Check, Key, Plus, Trash2, Edit, Gamepad2,
-  Sparkles, ShieldCheck, ArrowRight, MapPin, UserPlus
+  Sparkles, ShieldCheck, ArrowRight, MapPin, UserPlus, Clock, Flame
 } from 'lucide-react';
 
 const StudentDashboard = () => {
@@ -150,9 +150,9 @@ const StudentDashboard = () => {
   };
 
   const practiceList = [
-    { id: 'practice-english', name: 'English Typing', format: 'Typing', desc: 'Standard English speed and accuracy sprint.', icon: <Keyboard size={24} /> },
-    { id: 'practice-arabic', name: 'Arabic Typing', format: 'Typing', desc: 'Typing test optimized for Arabic typography.', icon: <Keyboard size={24} /> },
-    { id: 'practice-urdu', name: 'Urdu Typing', format: 'Typing', desc: 'Typing practice rendered with Nastaliq font.', icon: <Keyboard size={24} /> },
+    { id: 'practice-english', name: 'English Typing', format: 'Typing', desc: 'Speed & endurance drills (1m, 2m, 5m, 10m, 15m, 30m).', icon: <Keyboard size={24} /> },
+    { id: 'practice-arabic', name: 'Arabic Typing', format: 'Typing', desc: 'Arabic typography drills with authentic cursive joining.', icon: <Keyboard size={24} /> },
+    { id: 'practice-urdu', name: 'Urdu Typing', format: 'Typing', desc: 'Nastaliq typing drills for speed, rhythm, and accuracy.', icon: <Keyboard size={24} /> },
     { id: 'practice-quiz-gk', name: 'General Quiz', format: 'Quiz', desc: 'MCQs & text questions across science and general knowledge.', icon: <HelpCircle size={24} /> },
     { id: 'practice-nonogram-5x5', name: 'Nonogram (5x5)', format: 'Logic', desc: 'Deduce painted picture tiles using row and column clues.', icon: <Grid size={24} /> },
     { id: 'practice-shikaku-5x5', name: 'Shikaku (5x5)', format: 'Logic', desc: 'Partition the grid into rectangles matching numbered areas.', icon: <Square size={24} /> },
@@ -456,12 +456,54 @@ const StudentDashboard = () => {
                 </div>
               </div>
 
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: '1.5', marginBottom: '1.25rem', flex: 1 }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: '1.5', marginBottom: item.format === 'Typing' ? '0.75rem' : '1.25rem', flex: 1 }}>
                 {item.desc}
               </p>
 
+              {item.format === 'Typing' && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <Clock size={13} color="var(--primary)" /> Timed Drills:
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                    {[
+                      { mins: 2, label: '2m', icon: '⏱️' },
+                      { mins: 10, label: '10m', icon: '🔥' },
+                      { mins: 15, label: '15m', icon: '💪' },
+                      { mins: 30, label: '30m', icon: '🏆' },
+                    ].map(d => (
+                      <button
+                        key={d.mins}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/arena/${item.id}?duration=${d.mins}`);
+                        }}
+                        style={{
+                          background: 'var(--surface-2)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '6px',
+                          padding: '0.25rem 0.5rem',
+                          fontSize: '0.75rem',
+                          fontWeight: '600',
+                          color: 'var(--text-secondary)',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.2rem',
+                          transition: 'all 0.15s ease'
+                        }}
+                        title={`Start ${d.mins}-minute drill`}
+                      >
+                        <span>{d.icon}</span> {d.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto' }}>
-                <Button onClick={() => handleJoin(item.id)} style={{ flex: 1, padding: '0.6rem', fontSize: '0.85rem' }}>
+                <Button onClick={() => navigate(`/arena/${item.id}?duration=2`)} style={{ flex: 1, padding: '0.6rem', fontSize: '0.85rem' }}>
                   Train <Play size={14} />
                 </Button>
                 <Button variant="secondary" onClick={() => navigate(`/leaderboard/${item.id}`)} style={{ padding: '0.6rem 0.8rem' }} title="Practice Standings">

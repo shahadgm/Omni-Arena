@@ -1,11 +1,12 @@
 import React, { useEffect, useState, lazy, Suspense } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { dbService, authService } from '../services/db';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { AlertModal } from '../components/ui/Modal';
-import { Lock, Key, AlertCircle } from 'lucide-react';
+import { Lock, Key, AlertCircle, Clock } from 'lucide-react';
+import { TYPING_DRILL_PRESETS, parseDrillParams } from '../utils/typingDrills';
 
 const CompetitionArena = lazy(() => import('./CompetitionArena'));
 const QuizArena = lazy(() => import('./QuizArena'));
@@ -16,6 +17,8 @@ const CrosswordArena = lazy(() => import('./CrosswordArena'));
 const ArenaRouter = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [drillMinutes, setDrillMinutes] = useState(() => parseDrillParams(id, searchParams));
   const [gameType, setGameType] = useState(null);
   const [hasStarted, setHasStarted] = useState(false);
   const [tournamentName, setTournamentName] = useState('Tournament');
@@ -62,14 +65,30 @@ const ArenaRouter = () => {
   useEffect(() => {
     const fetchTournament = async () => {
       if (id.startsWith('practice-')) {
-        setTournamentName('Practice Mode');
-        if (id.startsWith('practice-quiz')) setGameType('quiz');
-        else if (id.startsWith('practice-nonogram')) setGameType('nonogram');
-        else if (id.startsWith('practice-shikaku')) setGameType('shikaku');
-        else if (id.startsWith('practice-sudoku')) setGameType('sudoku');
-        else if (id.startsWith('practice-map')) setGameType('map');
-        else if (id.startsWith('practice-crossword')) setGameType('crossword');
-        else setGameType('typing');
+        if (id.startsWith('practice-quiz')) {
+          setTournamentName('General Knowledge Quiz');
+          setGameType('quiz');
+        } else if (id.startsWith('practice-nonogram')) {
+          setTournamentName('Nonogram Logic Puzzle');
+          setGameType('nonogram');
+        } else if (id.startsWith('practice-shikaku')) {
+          setTournamentName('Shikaku Area Division');
+          setGameType('shikaku');
+        } else if (id.startsWith('practice-sudoku')) {
+          setTournamentName('Sudoku Number Grid');
+          setGameType('sudoku');
+        } else if (id.startsWith('practice-map')) {
+          setTournamentName('World Geography Study Arena');
+          setGameType('map');
+        } else if (id.startsWith('practice-crossword')) {
+          setTournamentName('Crossword Word Discovery');
+          setGameType('crossword');
+        } else {
+          const lang = id.replace('practice-', '').replace(/-[0-9]+m$/, '').replace(/-free$/, '');
+          const langTitle = lang.charAt(0).toUpperCase() + lang.slice(1);
+          setTournamentName(`${langTitle} Typing Practice Drill`);
+          setGameType('typing');
+        }
         return;
       }
       
@@ -256,6 +275,44 @@ const ArenaRouter = () => {
           <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '1rem', lineHeight: '1.6' }}>
             You are about to enter <strong>{tournamentName}</strong>.
           </p>
+
+          {isPractice && gameType === 'typing' && (
+            <div style={{ marginBottom: '1.25rem', textAlign: 'left', background: 'var(--surface-2)', padding: '0.85rem 1rem', borderRadius: '10px', border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <Clock size={15} color="var(--primary)" /> Drill Duration:
+              </div>
+              <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                {TYPING_DRILL_PRESETS.map(preset => {
+                  const isCurrent = drillMinutes === preset.durationMinutes;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => {
+                        setDrillMinutes(preset.durationMinutes);
+                        setSearchParams({ duration: preset.durationMinutes.toString() });
+                      }}
+                      style={{
+                        padding: '0.35rem 0.65rem',
+                        borderRadius: '8px',
+                        fontSize: '0.8rem',
+                        fontWeight: isCurrent ? '700' : '500',
+                        background: isCurrent ? 'var(--primary)' : 'var(--surface)',
+                        color: isCurrent ? '#ffffff' : 'var(--text-secondary)',
+                        border: isCurrent ? '1px solid var(--primary)' : '1px solid var(--border)',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.25rem'
+                      }}
+                    >
+                      <span>{preset.icon}</span> {preset.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {isPractice ? (
             <div style={{ padding: '0.85rem 1rem', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem', textAlign: 'left' }}>
