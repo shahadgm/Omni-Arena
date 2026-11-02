@@ -8,7 +8,7 @@ import { dbService, authService } from '../services/db';
 import { 
   Play, Trophy, Keyboard, Grid, Square, Grid3X3, HelpCircle, 
   Globe, Copy, Check, Key, Plus, Trash2, Edit, Gamepad2,
-  Sparkles, ShieldCheck, ArrowRight, MapPin, UserPlus, Clock, Flame
+  Sparkles, ShieldCheck, ArrowRight, MapPin, UserPlus, Clock, Flame, Compass
 } from 'lucide-react';
 
 const StudentDashboard = () => {
@@ -443,6 +443,89 @@ const StudentDashboard = () => {
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Unseeded training arenas. Anti-cheat is disabled; hone your speed and skills anytime.</p>
         </div>
 
+        {/* Map Trainer Banner (SIBAQ Model) */}
+        <div style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--border)',
+          borderRadius: '12px',
+          padding: '1.25rem 1.5rem',
+          marginBottom: '1.5rem',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+        }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.25rem' }}>
+              <Compass size={20} color="#047857" />
+              <h3 style={{ fontSize: '1.15rem', fontWeight: '800', margin: 0, color: 'var(--text-primary)' }}>
+                Map trainer
+              </h3>
+              <span style={{ 
+                fontSize: '0.72rem', 
+                fontWeight: '700', 
+                padding: '0.15rem 0.55rem', 
+                borderRadius: '999px', 
+                background: 'rgba(16, 185, 129, 0.12)', 
+                color: '#10b981',
+                border: '1px solid rgba(16, 185, 129, 0.25)'
+              }}>
+                7 Categories • Dual Modes
+              </span>
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0 }}>
+              Made up by the app: new map questions every time across India states, mountain ranges, oceans, deserts, and world countries.
+            </p>
+            <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
+              {[
+                { id: 'india-states', label: '🇮🇳 India States' },
+                { id: 'mountain-ranges', label: '🏔️ Mountain Ranges' },
+                { id: 'oceans-seas-lakes', label: '🌊 Oceans & Seas' },
+                { id: 'deserts', label: '🏜️ Deserts' },
+                { id: 'countries-world', label: '🌍 World Countries' },
+              ].map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => navigate(`/arena/practice-map?category=${cat.id}`)}
+                  style={{
+                    background: 'var(--surface-2)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '6px',
+                    padding: '0.2rem 0.55rem',
+                    fontSize: '0.75rem',
+                    fontWeight: '600',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#047857'; e.currentTarget.style.color = '#047857'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <Button 
+            onClick={() => navigate('/arena/practice-map')} 
+            style={{ 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              gap: '0.4rem', 
+              padding: '0.7rem 1.6rem', 
+              background: '#047857', 
+              borderColor: '#047857',
+              color: '#ffffff',
+              fontWeight: '700',
+              borderRadius: '8px'
+            }}
+          >
+            Open Map Trainer <Play size={14} />
+          </Button>
+        </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.25rem' }}>
           {practiceList.map(item => (
             <Card key={item.id} hoverEffect={true} style={{ display: 'flex', flexDirection: 'column', padding: '1.5rem' }}>
@@ -456,7 +539,7 @@ const StudentDashboard = () => {
                 </div>
               </div>
 
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: '1.5', marginBottom: item.format === 'Typing' ? '0.75rem' : '1.25rem', flex: 1 }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: '1.5', marginBottom: (item.format === 'Typing' || item.format === 'Map') ? '0.75rem' : '1.25rem', flex: 1 }}>
                 {item.desc}
               </p>
 
@@ -502,8 +585,53 @@ const StudentDashboard = () => {
                 </div>
               )}
 
+              {item.format === 'Map' && (
+                <div style={{ marginBottom: '1rem' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--text-secondary)', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <Compass size={13} color="#047857" /> Practice Focus:
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                    {[
+                      { id: 'india-states', label: '🇮🇳 India' },
+                      { id: 'mountain-ranges', label: '🏔️ Mountains' },
+                      { id: 'oceans-seas-lakes', label: '🌊 Oceans' },
+                      { id: 'countries-world', label: '🌍 World' },
+                    ].map(c => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/arena/practice-map?category=${c.id}`);
+                        }}
+                        style={{
+                          background: 'var(--surface-2)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '6px',
+                          padding: '0.25rem 0.5rem',
+                          fontSize: '0.75rem',
+                          fontWeight: '600',
+                          color: 'var(--text-secondary)',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.2rem',
+                          transition: 'all 0.15s ease'
+                        }}
+                        title={`Practice ${c.label}`}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto' }}>
-                <Button onClick={() => navigate(`/arena/${item.id}?duration=2`)} style={{ flex: 1, padding: '0.6rem', fontSize: '0.85rem' }}>
+                <Button 
+                  onClick={() => navigate(item.format === 'Typing' ? `/arena/${item.id}?duration=2` : `/arena/${item.id}`)} 
+                  style={{ flex: 1, padding: '0.6rem', fontSize: '0.85rem' }}
+                >
                   Train <Play size={14} />
                 </Button>
                 <Button variant="secondary" onClick={() => navigate(`/leaderboard/${item.id}`)} style={{ padding: '0.6rem 0.8rem' }} title="Practice Standings">

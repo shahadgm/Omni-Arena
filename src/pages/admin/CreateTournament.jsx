@@ -6,6 +6,7 @@ import Button from '../../components/ui/Button';
 import { ConfirmModal, AlertModal } from '../../components/ui/Modal';
 import MapPinPickerModal from '../../components/map/MapPinPickerModal';
 import MapPresetPickerModal from '../../components/map/MapPresetPickerModal';
+import NewMapSetModal from '../../components/map/NewMapSetModal';
 import { dbService, authService } from '../../services/db';
 import { Plus, Trash2, Globe, Lock, Key, RefreshCw, UserPlus, LogIn, MapPin, Navigation, BookOpen } from 'lucide-react';
 import clg from 'crossword-layout-generator';
@@ -68,8 +69,17 @@ const CreateTournament = () => {
   ]);
   const [activeMapPickerIdx, setActiveMapPickerIdx] = useState(null);
   const [showMapPresetsModal, setShowMapPresetsModal] = useState(false);
+  const [showNewMapSetModal, setShowNewMapSetModal] = useState(false);
   const [showMapBulk, setShowMapBulk] = useState(false);
   const [mapBulkText, setMapBulkText] = useState('');
+
+  const handleSaveNewMapSet = (newSet) => {
+    if (newSet.title && !name) {
+      setName(newSet.title);
+    }
+    setMapLocations(newSet.locations);
+    showAlert(`Loaded map set "${newSet.title}" with ${newSet.locations.length} locations (${newSet.questionType === 'name-the-place' ? 'Name the place' : 'Find it on map'}).`, "Map Set Loaded", "primary");
+  };
 
   // Crossword options
   const [crosswordText, setCrosswordText] = useState('angle A shape made by two lines meeting\nbrake Stop a vehicle / sounds like something broken');
@@ -1123,6 +1133,14 @@ const CreateTournament = () => {
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <Button
                   type="button"
+                  onClick={() => setShowNewMapSetModal(true)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', background: '#047857', borderColor: '#047857' }}
+                >
+                  <Plus size={15} /> New Map Set (Interactive Builder)
+                </Button>
+
+                <Button
+                  type="button"
                   variant="secondary"
                   onClick={() => setShowMapPresetsModal(true)}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem' }}
@@ -1510,6 +1528,13 @@ const CreateTournament = () => {
         onAddLocations={(newPresets) => {
           setMapLocations(prev => [...prev, ...newPresets]);
         }}
+      />
+
+      {/* New Map Set Interactive Builder Modal (SIBAQ Tracker Model) */}
+      <NewMapSetModal
+        isOpen={showNewMapSetModal}
+        onClose={() => setShowNewMapSetModal(false)}
+        onSaveSet={handleSaveNewMapSet}
       />
     </div>
   );
