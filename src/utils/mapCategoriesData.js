@@ -12,6 +12,9 @@
  * 7. Plateaus and basins
  */
 
+import { INDIAN_CITIES } from '../data/maps/indian_cities_data.js';
+import { INDIAN_TOURIST_PLACES } from '../data/maps/indian_tourist_places_data.js';
+
 export const MAP_STUDY_CATEGORIES = [
   { 
     id: 'india-states', 
@@ -20,6 +23,22 @@ export const MAP_STUDY_CATEGORIES = [
     center: [22.5, 82.0],
     defaultZoom: 4,
     icon: '🇮🇳'
+  },
+  { 
+    id: 'india-cities', 
+    name: 'India: Major Cities (60+)', 
+    singular: 'city',
+    center: [22.5, 82.0],
+    defaultZoom: 4,
+    icon: '🏙️'
+  },
+  { 
+    id: 'india-tourist', 
+    name: 'India: Famous Tourist Places (60+)', 
+    singular: 'tourist place or heritage site',
+    center: [22.5, 82.0],
+    defaultZoom: 4,
+    icon: '🏛️'
   },
   { 
     id: 'countries', 
@@ -111,6 +130,31 @@ export const MAP_CATEGORY_ITEMS = {
     { id: 'in-uk', name: 'Uttarakhand', lat: 30.0668, lng: 79.0193, radiusKm: 140, fact: 'The "Land of the Gods" (Devbhoomi), origin of the Ganges and Yamuna rivers in the Himalayas.' },
     { id: 'in-wb', name: 'West Bengal', lat: 22.9868, lng: 87.8550, radiusKm: 210, fact: 'Stretches from Darjeeling Himalayas to the Sundarbans mangrove tiger delta; cultural capital Kolkata.' }
   ],
+
+  // --- 1B. 60+ MAJOR INDIAN CITIES ---
+  'india-cities': INDIAN_CITIES.map(c => ({
+    id: c.id,
+    name: c.name,
+    lat: c.coordinates[1],
+    lng: c.coordinates[0],
+    radiusKm: 70,
+    fact: c.fact,
+    state: c.state,
+    region: c.region
+  })),
+
+  // --- 1C. 60+ FAMOUS INDIAN TOURIST PLACES & HERITAGE SITES ---
+  'india-tourist': INDIAN_TOURIST_PLACES.map(t => ({
+    id: t.id,
+    name: t.name,
+    lat: t.coordinates[1],
+    lng: t.coordinates[0],
+    radiusKm: 70,
+    fact: t.fact,
+    location: t.location,
+    state: t.state,
+    type: t.type
+  })),
 
   // --- 2. MOUNTAIN RANGES ---
   'mountains': [
@@ -239,6 +283,9 @@ export const MAP_CATEGORY_ITEMS = {
  * Returns all places for a category ID
  */
 export const getPlacesByCategory = (categoryId = 'india-states') => {
+  const norm = (categoryId || '').toLowerCase();
+  if (norm.includes('cit') || norm === 'india-cities') return MAP_CATEGORY_ITEMS['india-cities'];
+  if (norm.includes('tourist') || norm === 'india-tourist') return MAP_CATEGORY_ITEMS['india-tourist'];
   return MAP_CATEGORY_ITEMS[categoryId] || MAP_CATEGORY_ITEMS['india-states'];
 };
 

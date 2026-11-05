@@ -16,7 +16,7 @@ export const SvgInteractiveMap = ({
   const gRef = useRef(null);
   const zoomBehaviorRef = useRef(null);
 
-  const { kind, base, targets, width, height, pathGen } = mapData;
+  const { kind, base, targets, width, height, projection, pathGen } = mapData;
 
   // Initialize D3 Zoom and Pan behavior
   useEffect(() => {
@@ -68,34 +68,55 @@ export const SvgInteractiveMap = ({
 
   // Auto-focus on target in "name-the-place" mode or when revealed
   const focusOnTarget = useCallback(() => {
-    if (!targetFeature || !svgRef.current || !zoomBehaviorRef.current || !pathGen) return;
+    if (!targetFeature || !svgRef.current || !zoomBehaviorRef.current) return;
 
     try {
-      const bounds = pathGen.bounds(targetFeature);
-      const [[x0, y0], [x1, y1]] = bounds;
-      const dx = x1 - x0;
-      const dy = y1 - y0;
-      const size = Math.max(dx, dy);
+      // 1. Point targets (Cities or Tourist landmarks)
+      if (targetFeature.geometry?.type === 'Point') {
+        const coords = targetFeature.geometry.coordinates;
+        const pt = projection ? projection(coords) : null;
+        if (pt && !isNaN(pt[0]) && !isNaN(pt[1])) {
+          const scale = 4.2;
+          const [cx, cy] = pt;
+          select(svgRef.current)
+            .transition()
+            .duration(500)
+            .call(
+              zoomBehaviorRef.current.transform,
+              zoomIdentity.translate(width / 2 - scale * cx, height / 2 - scale * cy).scale(scale)
+            );
+          return;
+        }
+      }
 
-      if (size < 90 && size > 0) {
-        const scale = Math.min(8, Math.max(2, 200 / size));
-        const cx = (x0 + x1) / 2;
-        const cy = (y0 + y1) / 2;
+      // 2. Polygon targets (States, Countries, Mountain regions)
+      if (pathGen) {
+        const bounds = pathGen.bounds(targetFeature);
+        const [[x0, y0], [x1, y1]] = bounds;
+        const dx = x1 - x0;
+        const dy = y1 - y0;
+        const size = Math.max(dx, dy);
 
-        select(svgRef.current)
-          .transition()
-          .duration(500)
-          .call(
-            zoomBehaviorRef.current.transform,
-            zoomIdentity.translate(width / 2 - scale * cx, height / 2 - scale * cy).scale(scale)
-          );
-      } else {
-        handleResetZoom();
+        if (size > 0 && size < 90) {
+          const scale = Math.min(8, Math.max(2, 200 / size));
+          const cx = (x0 + x1) / 2;
+          const cy = (y0 + y1) / 2;
+
+          select(svgRef.current)
+            .transition()
+            .duration(500)
+            .call(
+              zoomBehaviorRef.current.transform,
+              zoomIdentity.translate(width / 2 - scale * cx, height / 2 - scale * cy).scale(scale)
+            );
+        } else {
+          handleResetZoom();
+        }
       }
     } catch {
       handleResetZoom();
     }
-  }, [targetFeature, pathGen, width, height, handleResetZoom]);
+  }, [targetFeature, pathGen, projection, width, height, handleResetZoom]);
 
   // Focus when questionMode is "name-the-place" or when solution is revealed
   useEffect(() => {
@@ -110,7 +131,12 @@ export const SvgInteractiveMap = ({
 
   // Target centroid for focal circles and labels
   const centroid = useMemo(() => {
-    if (!targetFeature || !pathGen) return null;
+    if (!targetFeature) return null;
+    if (targetFeature.geometry?.type === 'Point') {
+      const coords = targetFeature.geometry.coordinates;
+      return projection ? projection(coords) : null;
+    }
+    if (!pathGen) return null;
     try {
       const c = pathGen.centroid(targetFeature);
       if (isNaN(c[0]) || isNaN(c[1])) return null;
@@ -118,9 +144,9 @@ export const SvgInteractiveMap = ({
     } catch {
       return null;
     }
-  }, [targetFeature, pathGen]);
+  }, [targetFeature, pathGen, projection]);
 
-  // Calculate fill colors dynamically matching SIBAQ Tracker design system
+  // Calculate fill colors dynamically for polygon features
   const getFeatureFill = useCallback(
     (feature, layerType) => {
       const isTarget = targetFeature && feature.id === targetFeature.id;
@@ -183,7 +209,7 @@ export const SvgInteractiveMap = ({
         <g ref={gRef}>
           {/* Base Country / State Polygons */}
           {base.map((feat) => {
-            const d = pathGen(feat);
+            const d = pathGen ? pathGen(feat) : null;
             if (!d) return null;
             return (
               <path
@@ -194,13 +220,14 @@ export const SvgInteractiveMap = ({
                 strokeWidth="0.75"
                 vectorEffect="non-scaling-stroke"
                 onClick={() => {
-                  if (kind !== 'phys' && questionMode === 'find-on-map' && !disabled) {
+                  // For polygon India states / World countries
+                  if (kind !== 'phys' && kind !== 'india-points' && questionMode === 'find-on-map' && !disabled) {
                     onFeatureClick(feat);
                   }
                 }}
                 style={{
                   cursor:
-                    kind !== 'phys' && questionMode === 'find-on-map' && !disabled
+                    kind !== 'phys' && kind !== 'india-points' && questionMode === 'find-on-map' && !disabled
                       ? 'pointer'
                       : 'inherit',
                   transition: 'fill 0.2s ease'
@@ -212,7 +239,7 @@ export const SvgInteractiveMap = ({
           {/* Physical Target Overlays (Mountains, Oceans, Deserts, Plateaus, Grasslands) */}
           {kind === 'phys' &&
             targets.map((feat) => {
-              const d = pathGen(feat);
+              const d = pathGen ? pathGen(feat) : null;
               if (!d) return null;
               const isTarget = targetFeature && feat.id === targetFeature.id;
               return (
@@ -238,8 +265,113 @@ export const SvgInteractiveMap = ({
               );
             })}
 
-          {/* Focal Ring Around Target (in "Name the place" or upon solution reveal) */}
-          {(questionMode === 'name-the-place' || showSolution || (feedback && feedback.ok)) &&
+          {/* Point Target Overlays (50+ Indian Cities & 50+ Tourist Landmarks) */}
+          {kind === 'india-points' &&
+            targets.map((feat) => {
+              const coords = feat.geometry?.coordinates;
+              if (!coords) return null;
+              const pt = projection ? projection(coords) : null;
+              if (!pt || isNaN(pt[0]) || isNaN(pt[1])) return null;
+
+              const [cx, cy] = pt;
+              const isTarget = targetFeature && feat.id === targetFeature.id;
+              const isTapped = feedback && feat.id === feedback.tappedId;
+              const isSolved = (showSolution || (feedback && feedback.ok)) && isTarget;
+              const isFailed = feedback && !feedback.ok && isTapped;
+              const isCurrentHighlight = questionMode === 'name-the-place' && isTarget;
+
+              let dotColor = '#334155'; // default slate marker
+              let dotRadius = 4.2;
+              let strokeColor = '#ffffff';
+              let strokeWidth = 1.5;
+
+              if (isSolved) {
+                dotColor = '#10b981';
+                dotRadius = 6.5;
+                strokeColor = '#ffffff';
+                strokeWidth = 2;
+              } else if (isFailed) {
+                dotColor = '#ef4444';
+                dotRadius = 6;
+                strokeColor = '#ffffff';
+                strokeWidth = 2;
+              } else if (isCurrentHighlight) {
+                dotColor = '#d97706'; // warm amber
+                dotRadius = 6.5;
+                strokeColor = '#ffffff';
+                strokeWidth = 2;
+              }
+
+              return (
+                <g
+                  key={feat.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (questionMode === 'find-on-map' && !disabled) {
+                      onFeatureClick(feat);
+                    }
+                  }}
+                  style={{ cursor: questionMode === 'find-on-map' && !disabled ? 'pointer' : 'default' }}
+                >
+                  {/* Invisible expanded hit circle for effortless touch / click */}
+                  <circle
+                    cx={cx}
+                    cy={cy}
+                    r="16"
+                    fill="transparent"
+                    pointerEvents="all"
+                  />
+
+                  {/* Pulsing beacon aura for highlighted target */}
+                  {(isCurrentHighlight || isSolved) && (
+                    <circle
+                      cx={cx}
+                      cy={cy}
+                      r="12"
+                      fill={isSolved ? 'rgba(16, 185, 129, 0.25)' : 'rgba(217, 119, 6, 0.3)'}
+                      stroke={isSolved ? '#10b981' : '#f59e0b'}
+                      strokeWidth="1.5"
+                      strokeDasharray={isSolved ? 'none' : '3 2'}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  )}
+
+                  {/* Visible Marker Dot */}
+                  <circle
+                    cx={cx}
+                    cy={cy}
+                    r={dotRadius}
+                    fill={dotColor}
+                    stroke={strokeColor}
+                    strokeWidth={strokeWidth}
+                    vectorEffect="non-scaling-stroke"
+                    style={{ transition: 'all 0.2s ease' }}
+                  />
+
+                  {/* Revealed Label when solved or when Show Me clicked */}
+                  {isSolved && (
+                    <text
+                      x={cx}
+                      y={cy - 12}
+                      textAnchor="middle"
+                      fontSize="12"
+                      fontWeight="800"
+                      fill="#0f172a"
+                      stroke="#ffffff"
+                      strokeWidth="3.5"
+                      paintOrder="stroke"
+                      style={{ pointerEvents: 'none', userSelect: 'none' }}
+                    >
+                      {feat.properties.name}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+
+          {/* Focal Ring Around Target (for polygon regions in "Name the place" or upon solution reveal) */}
+          {kind !== 'india-points' &&
+            (questionMode === 'name-the-place' || showSolution || (feedback && feedback.ok)) &&
             centroid && (
               <>
                 {/* Pulsing Outer Focal Ring */}
@@ -278,23 +410,26 @@ export const SvgInteractiveMap = ({
               </>
             )}
 
-          {/* Revealed Place Name Label (Shown only when revealed or solved) */}
-          {(showSolution || (feedback && feedback.ok)) && centroid && targetFeature && (
-            <text
-              x={centroid[0]}
-              y={centroid[1] - 18}
-              textAnchor="middle"
-              fontSize="14"
-              fontWeight="800"
-              fill="#0f172a"
-              stroke="#ffffff"
-              strokeWidth="4"
-              paintOrder="stroke"
-              style={{ pointerEvents: 'none', userSelect: 'none' }}
-            >
-              {targetFeature.properties.name}
-            </text>
-          )}
+          {/* Revealed Place Name Label for polygon targets */}
+          {kind !== 'india-points' &&
+            (showSolution || (feedback && feedback.ok)) &&
+            centroid &&
+            targetFeature && (
+              <text
+                x={centroid[0]}
+                y={centroid[1] - 18}
+                textAnchor="middle"
+                fontSize="14"
+                fontWeight="800"
+                fill="#0f172a"
+                stroke="#ffffff"
+                strokeWidth="4"
+                paintOrder="stroke"
+                style={{ pointerEvents: 'none', userSelect: 'none' }}
+              >
+                {targetFeature.properties.name}
+              </text>
+            )}
         </g>
       </svg>
 

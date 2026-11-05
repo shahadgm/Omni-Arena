@@ -192,7 +192,9 @@ const MapArena = () => {
       });
       setResults(prev => [...prev, {
         name: currentFeature.properties.name,
-        ok: true
+        ok: true,
+        fact: currentFeature.properties?.fact || '',
+        subtitle: currentFeature.properties?.subtitle || ''
       }]);
     } else {
       soundEngine.playConflict();
@@ -215,7 +217,9 @@ const MapArena = () => {
     });
     setResults(prev => [...prev, {
       name: currentFeature.properties.name,
-      ok: false
+      ok: false,
+      fact: currentFeature.properties?.fact || '',
+      subtitle: currentFeature.properties?.subtitle || ''
     }]);
   };
 
@@ -241,7 +245,9 @@ const MapArena = () => {
 
     const newResults = [...results, {
       name: currentFeature.properties.name,
-      ok: isCorrect
+      ok: isCorrect,
+      fact: currentFeature.properties?.fact || '',
+      subtitle: currentFeature.properties?.subtitle || ''
     }];
     setResults(newResults);
 
@@ -376,6 +382,56 @@ const MapArena = () => {
             )}
           </div>
         </Card>
+
+        {/* Places Review & Knowledge Cards Breakdown */}
+        {results.length > 0 && (
+          <div style={{ marginTop: '0.5rem' }}>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Target size={20} color="#047857" /> Places Review &amp; Knowledge Cards
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
+              {results.map((res, idx) => (
+                <div 
+                  key={idx}
+                  style={{
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    borderLeft: `4px solid ${res.ok ? '#10b981' : '#ef4444'}`,
+                    borderRadius: '10px',
+                    padding: '1rem',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.04)'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                    <div style={{ fontSize: '1.05rem', fontWeight: '800', color: 'var(--text-primary)' }}>
+                      {res.name}
+                    </div>
+                    <span style={{
+                      fontSize: '0.75rem',
+                      fontWeight: '700',
+                      padding: '0.15rem 0.5rem',
+                      borderRadius: '12px',
+                      background: res.ok ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                      color: res.ok ? '#10b981' : '#ef4444'
+                    }}>
+                      {res.ok ? '✓ Correct' : '✗ Missed'}
+                    </span>
+                  </div>
+                  {res.subtitle && (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: '600', marginBottom: '0.4rem' }}>
+                      {res.subtitle}
+                    </div>
+                  )}
+                  {res.fact && (
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.45', background: 'var(--surface-2)', padding: '0.5rem 0.65rem', borderRadius: '6px' }}>
+                      💡 {res.fact}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -387,7 +443,7 @@ const MapArena = () => {
       ref={containerRef}
       className="container" 
       style={{ 
-        maxWidth: mapData.kind === 'india' ? '700px' : '960px', 
+        maxWidth: (mapData.kind === 'india' || mapData.kind === 'india-points') ? '720px' : '960px', 
         margin: '0 auto', 
         paddingTop: '1.25rem', 
         paddingBottom: '3rem',
@@ -561,8 +617,15 @@ const MapArena = () => {
           minHeight: '64px'
         }}>
           {isNameThePlace ? (
-            <div style={{ fontSize: '1.15rem', fontWeight: '700', color: 'var(--text-primary)' }}>
-              Which {currentCategory.singular} is highlighted?
+            <div>
+              <div style={{ fontSize: '1.15rem', fontWeight: '700', color: 'var(--text-primary)' }}>
+                Which {currentCategory.singular} is highlighted?
+              </div>
+              {showSolution && currentFeature?.properties?.subtitle && (
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem', fontWeight: '600' }}>
+                  {currentFeature.properties.subtitle}
+                </div>
+              )}
             </div>
           ) : (
             <div>
@@ -572,6 +635,11 @@ const MapArena = () => {
               <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-primary)', marginTop: '0.1rem' }}>
                 {currentFeature?.properties?.name}
               </div>
+              {currentFeature?.properties?.subtitle && (
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem', fontWeight: '600' }}>
+                  {currentFeature.properties.subtitle}
+                </div>
+              )}
             </div>
           )}
 

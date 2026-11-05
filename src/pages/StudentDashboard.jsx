@@ -472,15 +472,17 @@ const StudentDashboard = () => {
                 color: '#10b981',
                 border: '1px solid rgba(16, 185, 129, 0.25)'
               }}>
-                7 Categories • Dual Modes
+                9 Categories • Dual Modes
               </span>
             </div>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0 }}>
-              Made up by the app: new map questions every time across India states, mountain ranges, oceans, deserts, and world countries.
+              Made up by the app: new map questions every time across India states, 60+ Indian cities, 60+ famous tourist spots, mountains, oceans, and world countries.
             </p>
             <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.6rem', flexWrap: 'wrap' }}>
               {[
                 { id: 'india-states', label: '🇮🇳 India States' },
+                { id: 'india-cities', label: '🏙️ 60+ Cities' },
+                { id: 'india-tourist', label: '🏛️ 60+ Tourist Sites' },
                 { id: 'mountain-ranges', label: '🏔️ Mountain Ranges' },
                 { id: 'oceans-seas-lakes', label: '🌊 Oceans & Seas' },
                 { id: 'deserts', label: '🏜️ Deserts' },
@@ -593,6 +595,8 @@ const StudentDashboard = () => {
                   <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
                     {[
                       { id: 'india-states', label: '🇮🇳 India' },
+                      { id: 'india-cities', label: '🏙️ Cities' },
+                      { id: 'india-tourist', label: '🏛️ Tourist Sites' },
                       { id: 'mountain-ranges', label: '🏔️ Mountains' },
                       { id: 'oceans-seas-lakes', label: '🌊 Oceans' },
                       { id: 'countries-world', label: '🌍 World' },
