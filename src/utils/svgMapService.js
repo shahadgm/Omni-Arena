@@ -80,12 +80,64 @@ export const CATEGORY_DEFINITIONS = [
 export function getCategoryDefinition(catId) {
   const norm = (catId || '').toLowerCase().trim();
 
+  // India Cities
   if (norm.includes('cit') || norm === 'india-cities' || norm === 'indian-cities') {
     return CATEGORY_DEFINITIONS.find(c => c.id === 'india-cities');
   }
 
+  // India Tourist Places & Landmarks
   if (norm.includes('tourist') || norm.includes('heritage') || norm === 'india-tourist') {
     return CATEGORY_DEFINITIONS.find(c => c.id === 'india-tourist');
+  }
+
+  // World Countries / Capitals / Wonders / World
+  if (
+    norm.includes('countr') ||
+    norm.includes('world') ||
+    norm.includes('capital') ||
+    norm.includes('wonder') ||
+    norm === 'countries' ||
+    norm === 'countries-world' ||
+    norm === 'global'
+  ) {
+    return CATEGORY_DEFINITIONS.find(c => c.id === 'countries-world');
+  }
+
+  // Mountain Ranges
+  if (norm.includes('mount') || norm === 'mountains' || norm === 'mountain-ranges') {
+    return CATEGORY_DEFINITIONS.find(c => c.id === 'mountain-ranges');
+  }
+
+  // Oceans, Seas & Lakes
+  if (
+    norm.includes('ocean') ||
+    norm.includes('sea') ||
+    norm.includes('lake') ||
+    norm.includes('water') ||
+    norm === 'oceans-seas' ||
+    norm === 'oceans-seas-lakes'
+  ) {
+    return CATEGORY_DEFINITIONS.find(c => c.id === 'oceans-seas-lakes');
+  }
+
+  // Deserts
+  if (norm.includes('desert') || norm === 'deserts') {
+    return CATEGORY_DEFINITIONS.find(c => c.id === 'deserts');
+  }
+
+  // Grasslands and Plains
+  if (norm.includes('grass') || norm.includes('plain') || norm === 'grasslands' || norm === 'grasslands-plains') {
+    return CATEGORY_DEFINITIONS.find(c => c.id === 'grasslands-plains');
+  }
+
+  // Plateaus and Basins
+  if (norm.includes('plateau') || norm.includes('basin') || norm === 'plateaus' || norm === 'plateaus-basins') {
+    return CATEGORY_DEFINITIONS.find(c => c.id === 'plateaus-basins');
+  }
+
+  // India States
+  if (norm.includes('india') || norm.includes('state') || norm === 'india-states') {
+    return CATEGORY_DEFINITIONS.find(c => c.id === 'india-states');
   }
 
   return (

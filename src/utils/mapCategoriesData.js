@@ -41,7 +41,7 @@ export const MAP_STUDY_CATEGORIES = [
     icon: '🏛️'
   },
   { 
-    id: 'countries', 
+    id: 'countries-world', 
     name: 'Countries of the world', 
     singular: 'country',
     center: [20.0, 0.0],
@@ -49,7 +49,7 @@ export const MAP_STUDY_CATEGORIES = [
     icon: '🌍'
   },
   { 
-    id: 'oceans-seas', 
+    id: 'oceans-seas-lakes', 
     name: 'Oceans, seas and lakes', 
     singular: 'ocean, sea or lake',
     center: [20.0, 0.0],
@@ -57,7 +57,7 @@ export const MAP_STUDY_CATEGORIES = [
     icon: '🌊'
   },
   { 
-    id: 'mountains', 
+    id: 'mountain-ranges', 
     name: 'Mountain ranges', 
     singular: 'mountain range',
     center: [30.0, 40.0],
@@ -73,7 +73,7 @@ export const MAP_STUDY_CATEGORIES = [
     icon: '🏜️'
   },
   { 
-    id: 'grasslands', 
+    id: 'grasslands-plains', 
     name: 'Grasslands and plains', 
     singular: 'grassland or plain',
     center: [20.0, 0.0],
@@ -81,7 +81,7 @@ export const MAP_STUDY_CATEGORIES = [
     icon: '🌾'
   },
   { 
-    id: 'plateaus', 
+    id: 'plateaus-basins', 
     name: 'Plateaus and basins', 
     singular: 'plateau or basin',
     center: [20.0, 30.0],
@@ -279,13 +279,41 @@ export const MAP_CATEGORY_ITEMS = {
   ]
 };
 
+// Register category aliases for seamless interoperability
+MAP_CATEGORY_ITEMS['countries-world'] = MAP_CATEGORY_ITEMS['countries'];
+MAP_CATEGORY_ITEMS['mountain-ranges'] = MAP_CATEGORY_ITEMS['mountains'];
+MAP_CATEGORY_ITEMS['oceans-seas-lakes'] = MAP_CATEGORY_ITEMS['oceans-seas'];
+MAP_CATEGORY_ITEMS['grasslands-plains'] = MAP_CATEGORY_ITEMS['grasslands'];
+MAP_CATEGORY_ITEMS['plateaus-basins'] = MAP_CATEGORY_ITEMS['plateaus'];
+
 /**
  * Returns all places for a category ID
  */
 export const getPlacesByCategory = (categoryId = 'india-states') => {
-  const norm = (categoryId || '').toLowerCase();
+  const norm = (categoryId || '').toLowerCase().trim();
   if (norm.includes('cit') || norm === 'india-cities') return MAP_CATEGORY_ITEMS['india-cities'];
   if (norm.includes('tourist') || norm === 'india-tourist') return MAP_CATEGORY_ITEMS['india-tourist'];
+  if (norm.includes('countr') || norm.includes('world') || norm.includes('capital') || norm === 'countries' || norm === 'countries-world') {
+    return MAP_CATEGORY_ITEMS['countries'];
+  }
+  if (norm.includes('mount') || norm === 'mountains' || norm === 'mountain-ranges') {
+    return MAP_CATEGORY_ITEMS['mountains'];
+  }
+  if (norm.includes('ocean') || norm.includes('sea') || norm.includes('lake') || norm.includes('water') || norm === 'oceans-seas' || norm === 'oceans-seas-lakes') {
+    return MAP_CATEGORY_ITEMS['oceans-seas'];
+  }
+  if (norm.includes('desert') || norm === 'deserts') {
+    return MAP_CATEGORY_ITEMS['deserts'];
+  }
+  if (norm.includes('grass') || norm.includes('plain') || norm === 'grasslands' || norm === 'grasslands-plains') {
+    return MAP_CATEGORY_ITEMS['grasslands'];
+  }
+  if (norm.includes('plateau') || norm.includes('basin') || norm === 'plateaus' || norm === 'plateaus-basins') {
+    return MAP_CATEGORY_ITEMS['plateaus'];
+  }
+  if (norm.includes('india') || norm.includes('state') || norm === 'india-states') {
+    return MAP_CATEGORY_ITEMS['india-states'];
+  }
   return MAP_CATEGORY_ITEMS[categoryId] || MAP_CATEGORY_ITEMS['india-states'];
 };
 

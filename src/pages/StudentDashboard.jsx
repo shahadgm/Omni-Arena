@@ -10,11 +10,13 @@ import {
   Globe, Copy, Check, Key, Plus, Trash2, Edit, Gamepad2,
   Sparkles, ShieldCheck, ArrowRight, MapPin, UserPlus, Clock, Flame, Compass
 } from 'lucide-react';
+import NewMapSetModal from '../components/map/NewMapSetModal';
 
 const StudentDashboard = () => {
   const [publicTournaments, setPublicTournaments] = useState([]);
   const [myTournaments, setMyTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showNewMapSetModal, setShowNewMapSetModal] = useState(false);
   
   // Inline code search state
   const [searchCode, setSearchCode] = useState('');
@@ -510,22 +512,39 @@ const StudentDashboard = () => {
               ))}
             </div>
           </div>
-          <Button 
-            onClick={() => navigate('/arena/practice-map')} 
-            style={{ 
-              display: 'inline-flex', 
-              alignItems: 'center', 
-              gap: '0.4rem', 
-              padding: '0.7rem 1.6rem', 
-              background: '#047857', 
-              borderColor: '#047857',
-              color: '#ffffff',
-              fontWeight: '700',
-              borderRadius: '8px'
-            }}
-          >
-            Open Map Trainer <Play size={14} />
-          </Button>
+          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+            <Button 
+              onClick={() => setShowNewMapSetModal(true)}
+              variant="secondary"
+              style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '0.4rem', 
+                padding: '0.7rem 1.25rem', 
+                fontWeight: '700',
+                borderRadius: '8px'
+              }}
+            >
+              <Plus size={15} /> New Map Set
+            </Button>
+
+            <Button 
+              onClick={() => navigate('/arena/practice-map')} 
+              style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '0.4rem', 
+                padding: '0.7rem 1.6rem', 
+                background: '#047857', 
+                borderColor: '#047857',
+                color: '#ffffff',
+                fontWeight: '700',
+                borderRadius: '8px'
+              }}
+            >
+              Open Map Trainer <Play size={14} />
+            </Button>
+          </div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.25rem' }}>
@@ -658,6 +677,15 @@ const StudentDashboard = () => {
         cancelText="Cancel"
         variant="danger"
         icon={<Trash2 size={26} />}
+      />
+      {/* Interactive New Map Set Builder Modal (SIBAQ Tracker Model) */}
+      <NewMapSetModal
+        isOpen={showNewMapSetModal}
+        onClose={() => setShowNewMapSetModal(false)}
+        onSaveSet={(newSet) => {
+          sessionStorage.setItem('omni_custom_map_set', JSON.stringify(newSet));
+          navigate('/arena/practice-map?custom=true');
+        }}
       />
     </div>
   );

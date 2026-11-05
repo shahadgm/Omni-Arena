@@ -16,6 +16,8 @@ import {
   getRandomQuestionsForCategory, 
   generateMultipleChoiceOptions 
 } from '../utils/svgMapService';
+import { INDIAN_CITIES } from '../data/maps/indian_cities_data';
+import { INDIAN_TOURIST_PLACES } from '../data/maps/indian_tourist_places_data';
 import SvgInteractiveMap from '../components/map/SvgInteractiveMap';
 
 const MapArena = () => {
@@ -73,10 +75,23 @@ const MapArena = () => {
   const activeQuestionType = tournament?.questionType || trainerMode;
   const isNameThePlace = activeQuestionType === 'name-the-place';
 
-  // Load vector map data for the category
+  // Load vector map data for the category and dynamically merge any point targets
   const mapData = useMemo(() => {
-    return getMapData(activeCategoryId);
-  }, [activeCategoryId]);
+    const baseMd = getMapData(activeCategoryId);
+    // If questions contain custom point targets, merge them into mapData.targets so SvgInteractiveMap renders them
+    const pointQuestions = questions.filter(q => q.geometry?.type === 'Point');
+    if (pointQuestions.length > 0) {
+      const existingIds = new Set(baseMd.targets.map(t => t.id));
+      const extraPoints = pointQuestions.filter(p => !existingIds.has(p.id));
+      if (extraPoints.length > 0) {
+        return {
+          ...baseMd,
+          targets: [...baseMd.targets, ...extraPoints]
+        };
+      }
+    }
+    return baseMd;
+  }, [activeCategoryId, questions]);
 
   const currentCategory = mapData.def;
 
@@ -107,27 +122,200 @@ const MapArena = () => {
   useEffect(() => {
     const init = async () => {
       if (isPractice) {
+        // Check if custom map set was passed via sessionStorage (from Dashboard or Modal)
+        const isCustom = urlParams.get('custom') === 'true';
+        const savedCustom = isCustom ? sessionStorage.getItem('omni_custom_map_set') : null;
+
+        if (savedCustom) {
+          try {
+            const customSet = JSON.parse(savedCustom);
+            const cat = customSet.category || trainerCategory;
+            const qType = customSet.questionType || trainerMode;
+            const md = getMapData(cat);
+
+            const mapped = (customSet.locations || []).map((loc, idx) => {
+              const locName = loc.name || loc.prompt;
+              const match = md.targets.find(
+                f => f.properties?.name?.toLowerCase() === locName.toLowerCase()
+              );
+
+              if (loc.lat !== undefined && loc.lng !== undefined && !isNaN(loc.lat) && !isNaN(loc.lng)) {
+                return {
+                  type: 'Feature',
+                  id: loc.id || `custom-${idx}`,
+                  geometry: {
+                    type: 'Point',
+                    coordinates: [Number(loc.lng), Number(loc.lat)]
+                  },
+                  properties: {
+                    name: locName,
+                    fact: loc.fact || match?.properties?.fact || '',
+                    subtitle: loc.subtitle || loc.hint || ''
+                  },
+                  options: loc.options || null
+                };
+              }
+
+              return match || {
+                id: loc.id || `custom-${idx}`,
+                properties: { name: locName, fact: loc.fact || '', subtitle: loc.hint || '' },
+                options: loc.options || null
+              };
+            });
+
+            setTournament({
+              id: 'custom-practice-set',
+              name: customSet.title || 'Custom Practice Set',
+              category: cat,
+              questionType: qType
+            });
+            setQuestions(mapped);
+            setCurrentIdx(0);
+            setFeedback(null);
+            setShowSolution(false);
+            setSelectedOptionId(null);
+            setOptionAnswered(false);
+            setResults([]);
+            setCompleted(false);
+            isSubmitting.current = false;
+            setGlobalStartTime(Date.now());
+            setSecondsElapsed(0);
+            return;
+          } catch (err) {
+            console.warn('Failed to parse custom map set:', err);
+          }
+        }
+
         loadTrainerRound(trainerCategory, trainerMode);
       } else {
         const t = await dbService.getTournament(id);
-        setTournament(t);
-        if (t?.mapLocations && t.mapLocations.length > 0) {
-          // Match tournament locations with vector features by name
-          const cat = t.category || 'india-states';
-          const md = getMapData(cat);
-          const mapped = t.mapLocations.map((loc, idx) => {
-            const locName = loc.name || loc.prompt;
-            const match = md.targets.find(
+        if (!t) return;
+
+        // Smart Tournament Category Detection
+        let detectedCat = t.category;
+        const locs = t.mapLocations || [];
+
+        if (!detectedCat || detectedCat === 'capitals' || detectedCat === 'wonders' || detectedCat === 'nature') {
+          // Check if coordinates lie outside India (bounding box: lat 6-38, lng 68-98)
+          const hasWorldCoords = locs.some(l => {
+            const lat = Number(l.lat);
+            const lng = Number(l.lng);
+            if (isNaN(lat) || isNaN(lng)) return false;
+            return lat < 6 || lat > 38 || lng < 68 || lng > 98;
+          });
+
+          // Check if prompt names match world capitals/countries
+          const hasWorldKeywords = locs.some(l => {
+            const n = (l.name || l.prompt || '').toLowerCase();
+            return n.includes('japan') || n.includes('tokyo') || n.includes('paris') ||
+                   n.includes('france') || n.includes('cairo') || n.includes('egypt') ||
+                   n.includes('london') || n.includes('usa') || n.includes('america') ||
+                   n.includes('capital of') || n.includes('brazil') || n.includes('china') ||
+                   n.includes('australia') || n.includes('canberra') || n.includes('germany') ||
+                   n.includes('rome') || n.includes('italy') || n.includes('canada');
+          });
+
+          if (hasWorldCoords || hasWorldKeywords || detectedCat === 'capitals' || detectedCat === 'wonders') {
+            detectedCat = 'countries-world';
+          } else {
+            // Check if matches Indian cities or tourist spots
+            const isCities = locs.some(l =>
+              INDIAN_CITIES.some(c => c.name.toLowerCase() === (l.name || l.prompt || '').toLowerCase())
+            );
+            const isTourist = locs.some(l =>
+              INDIAN_TOURIST_PLACES.some(tp => tp.name.toLowerCase() === (l.name || l.prompt || '').toLowerCase())
+            );
+            if (isCities) detectedCat = 'india-cities';
+            else if (isTourist) detectedCat = 'india-tourist';
+            else detectedCat = 'india-states';
+          }
+        }
+
+        const catDef = getCategoryDefinition(detectedCat);
+        const resolvedCat = catDef.id;
+        t.category = resolvedCat;
+        setTournament({ ...t, category: resolvedCat });
+
+        if (locs.length > 0) {
+          const md = getMapData(resolvedCat);
+          const mapped = locs.map((loc, idx) => {
+            const locName = loc.name || loc.prompt || `Location ${idx + 1}`;
+
+            // 1. Try direct matching target by name
+            let match = md.targets.find(
               f => f.properties?.name?.toLowerCase() === locName.toLowerCase()
             );
-            return match || {
+
+            // 2. If world category, try country matching inside prompt (e.g. "Tokyo (Capital of Japan)" -> "Japan")
+            let countryMatch = null;
+            if (!match && resolvedCat === 'countries-world') {
+              countryMatch = md.targets.find(f => {
+                const cName = f.properties?.name?.toLowerCase();
+                return cName && locName.toLowerCase().includes(cName);
+              });
+            }
+
+            // 3. If loc has coordinates [lat, lng], create a GeoJSON Point feature so it pins accurately on the map
+            if (loc.lat !== undefined && loc.lng !== undefined && !isNaN(Number(loc.lat)) && !isNaN(Number(loc.lng))) {
+              return {
+                type: 'Feature',
+                id: loc.id || `loc-${idx}`,
+                geometry: {
+                  type: 'Point',
+                  coordinates: [Number(loc.lng), Number(loc.lat)]
+                },
+                properties: {
+                  name: locName,
+                  countryMatch: countryMatch?.properties?.name || '',
+                  countryFeatureId: countryMatch?.id || null,
+                  fact: loc.fact || match?.properties?.fact || '',
+                  subtitle: loc.hint || loc.subtitle || (countryMatch ? `Capital of ${countryMatch.properties.name}` : '')
+                },
+                options: loc.options || null
+              };
+            }
+
+            if (match) {
+              return {
+                ...match,
+                properties: {
+                  ...match.properties,
+                  fact: loc.fact || match.properties?.fact || '',
+                  subtitle: loc.hint || loc.subtitle || match.properties?.subtitle || ''
+                },
+                options: loc.options || null
+              };
+            }
+
+            if (countryMatch) {
+              return {
+                ...countryMatch,
+                properties: {
+                  ...countryMatch.properties,
+                  name: locName,
+                  countryMatch: countryMatch.properties.name,
+                  countryFeatureId: countryMatch.id,
+                  fact: loc.fact || countryMatch.properties?.fact || '',
+                  subtitle: loc.hint || loc.subtitle || `Country: ${countryMatch.properties.name}`
+                },
+                options: loc.options || null
+              };
+            }
+
+            return {
               id: `custom-${idx}`,
-              properties: { name: locName }
+              properties: {
+                name: locName,
+                fact: loc.fact || '',
+                subtitle: loc.hint || loc.subtitle || ''
+              },
+              options: loc.options || null
             };
           });
+
           setQuestions(mapped);
         } else {
-          setQuestions(getRandomQuestionsForCategory(t?.category || 'india-states', 10));
+          setQuestions(getRandomQuestionsForCategory(resolvedCat, 10));
         }
         setGlobalStartTime(Date.now());
       }
@@ -150,6 +338,9 @@ const MapArena = () => {
   // Generate options for "Name the place" mode
   const currentOptions = useMemo(() => {
     if (!currentFeature || !isNameThePlace) return [];
+    if (currentFeature.options && currentFeature.options.length > 0) {
+      return currentFeature.options;
+    }
     return generateMultipleChoiceOptions(currentFeature, mapData.targets);
   }, [currentFeature, isNameThePlace, mapData.targets]);
 
@@ -179,16 +370,25 @@ const MapArena = () => {
   const handleFeatureClick = (clickedFeature) => {
     if (showSolution || (feedback && feedback.ok) || !currentFeature) return;
 
-    const targetName = currentFeature.properties?.name?.toLowerCase();
-    const clickedName = clickedFeature.properties?.name?.toLowerCase();
-    const isCorrect = clickedFeature.id === currentFeature.id || clickedName === targetName;
+    const targetName = (currentFeature.properties?.name || '').toLowerCase();
+    const clickedName = (clickedFeature.properties?.name || '').toLowerCase();
+    const countryMatch = (currentFeature.properties?.countryMatch || '').toLowerCase();
+    const countryFeatureId = currentFeature.properties?.countryFeatureId;
+
+    // Check if clicked the exact feature, matching country, or matching name substring
+    const isCorrect =
+      clickedFeature.id === currentFeature.id ||
+      (countryFeatureId && clickedFeature.id === countryFeatureId) ||
+      (clickedName && clickedName === targetName) ||
+      (countryMatch && clickedName === countryMatch) ||
+      (clickedName && targetName.includes(clickedName));
 
     if (isCorrect) {
       soundEngine.playBoxComplete();
       setFeedback({
         ok: true,
         tappedId: clickedFeature.id,
-        tappedName: clickedFeature.properties.name
+        tappedName: clickedFeature.properties?.name || currentFeature.properties.name
       });
       setResults(prev => [...prev, {
         name: currentFeature.properties.name,
@@ -201,7 +401,7 @@ const MapArena = () => {
       setFeedback({
         ok: false,
         tappedId: clickedFeature.id,
-        tappedName: clickedFeature.properties.name
+        tappedName: clickedFeature.properties?.name || 'Wrong Region'
       });
     }
   };
@@ -630,7 +830,9 @@ const MapArena = () => {
           ) : (
             <div>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '500' }}>
-                Find this {currentCategory.singular}:
+                {currentFeature?.geometry?.type === 'Point' && (currentCategory.pack === 'world' || currentFeature.properties?.countryMatch)
+                  ? 'Find this capital / location:'
+                  : `Find this ${currentCategory.singular}:`}
               </div>
               <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-primary)', marginTop: '0.1rem' }}>
                 {currentFeature?.properties?.name}
@@ -678,6 +880,29 @@ const MapArena = () => {
             disabled={isAnswered}
           />
         </div>
+
+        {/* Educational Fact Callout (Appears upon answering or revealing) */}
+        {isAnswered && currentFeature?.properties?.fact && (
+          <div style={{
+            marginTop: '0.85rem',
+            padding: '0.75rem 1rem',
+            borderRadius: '8px',
+            background: 'rgba(4, 120, 87, 0.08)',
+            border: '1px solid rgba(4, 120, 87, 0.2)',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '0.6rem',
+            fontSize: '0.875rem',
+            color: 'var(--text-primary)',
+            lineHeight: '1.45'
+          }}>
+            <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>💡</span>
+            <div>
+              <strong style={{ color: '#047857' }}>Did You Know? </strong>
+              <span>{currentFeature.properties.fact}</span>
+            </div>
+          </div>
+        )}
 
         {/* Options Grid (Name the place mode) */}
         {isNameThePlace && (

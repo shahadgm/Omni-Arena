@@ -64,6 +64,8 @@ const CreateTournament = () => {
   ]);
 
   // Map options & interactive authoring
+  const [mapCategory, setMapCategory] = useState('india-states');
+  const [mapQuestionType, setMapQuestionType] = useState('find-on-map');
   const [mapLocations, setMapLocations] = useState([
     { prompt: 'Spot India', lat: 20.5937, lng: 78.9629, radiusKm: 500, fact: 'Home to the ancient Indus Valley Civilization and the Himalayas.' }
   ]);
@@ -77,6 +79,8 @@ const CreateTournament = () => {
     if (newSet.title && !name) {
       setName(newSet.title);
     }
+    if (newSet.category) setMapCategory(newSet.category);
+    if (newSet.questionType) setMapQuestionType(newSet.questionType);
     setMapLocations(newSet.locations);
     showAlert(`Loaded map set "${newSet.title}" with ${newSet.locations.length} locations (${newSet.questionType === 'name-the-place' ? 'Name the place' : 'Find it on map'}).`, "Map Set Loaded", "primary");
   };
@@ -160,6 +164,12 @@ const CreateTournament = () => {
           }
           if (t.mapLocations) {
             setMapLocations(t.mapLocations);
+          }
+          if (t.category) {
+            setMapCategory(t.category);
+          }
+          if (t.questionType) {
+            setMapQuestionType(t.questionType);
           }
           if (t.crosswordText) {
             setCrosswordText(t.crosswordText);
@@ -406,12 +416,24 @@ const CreateTournament = () => {
         }
         tournament.puzzles = processedPuzzles;
       } else if (gameType === 'map') {
-        const isInvalid = mapLocations.some(l => !l.prompt.trim() || !l.lat || !l.lng || !l.radiusKm);
+        const isInvalid = mapLocations.some(l => !(l.prompt || l.name || '').trim());
         if (isInvalid) {
-          showAlert("Please fill all map location details.", "Incomplete Map Locations", "warning");
+          showAlert("Please fill in prompt / names for all map locations.", "Incomplete Map Locations", "warning");
           return;
         }
-        tournament.mapLocations = mapLocations;
+        tournament.category = mapCategory || 'india-states';
+        tournament.questionType = mapQuestionType || 'find-on-map';
+        tournament.mapLocations = mapLocations.map(l => ({
+          ...l,
+          prompt: (l.prompt || l.name || '').trim(),
+          name: (l.name || l.prompt || '').trim(),
+          lat: typeof l.lat === 'number' ? l.lat : (parseFloat(l.lat) || 20),
+          lng: typeof l.lng === 'number' ? l.lng : (parseFloat(l.lng) || 0),
+          radiusKm: parseFloat(l.radiusKm) || 200,
+          fact: l.fact || '',
+          category: mapCategory || l.category || 'india-states',
+          questionType: mapQuestionType || l.questionType || 'find-on-map'
+        }));
       } else if (gameType === 'crossword') {
         if (!crosswordText.trim()) {
           showAlert("Please enter crossword words and clues.", "Crossword Required", "warning");
@@ -1164,6 +1186,100 @@ const CreateTournament = () => {
                 >
                   <Plus size={15} /> Add Custom
                 </Button>
+              </div>
+            </div>
+
+            {/* Category & Question Type Configuration Controls */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+              gap: '1rem',
+              background: 'var(--surface-2)',
+              padding: '1rem 1.25rem',
+              borderRadius: '10px',
+              marginBottom: '1.5rem',
+              border: '1px solid var(--border)'
+            }}>
+              <div>
+                <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)', display: 'block', marginBottom: '0.4rem' }}>
+                  Target Map Category
+                </label>
+                <select
+                  value={mapCategory}
+                  onChange={(e) => setMapCategory(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.6rem 0.85rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--surface)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.85rem',
+                    fontWeight: '600',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="india-states">🇮🇳 India: states and union territories</option>
+                  <option value="india-cities">🏙️ India: Major Cities (60+)</option>
+                  <option value="india-tourist">🏛️ India: Famous Tourist Places (60+)</option>
+                  <option value="countries-world">🌍 Countries of the world</option>
+                  <option value="mountain-ranges">🏔️ Mountain ranges</option>
+                  <option value="oceans-seas-lakes">🌊 Oceans, seas and lakes</option>
+                  <option value="deserts">🏜️ Deserts</option>
+                  <option value="grasslands-plains">🌾 Grasslands and plains</option>
+                  <option value="plateaus-basins">⛰️ Plateaus and basins</option>
+                </select>
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-primary)', display: 'block', marginBottom: '0.4rem' }}>
+                  Question Type
+                </label>
+                <div style={{
+                  display: 'flex',
+                  background: 'var(--surface)',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border)',
+                  padding: '3px'
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => setMapQuestionType('find-on-map')}
+                    style={{
+                      flex: 1,
+                      padding: '0.5rem',
+                      borderRadius: '6px',
+                      fontSize: '0.85rem',
+                      fontWeight: mapQuestionType === 'find-on-map' ? '700' : '500',
+                      background: mapQuestionType === 'find-on-map' ? '#047857' : 'transparent',
+                      color: mapQuestionType === 'find-on-map' ? '#ffffff' : 'var(--text-secondary)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    Find it on the map
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMapQuestionType('name-the-place')}
+                    style={{
+                      flex: 1,
+                      padding: '0.5rem',
+                      borderRadius: '6px',
+                      fontSize: '0.85rem',
+                      fontWeight: mapQuestionType === 'name-the-place' ? '700' : '500',
+                      background: mapQuestionType === 'name-the-place' ? '#047857' : 'transparent',
+                      color: mapQuestionType === 'name-the-place' ? '#ffffff' : 'var(--text-secondary)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    Name the place
+                  </button>
+                </div>
               </div>
             </div>
 

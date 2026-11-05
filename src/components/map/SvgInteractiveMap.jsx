@@ -265,9 +265,9 @@ export const SvgInteractiveMap = ({
               );
             })}
 
-          {/* Point Target Overlays (50+ Indian Cities & 50+ Tourist Landmarks) */}
-          {kind === 'india-points' &&
-            targets.map((feat) => {
+          {/* Point Target Overlays (Indian Cities, Tourist Landmarks, World Capitals & Point Markers) */}
+          {(kind === 'india-points' || kind === 'world-points' || targets.some(f => f.geometry?.type === 'Point')) &&
+            targets.filter(f => f.geometry?.type === 'Point').map((feat) => {
               const coords = feat.geometry?.coordinates;
               if (!coords) return null;
               const pt = projection ? projection(coords) : null;
@@ -281,23 +281,23 @@ export const SvgInteractiveMap = ({
               const isCurrentHighlight = questionMode === 'name-the-place' && isTarget;
 
               let dotColor = '#334155'; // default slate marker
-              let dotRadius = 4.2;
+              let dotRadius = 4.5;
               let strokeColor = '#ffffff';
               let strokeWidth = 1.5;
 
               if (isSolved) {
                 dotColor = '#10b981';
-                dotRadius = 6.5;
+                dotRadius = 7;
                 strokeColor = '#ffffff';
                 strokeWidth = 2;
               } else if (isFailed) {
                 dotColor = '#ef4444';
-                dotRadius = 6;
+                dotRadius = 6.5;
                 strokeColor = '#ffffff';
                 strokeWidth = 2;
               } else if (isCurrentHighlight) {
                 dotColor = '#d97706'; // warm amber
-                dotRadius = 6.5;
+                dotRadius = 7;
                 strokeColor = '#ffffff';
                 strokeWidth = 2;
               }
@@ -317,7 +317,7 @@ export const SvgInteractiveMap = ({
                   <circle
                     cx={cx}
                     cy={cy}
-                    r="16"
+                    r="18"
                     fill="transparent"
                     pointerEvents="all"
                   />
@@ -327,7 +327,7 @@ export const SvgInteractiveMap = ({
                     <circle
                       cx={cx}
                       cy={cy}
-                      r="12"
+                      r="14"
                       fill={isSolved ? 'rgba(16, 185, 129, 0.25)' : 'rgba(217, 119, 6, 0.3)'}
                       stroke={isSolved ? '#10b981' : '#f59e0b'}
                       strokeWidth="1.5"
@@ -349,7 +349,7 @@ export const SvgInteractiveMap = ({
                   />
 
                   {/* Revealed Label when solved or when Show Me clicked */}
-                  {isSolved && (
+                  {(isSolved || (showSolution && isTarget)) && (
                     <text
                       x={cx}
                       y={cy - 12}
@@ -360,9 +360,9 @@ export const SvgInteractiveMap = ({
                       stroke="#ffffff"
                       strokeWidth="3.5"
                       paintOrder="stroke"
-                      style={{ pointerEvents: 'none', userSelect: 'none' }}
+                      style={{ userSelect: 'none', pointerEvents: 'none' }}
                     >
-                      {feat.properties.name}
+                      {feat.properties?.name}
                     </text>
                   )}
                 </g>
