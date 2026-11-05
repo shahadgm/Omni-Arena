@@ -265,8 +265,8 @@ export const SvgInteractiveMap = ({
               );
             })}
 
-          {/* Point Target Overlays (Indian Cities, Tourist Landmarks, World Capitals & Point Markers) */}
-          {(kind === 'india-points' || kind === 'world-points' || targets.some(f => f.geometry?.type === 'Point')) &&
+          {/* Point Target Overlays (Only for Indian Cities & Famous Tourist Landmarks) */}
+          {kind === 'india-points' &&
             targets.filter(f => f.geometry?.type === 'Point').map((feat) => {
               const coords = feat.geometry?.coordinates;
               if (!coords) return null;

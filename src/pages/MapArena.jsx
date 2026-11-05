@@ -75,23 +75,10 @@ const MapArena = () => {
   const activeQuestionType = tournament?.questionType || trainerMode;
   const isNameThePlace = activeQuestionType === 'name-the-place';
 
-  // Load vector map data for the category and dynamically merge any point targets
+  // Load vector map data for the category
   const mapData = useMemo(() => {
-    const baseMd = getMapData(activeCategoryId);
-    // If questions contain custom point targets, merge them into mapData.targets so SvgInteractiveMap renders them
-    const pointQuestions = questions.filter(q => q.geometry?.type === 'Point');
-    if (pointQuestions.length > 0) {
-      const existingIds = new Set(baseMd.targets.map(t => t.id));
-      const extraPoints = pointQuestions.filter(p => !existingIds.has(p.id));
-      if (extraPoints.length > 0) {
-        return {
-          ...baseMd,
-          targets: [...baseMd.targets, ...extraPoints]
-        };
-      }
-    }
-    return baseMd;
-  }, [activeCategoryId, questions]);
+    return getMapData(activeCategoryId);
+  }, [activeCategoryId]);
 
   const currentCategory = mapData.def;
 
@@ -135,11 +122,32 @@ const MapArena = () => {
 
             const mapped = (customSet.locations || []).map((loc, idx) => {
               const locName = loc.name || loc.prompt;
-              const match = md.targets.find(
+              let match = md.targets.find(
                 f => f.properties?.name?.toLowerCase() === locName.toLowerCase()
               );
 
-              if (loc.lat !== undefined && loc.lng !== undefined && !isNaN(loc.lat) && !isNaN(loc.lng)) {
+              if (!match) {
+                match = md.targets.find(f => {
+                  const targetName = f.properties?.name?.toLowerCase();
+                  if (!targetName || targetName.length < 3) return false;
+                  return locName.toLowerCase().includes(targetName);
+                });
+              }
+
+              if (match) {
+                return {
+                  ...match,
+                  properties: {
+                    ...match.properties,
+                    name: locName,
+                    fact: loc.fact || match.properties?.fact || '',
+                    subtitle: loc.subtitle || loc.hint || ''
+                  },
+                  options: loc.options || null
+                };
+              }
+
+              if ((cat === 'india-cities' || cat === 'india-tourist') && loc.lat !== undefined && loc.lng !== undefined) {
                 return {
                   type: 'Feature',
                   id: loc.id || `custom-${idx}`,
@@ -149,7 +157,7 @@ const MapArena = () => {
                   },
                   properties: {
                     name: locName,
-                    fact: loc.fact || match?.properties?.fact || '',
+                    fact: loc.fact || '',
                     subtitle: loc.subtitle || loc.hint || ''
                   },
                   options: loc.options || null
@@ -241,22 +249,40 @@ const MapArena = () => {
           const mapped = locs.map((loc, idx) => {
             const locName = loc.name || loc.prompt || `Location ${idx + 1}`;
 
-            // 1. Try direct matching target by name
+            // 1. Try direct matching target polygon by name (e.g. "Japan", "India", "France")
             let match = md.targets.find(
               f => f.properties?.name?.toLowerCase() === locName.toLowerCase()
             );
 
-            // 2. If world category, try country matching inside prompt (e.g. "Tokyo (Capital of Japan)" -> "Japan")
-            let countryMatch = null;
-            if (!match && resolvedCat === 'countries-world') {
-              countryMatch = md.targets.find(f => {
-                const cName = f.properties?.name?.toLowerCase();
-                return cName && locName.toLowerCase().includes(cName);
+            // 2. Fuzzy match or country/region contained in prompt (e.g. "Tokyo (Capital of Japan)" -> Japan, "Spot India" -> India)
+            if (!match) {
+              match = md.targets.find(f => {
+                const targetName = f.properties?.name?.toLowerCase();
+                if (!targetName || targetName.length < 3) return false;
+                return locName.toLowerCase().includes(targetName);
               });
             }
 
-            // 3. If loc has coordinates [lat, lng], create a GeoJSON Point feature so it pins accurately on the map
-            if (loc.lat !== undefined && loc.lng !== undefined && !isNaN(Number(loc.lat)) && !isNaN(Number(loc.lng))) {
+            // If a base polygon (Country / State / Region) is matched, use the clean polygon (NO DOTS)
+            if (match) {
+              return {
+                ...match,
+                properties: {
+                  ...match.properties,
+                  name: locName,
+                  originalRegionName: match.properties.name,
+                  fact: loc.fact || match.properties?.fact || '',
+                  subtitle: loc.hint || loc.subtitle || match.properties?.subtitle || ''
+                },
+                options: loc.options || null
+              };
+            }
+
+            // 3. Only if explicitly in India Cities or India Tourist category, construct Point feature
+            if (
+              (resolvedCat === 'india-cities' || resolvedCat === 'india-tourist') &&
+              loc.lat !== undefined && loc.lng !== undefined && !isNaN(Number(loc.lat)) && !isNaN(Number(loc.lng))
+            ) {
               return {
                 type: 'Feature',
                 id: loc.id || `loc-${idx}`,
@@ -266,37 +292,8 @@ const MapArena = () => {
                 },
                 properties: {
                   name: locName,
-                  countryMatch: countryMatch?.properties?.name || '',
-                  countryFeatureId: countryMatch?.id || null,
-                  fact: loc.fact || match?.properties?.fact || '',
-                  subtitle: loc.hint || loc.subtitle || (countryMatch ? `Capital of ${countryMatch.properties.name}` : '')
-                },
-                options: loc.options || null
-              };
-            }
-
-            if (match) {
-              return {
-                ...match,
-                properties: {
-                  ...match.properties,
-                  fact: loc.fact || match.properties?.fact || '',
-                  subtitle: loc.hint || loc.subtitle || match.properties?.subtitle || ''
-                },
-                options: loc.options || null
-              };
-            }
-
-            if (countryMatch) {
-              return {
-                ...countryMatch,
-                properties: {
-                  ...countryMatch.properties,
-                  name: locName,
-                  countryMatch: countryMatch.properties.name,
-                  countryFeatureId: countryMatch.id,
-                  fact: loc.fact || countryMatch.properties?.fact || '',
-                  subtitle: loc.hint || loc.subtitle || `Country: ${countryMatch.properties.name}`
+                  fact: loc.fact || '',
+                  subtitle: loc.hint || loc.subtitle || ''
                 },
                 options: loc.options || null
               };
@@ -372,6 +369,7 @@ const MapArena = () => {
 
     const targetName = (currentFeature.properties?.name || '').toLowerCase();
     const clickedName = (clickedFeature.properties?.name || '').toLowerCase();
+    const originalRegionName = (currentFeature.properties?.originalRegionName || '').toLowerCase();
     const countryMatch = (currentFeature.properties?.countryMatch || '').toLowerCase();
     const countryFeatureId = currentFeature.properties?.countryFeatureId;
 
@@ -380,6 +378,7 @@ const MapArena = () => {
       clickedFeature.id === currentFeature.id ||
       (countryFeatureId && clickedFeature.id === countryFeatureId) ||
       (clickedName && clickedName === targetName) ||
+      (originalRegionName && clickedName === originalRegionName) ||
       (countryMatch && clickedName === countryMatch) ||
       (clickedName && targetName.includes(clickedName));
 
