@@ -1,0 +1,31 @@
+{
+  "short_name": "OmniArena",
+  "name": "OmniArena — Free Online Typing, Map & Puzzle Arena",
+  "description": "Compete in live typing speed sprints, interactive India & world map geography challenges, crosswords, and logic puzzles on OmniArena.",
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#4f46e5",
+  "background_color": "#090d16",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["education", "games", "productivity"]
+}

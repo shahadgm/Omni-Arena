@@ -1,6 +1,7 @@
 import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './components/Navbar';
+import RouteSEO from './components/RouteSEO';
 import LandingPage from './pages/LandingPage';
 
 // Self-healing dynamic import: if a new release changed chunk hashes, auto-refresh to fetch fresh assets
@@ -51,6 +52,7 @@ const App = () => {
 
   return (
     <Router>
+      <RouteSEO />
       <Navbar theme={theme} toggleTheme={toggleTheme} />
       <div className="page-wrapper">
         <Suspense fallback={<PageLoader />}>
