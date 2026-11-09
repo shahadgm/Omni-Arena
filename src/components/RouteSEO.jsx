@@ -6,6 +6,18 @@ const ROUTE_METADATA = {
     title: 'OmniArena — Free Typing Contests, Map Quiz & Puzzles',
     description: 'Compete in live typing speed sprints, interactive India and world geography map challenges, crosswords, and logic puzzles on OmniArena. Join free today!'
   },
+  '/geography': {
+    title: 'Interactive India & World Map Geography Quiz — OmniArena',
+    description: 'Test geography skills with interactive India & world maps. Spot states, 60+ Indian cities, heritage monuments, and global capitals on OmniArena. Play free now!'
+  },
+  '/typing': {
+    title: 'Free Online Speed Typing Competition Sprint — OmniArena',
+    description: 'Race in live speed typing sprints in English, Arabic, and Nastaliq Urdu. Track real-time WPM metrics, anti-cheat, and win Olympic podiums on OmniArena today!'
+  },
+  '/puzzles': {
+    title: 'Daily Online Crosswords, Sudoku & Puzzles — OmniArena',
+    description: 'Solve free daily crossword word grids, 9x9 Sudoku number puzzles, and Nonogram picture logic games on OmniArena. Challenge your mind and climb the leaderboard!'
+  },
   '/dashboard': {
     title: 'Competitions Dashboard — OmniArena',
     description: 'Browse active typing sprints, map geography challenges, crosswords, and logic puzzle competitions on OmniArena.'

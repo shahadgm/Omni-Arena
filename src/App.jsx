@@ -29,6 +29,9 @@ const StudentHistory = lazyWithRetry(() => import('./pages/StudentHistory'));
 const AdminDashboard = lazyWithRetry(() => import('./pages/admin/AdminDashboard'));
 const CreateTournament = lazyWithRetry(() => import('./pages/admin/CreateTournament'));
 const FeedbackPage = lazyWithRetry(() => import('./pages/FeedbackPage'));
+const GeographyLanding = lazyWithRetry(() => import('./pages/GeographyLanding'));
+const TypingLanding = lazyWithRetry(() => import('./pages/TypingLanding'));
+const PuzzlesLanding = lazyWithRetry(() => import('./pages/PuzzlesLanding'));
 
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh', color: 'var(--text-secondary)' }}>
@@ -58,6 +61,9 @@ const App = () => {
         <Suspense fallback={<PageLoader />}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
+            <Route path="/geography" element={<GeographyLanding />} />
+            <Route path="/typing" element={<TypingLanding />} />
+            <Route path="/puzzles" element={<PuzzlesLanding />} />
             <Route path="/dashboard" element={<StudentDashboard />} />
             <Route path="/arena/:id" element={<ArenaRouter />} />
             <Route path="/leaderboard/:id" element={<LeaderboardPage />} />

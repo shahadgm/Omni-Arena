@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../services/db';
 import soundEngine from '../utils/soundEffects';
-import { Keyboard, LogOut, Shield, Sun, Moon, PlusCircle, Trophy, User, Menu, X, Clock, MessageSquare, Volume2, VolumeX } from 'lucide-react';
+import { Keyboard, LogOut, Shield, Sun, Moon, PlusCircle, Trophy, User, Menu, X, Clock, MessageSquare, Volume2, VolumeX, MapPin, Grid } from 'lucide-react';
 
 const Navbar = ({ theme, toggleTheme }) => {
   const navigate = useNavigate();
@@ -127,6 +127,17 @@ const Navbar = ({ theme, toggleTheme }) => {
             {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
           </button>
 
+          {/* Quick Arena Navigation Links */}
+          <Link to="/geography" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--disc-map)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
+            <MapPin size={16} /> Geography
+          </Link>
+          <Link to="/typing" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--disc-typing)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
+            <Keyboard size={16} /> Typing
+          </Link>
+          <Link to="/puzzles" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--disc-puzzle)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
+            <Grid size={16} /> Puzzles
+          </Link>
+
           {isAuthenticated ? (
             <>
               <Link to="/dashboard" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
@@ -239,6 +250,19 @@ const Navbar = ({ theme, toggleTheme }) => {
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
         }}>
+          {/* Main Disciplines (Mobile) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border)' }}>
+            <Link to="/geography" style={mobileLinkItemStyle} onClick={() => setMobileMenuOpen(false)}>
+              <MapPin size={18} color="var(--disc-map)" /> Geography Arena
+            </Link>
+            <Link to="/typing" style={mobileLinkItemStyle} onClick={() => setMobileMenuOpen(false)}>
+              <Keyboard size={18} color="var(--disc-typing)" /> Speed Typing
+            </Link>
+            <Link to="/puzzles" style={mobileLinkItemStyle} onClick={() => setMobileMenuOpen(false)}>
+              <Grid size={18} color="var(--disc-puzzle)" /> Logic &amp; Crosswords
+            </Link>
+          </div>
+
           {isAuthenticated ? (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0', borderBottom: '1px solid var(--glass-border)', marginBottom: '0.5rem' }}>
