@@ -5,7 +5,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { AlertModal } from '../components/ui/Modal';
-import { Lock, Key, AlertCircle, Clock } from 'lucide-react';
+import { Lock, Key, AlertCircle, Clock, Maximize2, Minimize2 } from 'lucide-react';
 import { TYPING_DRILL_PRESETS, parseDrillParams } from '../utils/typingDrills';
 
 const CompetitionArena = lazy(() => import('./CompetitionArena'));
@@ -38,6 +38,24 @@ const ArenaRouter = () => {
   
   const studentId = localStorage.getItem('studentId');
   const antiCheatKey = `started_${id}_${studentId}`;
+  const isPractice = id?.startsWith('practice-');
+
+  const togglePracticeFullscreen = async () => {
+    try {
+      if (!isFullscreen) {
+        const el = document.documentElement;
+        if (el.requestFullscreen) await el.requestFullscreen();
+        else if (el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
+        else if (el.msRequestFullscreen) await el.msRequestFullscreen();
+      } else {
+        if (document.exitFullscreen) await document.exitFullscreen();
+        else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
+        else if (document.msExitFullscreen) await document.msExitFullscreen();
+      }
+    } catch (e) {
+      console.warn("Fullscreen toggle error", e);
+    }
+  };
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -201,20 +219,23 @@ const ArenaRouter = () => {
   };
 
   const handleStart = async () => {
-    try {
-      const el = document.documentElement;
-      if (el.requestFullscreen) {
-        await el.requestFullscreen();
-      } else if (el.webkitRequestFullscreen) {
-        await el.webkitRequestFullscreen();
-      } else if (el.msRequestFullscreen) {
-        await el.msRequestFullscreen();
+    // Only tournaments mandate and enter full screen automatically
+    if (!isPractice) {
+      try {
+        const el = document.documentElement;
+        if (el.requestFullscreen) {
+          await el.requestFullscreen();
+        } else if (el.webkitRequestFullscreen) {
+          await el.webkitRequestFullscreen();
+        } else if (el.msRequestFullscreen) {
+          await el.msRequestFullscreen();
+        }
+      } catch (err) {
+        console.warn("Fullscreen request failed", err);
       }
-    } catch (err) {
-      console.warn("Fullscreen request failed", err);
     }
     
-    if (studentId && !id.startsWith('practice-')) {
+    if (studentId && !isPractice) {
       // Mark as started ONLY when they actually click start
       localStorage.setItem(antiCheatKey, 'true');
     }
@@ -353,7 +374,8 @@ const ArenaRouter = () => {
 
   return (
     <>
-      {!isFullscreen && hasStarted && (
+      {/* Full screen enforcement ONLY for tournaments */}
+      {!isPractice && !isFullscreen && hasStarted && (
         <div style={{
           position: 'fixed',
           top: 0, left: 0, right: 0, bottom: 0,
@@ -385,12 +407,51 @@ const ArenaRouter = () => {
         </div>
       )}
       
-      {/* Render the arena but hide it completely if they are not in full screen */}
-      <div style={{ display: !isFullscreen && hasStarted ? 'none' : 'flex', width: '100%', flex: 1, flexDirection: 'column' }}>
+      {/* Render the arena - hide only if non-practice tournament exits fullscreen */}
+      <div style={{ display: !isPractice && !isFullscreen && hasStarted ? 'none' : 'flex', width: '100%', flex: 1, flexDirection: 'column' }}>
         <Suspense fallback={<div className="page-wrapper" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>Loading arena components...</div>}>
           {renderArena()}
         </Suspense>
       </div>
+
+      {/* Optional Full Screen Toggle for Practice Mode */}
+      {isPractice && hasStarted && (
+        <button
+          onClick={togglePracticeFullscreen}
+          style={{
+            position: 'fixed',
+            bottom: '1.25rem',
+            right: '1.25rem',
+            zIndex: 90,
+            background: 'var(--surface)',
+            border: '1px solid var(--border)',
+            color: 'var(--text-secondary)',
+            borderRadius: '24px',
+            padding: '0.45rem 0.85rem',
+            fontSize: '0.8rem',
+            fontWeight: '600',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            cursor: 'pointer',
+            boxShadow: '0 4px 14px rgba(0,0,0,0.3)',
+            transition: 'all 0.15s ease'
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.color = 'var(--text-primary)';
+            e.currentTarget.style.borderColor = 'var(--primary)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.color = 'var(--text-secondary)';
+            e.currentTarget.style.borderColor = 'var(--border)';
+          }}
+          title={isFullscreen ? "Exit Full Screen" : "Enter Full Screen"}
+          aria-label={isFullscreen ? "Exit Full Screen" : "Enter Full Screen"}
+        >
+          {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+          <span>{isFullscreen ? 'Exit Full Screen' : 'Full Screen'}</span>
+        </button>
+      )}
 
       {routeModal && (
         <AlertModal
