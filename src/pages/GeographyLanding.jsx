@@ -14,13 +14,15 @@ const GeographyLanding = () => {
   const [showNameModal, setShowNameModal] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
 
-  const startPlaying = (targetPath = '/dashboard') => {
+  const startPlaying = (targetPath = '/arena/practice-map') => {
     const isLoggedIn = !!localStorage.getItem('studentId') || authService.isAuthenticated();
     if (isLoggedIn) {
       navigate(targetPath);
     } else {
-      setPendingAction(targetPath);
-      setShowNameModal(true);
+      // Auto-assign clean guest contestant for zero-friction instant play
+      const finalName = `Explorer-${Math.floor(1000 + Math.random() * 9000)}`;
+      authService.setGuestContestant(finalName);
+      navigate(targetPath);
     }
   };
 
@@ -29,7 +31,7 @@ const GeographyLanding = () => {
     const finalName = guestName.trim() || `Explorer-${Math.floor(1000 + Math.random() * 9000)}`;
     authService.setGuestContestant(finalName);
     setShowNameModal(false);
-    navigate(pendingAction || '/dashboard');
+    navigate(pendingAction || '/arena/practice-map');
   };
 
   return (
@@ -86,7 +88,7 @@ const GeographyLanding = () => {
         <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <Button 
             variant="primary" 
-            onClick={() => startPlaying('/dashboard')}
+            onClick={() => startPlaying('/arena/practice-map')}
             style={{ 
               padding: '0.85rem 1.75rem', 
               fontSize: '1.05rem', 
@@ -197,55 +199,63 @@ const GeographyLanding = () => {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.25rem' }}>
           {[
             {
+              id: 'india-states',
               icon: <MapPin size={22} color="#10B981" />,
               title: 'India: States & Union Territories',
               count: '36 Territories',
               desc: 'All 28 Indian States and 8 Union Territories with political boundaries and capital cities.'
             },
             {
+              id: 'india-cities',
               icon: <Landmark size={22} color="#F59E0B" />,
               title: 'India: 60+ Major Cities',
               count: '60+ Cities',
               desc: 'Locate Tier-1 & Tier-2 cities including Delhi, Mumbai, Bengaluru, Hyderabad, Kolkata, Chennai, and Jaipur.'
             },
             {
+              id: 'india-tourist-places',
               icon: <Landmark size={22} color="#EC4899" />,
               title: 'India: Tourist Places & Heritage Sites',
               count: '60+ Monuments',
               desc: 'UNESCO World Heritage spots: Taj Mahal, Hawa Mahal, Ajanta Caves, Golden Temple, Qutub Minar, and Meenakshi Temple.'
             },
             {
+              id: 'countries',
               icon: <Globe size={22} color="#3B82F6" />,
               title: 'Countries of the World',
               count: '190+ Countries',
               desc: 'Sovereign nation borders across North America, South America, Europe, Asia, Africa, and Oceania.'
             },
             {
+              id: 'oceans',
               icon: <Waves size={22} color="#06B6D4" />,
               title: 'Oceans, Seas & Major Lakes',
               count: '30+ Water Bodies',
               desc: 'Arabian Sea, Bay of Bengal, Mediterranean, Caspian Sea, Indian Ocean, and major global water bodies.'
             },
             {
+              id: 'mountains',
               icon: <Mountain size={22} color="#8B5CF6" />,
               title: 'Mountain Ranges & Peaks',
               count: '25+ Ranges',
               desc: 'Himalayas, Western Ghats, Eastern Ghats, Karakoram, Alps, Andes, Rockies, and Urals.'
             },
             {
+              id: 'deserts',
               icon: <Sun size={22} color="#EAB308" />,
               title: 'Deserts of the World',
               count: '15+ Deserts',
               desc: 'Thar Desert, Sahara, Arabian, Gobi, Atacama, and Kalahari arid regions.'
             },
             {
+              id: 'grasslands',
               icon: <Trees size={22} color="#14B8A6" />,
               title: 'Grasslands, Plains & Plateaus',
               count: '20+ Landforms',
               desc: 'Deccan Plateau, Tibetan Plateau, Indo-Gangetic Plain, Prairies, Steppes, Savannas, and Pampas.'
             }
           ].map((cat, idx) => (
-            <Card key={idx} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <Card key={idx} hoverEffect={true} style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', height: '100%' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <div style={{ 
                   width: '40px', 
@@ -273,9 +283,16 @@ const GeographyLanding = () => {
               <h3 style={{ fontSize: '1.05rem', fontWeight: '700', marginBottom: '0.4rem', color: 'var(--text-primary)' }}>
                 {cat.title}
               </h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.5, margin: 0, flex: 1 }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.5, margin: '0 0 1rem 0', flex: 1 }}>
                 {cat.desc}
               </p>
+              <Button 
+                variant="secondary" 
+                onClick={() => startPlaying(`/arena/practice-map?category=${cat.id}`)}
+                style={{ width: '100%', padding: '0.55rem', fontSize: '0.85rem', fontWeight: '700' }}
+              >
+                Play This Category <ChevronRight size={14} />
+              </Button>
             </Card>
           ))}
         </div>
@@ -387,7 +404,7 @@ const GeographyLanding = () => {
         </p>
         <Button 
           variant="primary" 
-          onClick={() => startPlaying('/dashboard')}
+          onClick={() => startPlaying('/arena/practice-map')}
           style={{ 
             padding: '0.9rem 2rem', 
             fontSize: '1.05rem', 

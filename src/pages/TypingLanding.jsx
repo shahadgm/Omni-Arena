@@ -14,13 +14,15 @@ const TypingLanding = () => {
   const [showNameModal, setShowNameModal] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
 
-  const startPlaying = (targetPath = '/dashboard') => {
+  const startPlaying = (targetPath = '/arena/practice-english-1m') => {
     const isLoggedIn = !!localStorage.getItem('studentId') || authService.isAuthenticated();
     if (isLoggedIn) {
       navigate(targetPath);
     } else {
-      setPendingAction(targetPath);
-      setShowNameModal(true);
+      // Auto-assign clean guest contestant for zero-friction instant play
+      const finalName = `Typist-${Math.floor(1000 + Math.random() * 9000)}`;
+      authService.setGuestContestant(finalName);
+      navigate(targetPath);
     }
   };
 
@@ -29,7 +31,7 @@ const TypingLanding = () => {
     const finalName = guestName.trim() || `Typist-${Math.floor(1000 + Math.random() * 9000)}`;
     authService.setGuestContestant(finalName);
     setShowNameModal(false);
-    navigate(pendingAction || '/dashboard');
+    navigate(pendingAction || '/arena/practice-english-1m');
   };
 
   return (
@@ -86,7 +88,7 @@ const TypingLanding = () => {
         <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <Button 
             variant="primary" 
-            onClick={() => startPlaying('/dashboard')}
+            onClick={() => startPlaying('/arena/practice-english-1m')}
             style={{ 
               padding: '0.85rem 1.75rem', 
               fontSize: '1.05rem', 
@@ -196,7 +198,7 @@ const TypingLanding = () => {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
-          <Card style={{ padding: '1.75rem' }}>
+          <Card hoverEffect={true} style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
               <span style={{ fontSize: '1.75rem' }}>🇬🇧</span>
               <div>
@@ -204,12 +206,19 @@ const TypingLanding = () => {
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>QWERTY, Dvorak &amp; Colemak</span>
               </div>
             </div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.6 }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '1.25rem', flex: 1 }}>
               Curated tech vocabulary, classic literature quotes, commonly misspelled words, and punctuation drills designed to push beyond 100+ WPM.
             </p>
+            <Button 
+              variant="secondary" 
+              onClick={() => startPlaying('/arena/practice-english-1m')}
+              style={{ width: '100%', padding: '0.65rem', fontSize: '0.9rem', fontWeight: '700' }}
+            >
+              Start English Sprint <ChevronRight size={16} />
+            </Button>
           </Card>
 
-          <Card style={{ padding: '1.75rem' }}>
+          <Card hoverEffect={true} style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
               <span style={{ fontSize: '1.75rem' }}>🇸🇦</span>
               <div>
@@ -217,12 +226,19 @@ const TypingLanding = () => {
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>العربية الفصحى والكلاسيكية</span>
               </div>
             </div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.6 }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '1.25rem', flex: 1 }}>
               Native RTL typography with accurate diacritic recognition, tashkeel handling, and historical Islamic prose drills for typing mastery.
             </p>
+            <Button 
+              variant="secondary" 
+              onClick={() => startPlaying('/arena/practice-arabic-1m')}
+              style={{ width: '100%', padding: '0.65rem', fontSize: '0.9rem', fontWeight: '700' }}
+            >
+              Start Arabic Sprint <ChevronRight size={16} />
+            </Button>
           </Card>
 
-          <Card style={{ padding: '1.75rem' }}>
+          <Card hoverEffect={true} style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
               <span style={{ fontSize: '1.75rem' }}>🇵🇰</span>
               <div>
@@ -230,9 +246,16 @@ const TypingLanding = () => {
                 <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>اردو نستعلیق اسپیڈ ٹیسٹ</span>
               </div>
             </div>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.6 }}>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', lineHeight: 1.6, marginBottom: '1.25rem', flex: 1 }}>
               Authentic Urdu keyboard mapping, Nastaliq ligature rendering, and classic Urdu literature passages for competitive speed events.
             </p>
+            <Button 
+              variant="secondary" 
+              onClick={() => startPlaying('/arena/practice-urdu-1m')}
+              style={{ width: '100%', padding: '0.65rem', fontSize: '0.9rem', fontWeight: '700' }}
+            >
+              Start Urdu Sprint <ChevronRight size={16} />
+            </Button>
           </Card>
         </div>
       </section>
@@ -331,7 +354,7 @@ const TypingLanding = () => {
         </p>
         <Button 
           variant="primary" 
-          onClick={() => startPlaying('/dashboard')}
+          onClick={() => startPlaying('/arena/practice-english-1m')}
           style={{ 
             padding: '0.9rem 2rem', 
             fontSize: '1.05rem', 

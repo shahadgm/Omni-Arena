@@ -14,13 +14,15 @@ const PuzzlesLanding = () => {
   const [showNameModal, setShowNameModal] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
 
-  const startPlaying = (targetPath = '/dashboard') => {
+  const startPlaying = (targetPath = '/arena/practice-crossword') => {
     const isLoggedIn = !!localStorage.getItem('studentId') || authService.isAuthenticated();
     if (isLoggedIn) {
       navigate(targetPath);
     } else {
-      setPendingAction(targetPath);
-      setShowNameModal(true);
+      // Auto-assign clean guest contestant for zero-friction instant play
+      const finalName = `Solver-${Math.floor(1000 + Math.random() * 9000)}`;
+      authService.setGuestContestant(finalName);
+      navigate(targetPath);
     }
   };
 
@@ -29,7 +31,7 @@ const PuzzlesLanding = () => {
     const finalName = guestName.trim() || `Solver-${Math.floor(1000 + Math.random() * 9000)}`;
     authService.setGuestContestant(finalName);
     setShowNameModal(false);
-    navigate(pendingAction || '/dashboard');
+    navigate(pendingAction || '/arena/practice-crossword');
   };
 
   return (
@@ -86,7 +88,7 @@ const PuzzlesLanding = () => {
         <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <Button 
             variant="primary" 
-            onClick={() => startPlaying('/dashboard')}
+            onClick={() => startPlaying('/arena/practice-crossword')}
             style={{ 
               padding: '0.85rem 1.75rem', 
               fontSize: '1.05rem', 
@@ -153,7 +155,7 @@ const PuzzlesLanding = () => {
             </p>
             <Button 
               variant="secondary" 
-              onClick={() => startPlaying('/dashboard')}
+              onClick={() => startPlaying('/arena/practice-crossword')}
               style={{ width: '100%', padding: '0.75rem', fontSize: '0.9rem', fontWeight: '700' }}
             >
               Solve Crossword <ChevronRight size={16} />
@@ -187,7 +189,7 @@ const PuzzlesLanding = () => {
             </p>
             <Button 
               variant="secondary" 
-              onClick={() => startPlaying('/dashboard')}
+              onClick={() => startPlaying('/arena/practice-sudoku-easy')}
               style={{ width: '100%', padding: '0.75rem', fontSize: '0.9rem', fontWeight: '700' }}
             >
               Play Sudoku <ChevronRight size={16} />
@@ -221,7 +223,7 @@ const PuzzlesLanding = () => {
             </p>
             <Button 
               variant="secondary" 
-              onClick={() => startPlaying('/dashboard')}
+              onClick={() => startPlaying('/arena/practice-nonogram-5x5')}
               style={{ width: '100%', padding: '0.75rem', fontSize: '0.9rem', fontWeight: '700' }}
             >
               Solve Nonogram <ChevronRight size={16} />
@@ -330,7 +332,7 @@ const PuzzlesLanding = () => {
         </p>
         <Button 
           variant="primary" 
-          onClick={() => startPlaying('/dashboard')}
+          onClick={() => startPlaying('/arena/practice-crossword')}
           style={{ 
             padding: '0.9rem 2rem', 
             fontSize: '1.05rem', 
