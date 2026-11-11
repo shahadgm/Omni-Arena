@@ -844,27 +844,77 @@ const MapArena = () => {
             </div>
           )}
 
-          {/* SIBAQ Status Chip */}
-          {feedback && (
-            <div style={{
-              padding: '0.35rem 0.85rem',
-              borderRadius: '999px',
-              fontSize: '0.85rem',
-              fontWeight: '800',
-              whiteSpace: 'nowrap',
-              background: feedback.ok ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-              color: feedback.ok ? '#10b981' : '#ef4444',
-              border: `1px solid ${feedback.ok ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
-            }}>
-              {feedback.ok
-                ? 'Right'
-                : !isNameThePlace
-                ? feedback.tappedName && feedback.tappedName !== 'skipped'
-                  ? `That's ${feedback.tappedName}`
-                  : 'Here it is'
-                : 'Not quite'}
-            </div>
-          )}
+          {/* Right Action & Status Container: Feedback Chip & Show Me / Next Question */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.65rem',
+            flexWrap: 'wrap',
+            justifyContent: 'flex-end',
+            flexShrink: 0
+          }}>
+            {/* SIBAQ Status Chip */}
+            {feedback && (
+              <div style={{
+                padding: '0.35rem 0.85rem',
+                borderRadius: '999px',
+                fontSize: '0.85rem',
+                fontWeight: '800',
+                whiteSpace: 'nowrap',
+                background: feedback.ok ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                color: feedback.ok ? '#10b981' : '#ef4444',
+                border: `1px solid ${feedback.ok ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
+              }}>
+                {feedback.ok
+                  ? 'Right'
+                  : !isNameThePlace
+                  ? feedback.tappedName && feedback.tappedName !== 'skipped'
+                    ? `That's ${feedback.tappedName}`
+                    : 'Here it is'
+                  : 'Not quite'}
+              </div>
+            )}
+
+            {/* Action Button: Show Me or Next Question */}
+            {isAnswered ? (
+              <Button
+                onClick={handleNextQuestion}
+                style={{
+                  padding: '0.5rem 1.1rem',
+                  fontSize: '0.9rem',
+                  fontWeight: '800',
+                  background: '#047857',
+                  borderColor: '#047857',
+                  color: '#ffffff',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  whiteSpace: 'nowrap',
+                  boxShadow: '0 2px 8px rgba(4, 120, 87, 0.25)',
+                  cursor: 'pointer'
+                }}
+              >
+                <span>{currentIdx + 1 >= questions.length ? 'See Results' : 'Next Question'}</span>
+                <ArrowRight size={16} />
+              </Button>
+            ) : (
+              !isNameThePlace && (
+                <Button
+                  variant="secondary"
+                  onClick={handleShowMe}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    fontSize: '0.85rem',
+                    fontWeight: '700',
+                    whiteSpace: 'nowrap',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Show me
+                </Button>
+              )
+            )}
+          </div>
         </div>
 
         {/* 100% Vector Self-Contained SVG Map (NO API KEY, NO WATERMARK) */}
@@ -958,56 +1008,39 @@ const MapArena = () => {
           </div>
         )}
 
-        {/* Footer Actions (Show Me / Next / Stop) */}
-        <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.25rem' }}>
-          {isAnswered ? (
-            <Button
-              onClick={handleNextQuestion}
-              style={{
-                flex: 1,
-                padding: '0.85rem',
-                fontSize: '1rem',
-                fontWeight: '800',
-                background: '#047857',
-                borderColor: '#047857',
-                color: '#ffffff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.5rem'
-              }}
-            >
-              {currentIdx + 1 >= questions.length ? 'See Results' : 'Next Question'}
-              <ArrowRight size={18} />
-            </Button>
-          ) : (
-            !isNameThePlace && (
-              <Button
-                variant="secondary"
-                onClick={handleShowMe}
-                style={{
-                  flex: 1,
-                  padding: '0.85rem',
-                  fontSize: '0.95rem',
-                  fontWeight: '700'
-                }}
-              >
-                Show me
-              </Button>
-            )
-          )}
-
+        {/* Footer Actions (Stop & optional bottom Next Question) */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', marginTop: '1rem' }}>
           <Button
             variant="ghost"
             onClick={() => navigate('/dashboard')}
             style={{
-              padding: '0.85rem 1.25rem',
-              fontSize: '0.9rem',
+              padding: '0.5rem 1rem',
+              fontSize: '0.85rem',
               color: 'var(--text-secondary)'
             }}
           >
             Stop
           </Button>
+
+          {isAnswered && (
+            <Button
+              onClick={handleNextQuestion}
+              style={{
+                padding: '0.5rem 1.25rem',
+                fontSize: '0.9rem',
+                fontWeight: '700',
+                background: '#047857',
+                borderColor: '#047857',
+                color: '#ffffff',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem'
+              }}
+            >
+              <span>{currentIdx + 1 >= questions.length ? 'See Results' : 'Next Question'}</span>
+              <ArrowRight size={16} />
+            </Button>
+          )}
         </div>
 
         <p style={{
