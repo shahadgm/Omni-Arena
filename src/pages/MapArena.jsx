@@ -635,20 +635,21 @@ const MapArena = () => {
     );
   }
 
-  const isAnswered = (feedback && feedback.ok) || showSolution;
+  const isAnswered = (feedback && feedback.ok) || showSolution || (isNameThePlace && optionAnswered);
 
   return (
     <div 
       ref={containerRef}
       className="container" 
       style={{ 
-        maxWidth: (mapData.kind === 'india' || mapData.kind === 'india-points') ? '720px' : '960px', 
+        maxWidth: isNameThePlace ? '1120px' : ((mapData.kind === 'india' || mapData.kind === 'india-points') ? '740px' : '960px'), 
         margin: '0 auto', 
         paddingTop: '1.25rem', 
         paddingBottom: '3rem',
         minHeight: '100vh',
         display: 'flex',
-        flexDirection: 'column'
+        flexDirection: 'column',
+        transition: 'max-width 0.25s ease'
       }}
     >
       {/* Top Header matching SIBAQ Tracker UI */}
@@ -799,34 +800,248 @@ const MapArena = () => {
         </div>
       )}
 
-      {/* Main Question Card */}
-      <Card style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', flex: 1, boxShadow: 'var(--glass-shadow)' }}>
-        
-        {/* Question Prompt Header with Status Chip */}
-        <div style={{
-          background: 'var(--surface)',
-          border: '1.5px solid var(--border)',
-          borderRadius: '10px',
-          padding: '0.85rem 1.25rem',
-          marginBottom: '1rem',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '1rem',
-          minHeight: '64px'
-        }}>
-          {isNameThePlace ? (
-            <div>
-              <div style={{ fontSize: '1.15rem', fontWeight: '700', color: 'var(--text-primary)' }}>
-                Which {currentCategory.singular} is highlighted?
+      {/* Main Arena Content */}
+      {isNameThePlace ? (
+        /* Name the Place Mode: Side-by-Side Split Layout (Map on Left, Question & Options on Right) */
+        <Card style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', flex: 1, boxShadow: 'var(--glass-shadow)' }}>
+          <div className="map-arena-split-layout">
+            
+            {/* Left Column: Interactive Map */}
+            <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+              <div style={{
+                flex: 1,
+                minHeight: '450px',
+                position: 'relative',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                background: 'var(--surface-2)',
+                border: '1px solid var(--border)'
+              }}>
+                <SvgInteractiveMap
+                  mapData={mapData}
+                  targetFeature={currentFeature}
+                  questionMode={activeQuestionType}
+                  feedback={feedback}
+                  showSolution={showSolution}
+                  onFeatureClick={handleFeatureClick}
+                  disabled={true}
+                />
               </div>
-              {showSolution && currentFeature?.properties?.subtitle && (
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem', fontWeight: '600' }}>
-                  {currentFeature.properties.subtitle}
-                </div>
-              )}
+              <p style={{
+                textAlign: 'center',
+                fontSize: '0.78rem',
+                color: 'var(--text-tertiary)',
+                margin: '0.65rem 0 0'
+              }}>
+                Pinch or scroll to zoom, drag to move the map.
+              </p>
             </div>
-          ) : (
+
+            {/* Right Column: Question & Multiple Choice Options */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', minWidth: 0, justifyContent: 'space-between' }}>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {/* Question Header Card */}
+                <div style={{
+                  background: 'var(--surface-2)',
+                  border: '1.5px solid var(--border)',
+                  borderRadius: '12px',
+                  padding: '1.1rem 1.25rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.4rem'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
+                    <div>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                        Identify the highlighted region:
+                      </div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--text-primary)', marginTop: '0.2rem' }}>
+                        Which {currentCategory.singular} is highlighted?
+                      </div>
+                    </div>
+
+                    {/* Feedback Status Chip */}
+                    {feedback && (
+                      <div style={{
+                        padding: '0.35rem 0.85rem',
+                        borderRadius: '999px',
+                        fontSize: '0.85rem',
+                        fontWeight: '800',
+                        whiteSpace: 'nowrap',
+                        background: feedback.ok ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                        color: feedback.ok ? '#10b981' : '#ef4444',
+                        border: `1px solid ${feedback.ok ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                        flexShrink: 0
+                      }}>
+                        {feedback.ok ? 'Right!' : 'Not quite'}
+                      </div>
+                    )}
+                  </div>
+
+                  {showSolution && currentFeature?.properties?.subtitle && (
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                      {currentFeature.properties.subtitle}
+                    </div>
+                  )}
+                </div>
+
+                {/* Multiple Choice Options List */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    Select one option:
+                  </div>
+
+                  {currentOptions.map((option, idx) => {
+                    const isSelected = selectedOptionId === option.id;
+                    const isCorrect = option.id === currentFeature?.properties?.name || option.isCorrect;
+                    const optionLetter = ['A', 'B', 'C', 'D'][idx] || (idx + 1);
+                    
+                    let btnBg = 'var(--surface)';
+                    let btnBorder = 'var(--border)';
+                    let btnColor = 'var(--text-primary)';
+
+                    if (optionAnswered) {
+                      if (isCorrect) {
+                        btnBg = 'rgba(16, 185, 129, 0.15)';
+                        btnBorder = '#10b981';
+                        btnColor = '#10b981';
+                      } else if (isSelected && !isCorrect) {
+                        btnBg = 'rgba(239, 68, 68, 0.15)';
+                        btnBorder = '#ef4444';
+                        btnColor = '#ef4444';
+                      }
+                    }
+
+                    return (
+                      <button
+                        key={option.id}
+                        onClick={() => handleOptionSelect(option)}
+                        disabled={optionAnswered}
+                        style={{
+                          background: btnBg,
+                          border: `1.5px solid ${btnBorder}`,
+                          borderRadius: '10px',
+                          padding: '0.85rem 1rem',
+                          textAlign: 'left',
+                          fontSize: '0.95rem',
+                          fontWeight: '700',
+                          color: btnColor,
+                          cursor: optionAnswered ? 'default' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '0.75rem',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+                          <span style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '26px',
+                            height: '26px',
+                            borderRadius: '6px',
+                            background: 'var(--surface-2)',
+                            border: '1px solid var(--border)',
+                            fontSize: '0.8rem',
+                            fontWeight: '800',
+                            color: 'var(--text-secondary)',
+                            flexShrink: 0
+                          }}>
+                            {optionLetter}
+                          </span>
+                          <span style={{ wordBreak: 'break-word' }}>{option.name}</span>
+                        </div>
+                        <div style={{ flexShrink: 0 }}>
+                          {optionAnswered && isCorrect && <CheckCircle2 size={20} color="#10b981" />}
+                          {optionAnswered && isSelected && !isCorrect && <XCircle size={20} color="#ef4444" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Educational Fact Callout */}
+                {isAnswered && currentFeature?.properties?.fact && (
+                  <div style={{
+                    padding: '0.75rem 1rem',
+                    borderRadius: '10px',
+                    background: 'rgba(4, 120, 87, 0.08)',
+                    border: '1px solid rgba(4, 120, 87, 0.2)',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '0.6rem',
+                    fontSize: '0.875rem',
+                    color: 'var(--text-primary)',
+                    lineHeight: '1.45'
+                  }}>
+                    <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>💡</span>
+                    <div>
+                      <strong style={{ color: '#047857' }}>Did You Know? </strong>
+                      <span>{currentFeature.properties.fact}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Bottom Actions: Stop & Next */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px solid var(--border)' }}>
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate('/dashboard')}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    fontSize: '0.85rem',
+                    color: 'var(--text-secondary)'
+                  }}
+                >
+                  Stop
+                </Button>
+
+                {isAnswered && (
+                  <Button
+                    onClick={handleNextQuestion}
+                    style={{
+                      padding: '0.6rem 1.35rem',
+                      fontSize: '0.92rem',
+                      fontWeight: '800',
+                      background: '#047857',
+                      borderColor: '#047857',
+                      color: '#ffffff',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      boxShadow: '0 2px 8px rgba(4, 120, 87, 0.3)'
+                    }}
+                  >
+                    <span>{currentIdx + 1 >= questions.length ? 'See Results' : 'Next Question'}</span>
+                    <ArrowRight size={16} />
+                  </Button>
+                )}
+              </div>
+
+            </div>
+          </div>
+        </Card>
+      ) : (
+        /* Find on Map Mode: Centered Layout with Top Question Header */
+        <Card style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', flex: 1, boxShadow: 'var(--glass-shadow)' }}>
+          
+          {/* Question Prompt Header with Status Chip & Top Action Button */}
+          <div style={{
+            background: 'var(--surface)',
+            border: '1.5px solid var(--border)',
+            borderRadius: '10px',
+            padding: '0.85rem 1.25rem',
+            marginBottom: '1rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '1rem',
+            minHeight: '64px'
+          }}>
             <div>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: '500' }}>
                 {currentFeature?.geometry?.type === 'Point' && (currentCategory.pack === 'world' || currentFeature.properties?.countryMatch)
@@ -842,63 +1057,59 @@ const MapArena = () => {
                 </div>
               )}
             </div>
-          )}
 
-          {/* Right Action & Status Container: Feedback Chip & Show Me / Next Question */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.65rem',
-            flexWrap: 'wrap',
-            justifyContent: 'flex-end',
-            flexShrink: 0
-          }}>
-            {/* SIBAQ Status Chip */}
-            {feedback && (
-              <div style={{
-                padding: '0.35rem 0.85rem',
-                borderRadius: '999px',
-                fontSize: '0.85rem',
-                fontWeight: '800',
-                whiteSpace: 'nowrap',
-                background: feedback.ok ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                color: feedback.ok ? '#10b981' : '#ef4444',
-                border: `1px solid ${feedback.ok ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
-              }}>
-                {feedback.ok
-                  ? 'Right'
-                  : !isNameThePlace
-                  ? feedback.tappedName && feedback.tappedName !== 'skipped'
-                    ? `That's ${feedback.tappedName}`
-                    : 'Here it is'
-                  : 'Not quite'}
-              </div>
-            )}
-
-            {/* Action Button: Show Me or Next Question */}
-            {isAnswered ? (
-              <Button
-                onClick={handleNextQuestion}
-                style={{
-                  padding: '0.5rem 1.1rem',
-                  fontSize: '0.9rem',
+            {/* Right Action & Status Container: Feedback Chip & Show Me / Next Question */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.65rem',
+              flexWrap: 'wrap',
+              justifyContent: 'flex-end',
+              flexShrink: 0
+            }}>
+              {/* SIBAQ Status Chip */}
+              {feedback && (
+                <div style={{
+                  padding: '0.35rem 0.85rem',
+                  borderRadius: '999px',
+                  fontSize: '0.85rem',
                   fontWeight: '800',
-                  background: '#047857',
-                  borderColor: '#047857',
-                  color: '#ffffff',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
                   whiteSpace: 'nowrap',
-                  boxShadow: '0 2px 8px rgba(4, 120, 87, 0.25)',
-                  cursor: 'pointer'
-                }}
-              >
-                <span>{currentIdx + 1 >= questions.length ? 'See Results' : 'Next Question'}</span>
-                <ArrowRight size={16} />
-              </Button>
-            ) : (
-              !isNameThePlace && (
+                  background: feedback.ok ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                  color: feedback.ok ? '#10b981' : '#ef4444',
+                  border: `1px solid ${feedback.ok ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
+                }}>
+                  {feedback.ok
+                    ? 'Right'
+                    : feedback.tappedName && feedback.tappedName !== 'skipped'
+                    ? `That's ${feedback.tappedName}`
+                    : 'Here it is'}
+                </div>
+              )}
+
+              {/* Action Button: Show Me or Next Question */}
+              {isAnswered ? (
+                <Button
+                  onClick={handleNextQuestion}
+                  style={{
+                    padding: '0.5rem 1.1rem',
+                    fontSize: '0.9rem',
+                    fontWeight: '800',
+                    background: '#047857',
+                    borderColor: '#047857',
+                    color: '#ffffff',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 2px 8px rgba(4, 120, 87, 0.25)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <span>{currentIdx + 1 >= questions.length ? 'See Results' : 'Next Question'}</span>
+                  <ArrowRight size={16} />
+                </Button>
+              ) : (
                 <Button
                   variant="secondary"
                   onClick={handleShowMe}
@@ -912,146 +1123,91 @@ const MapArena = () => {
                 >
                   Show me
                 </Button>
-              )
-            )}
-          </div>
-        </div>
-
-        {/* 100% Vector Self-Contained SVG Map (NO API KEY, NO WATERMARK) */}
-        <div style={{ flex: 1, minHeight: '380px', position: 'relative' }}>
-          <SvgInteractiveMap
-            mapData={mapData}
-            targetFeature={currentFeature}
-            questionMode={activeQuestionType}
-            feedback={feedback}
-            showSolution={showSolution}
-            onFeatureClick={handleFeatureClick}
-            disabled={isAnswered}
-          />
-        </div>
-
-        {/* Educational Fact Callout (Appears upon answering or revealing) */}
-        {isAnswered && currentFeature?.properties?.fact && (
-          <div style={{
-            marginTop: '0.85rem',
-            padding: '0.75rem 1rem',
-            borderRadius: '8px',
-            background: 'rgba(4, 120, 87, 0.08)',
-            border: '1px solid rgba(4, 120, 87, 0.2)',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '0.6rem',
-            fontSize: '0.875rem',
-            color: 'var(--text-primary)',
-            lineHeight: '1.45'
-          }}>
-            <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>💡</span>
-            <div>
-              <strong style={{ color: '#047857' }}>Did You Know? </strong>
-              <span>{currentFeature.properties.fact}</span>
+              )}
             </div>
           </div>
-        )}
 
-        {/* Options Grid (Name the place mode) */}
-        {isNameThePlace && (
-          <div style={{ marginTop: '1rem' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem' }}>
-              {currentOptions.map(option => {
-                const isSelected = selectedOptionId === option.id;
-                const isCorrect = option.id === currentFeature.properties?.name || option.isCorrect;
-                
-                let btnBg = 'var(--surface)';
-                let btnBorder = 'var(--border)';
-                let btnColor = 'var(--text-primary)';
-
-                if (optionAnswered) {
-                  if (isCorrect) {
-                    btnBg = 'rgba(16, 185, 129, 0.15)';
-                    btnBorder = '#10b981';
-                    btnColor = '#10b981';
-                  } else if (isSelected && !isCorrect) {
-                    btnBg = 'rgba(239, 68, 68, 0.15)';
-                    btnBorder = '#ef4444';
-                    btnColor = '#ef4444';
-                  }
-                }
-
-                return (
-                  <button
-                    key={option.id}
-                    onClick={() => handleOptionSelect(option)}
-                    disabled={optionAnswered}
-                    style={{
-                      background: btnBg,
-                      border: `1.5px solid ${btnBorder}`,
-                      borderRadius: '8px',
-                      padding: '0.85rem 1rem',
-                      textAlign: 'left',
-                      fontSize: '0.95rem',
-                      fontWeight: '700',
-                      color: btnColor,
-                      cursor: optionAnswered ? 'default' : 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <span>{option.name}</span>
-                    {optionAnswered && isCorrect && <CheckCircle2 size={18} color="#10b981" />}
-                    {optionAnswered && isSelected && !isCorrect && <XCircle size={18} color="#ef4444" />}
-                  </button>
-                );
-              })}
-            </div>
+          {/* 100% Vector Self-Contained SVG Map */}
+          <div style={{ flex: 1, minHeight: '380px', position: 'relative' }}>
+            <SvgInteractiveMap
+              mapData={mapData}
+              targetFeature={currentFeature}
+              questionMode={activeQuestionType}
+              feedback={feedback}
+              showSolution={showSolution}
+              onFeatureClick={handleFeatureClick}
+              disabled={isAnswered}
+            />
           </div>
-        )}
 
-        {/* Footer Actions (Stop & optional bottom Next Question) */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', marginTop: '1rem' }}>
-          <Button
-            variant="ghost"
-            onClick={() => navigate('/dashboard')}
-            style={{
-              padding: '0.5rem 1rem',
-              fontSize: '0.85rem',
-              color: 'var(--text-secondary)'
-            }}
-          >
-            Stop
-          </Button>
+          {/* Educational Fact Callout */}
+          {isAnswered && currentFeature?.properties?.fact && (
+            <div style={{
+              marginTop: '0.85rem',
+              padding: '0.75rem 1rem',
+              borderRadius: '8px',
+              background: 'rgba(4, 120, 87, 0.08)',
+              border: '1px solid rgba(4, 120, 87, 0.2)',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '0.6rem',
+              fontSize: '0.875rem',
+              color: 'var(--text-primary)',
+              lineHeight: '1.45'
+            }}>
+              <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>💡</span>
+              <div>
+                <strong style={{ color: '#047857' }}>Did You Know? </strong>
+                <span>{currentFeature.properties.fact}</span>
+              </div>
+            </div>
+          )}
 
-          {isAnswered && (
+          {/* Footer Actions (Stop & optional bottom Next Question) */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem', marginTop: '1rem' }}>
             <Button
-              onClick={handleNextQuestion}
+              variant="ghost"
+              onClick={() => navigate('/dashboard')}
               style={{
-                padding: '0.5rem 1.25rem',
-                fontSize: '0.9rem',
-                fontWeight: '700',
-                background: '#047857',
-                borderColor: '#047857',
-                color: '#ffffff',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.4rem'
+                padding: '0.5rem 1rem',
+                fontSize: '0.85rem',
+                color: 'var(--text-secondary)'
               }}
             >
-              <span>{currentIdx + 1 >= questions.length ? 'See Results' : 'Next Question'}</span>
-              <ArrowRight size={16} />
+              Stop
             </Button>
-          )}
-        </div>
 
-        <p style={{
-          textAlign: 'center',
-          fontSize: '0.78rem',
-          color: 'var(--text-tertiary)',
-          margin: '0.75rem 0 0'
-        }}>
-          Pinch or scroll to zoom, drag to move the map.
-        </p>
-      </Card>
+            {isAnswered && (
+              <Button
+                onClick={handleNextQuestion}
+                style={{
+                  padding: '0.5rem 1.25rem',
+                  fontSize: '0.9rem',
+                  fontWeight: '700',
+                  background: '#047857',
+                  borderColor: '#047857',
+                  color: '#ffffff',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.4rem'
+                }}
+              >
+                <span>{currentIdx + 1 >= questions.length ? 'See Results' : 'Next Question'}</span>
+                <ArrowRight size={16} />
+              </Button>
+            )}
+          </div>
+
+          <p style={{
+            textAlign: 'center',
+            fontSize: '0.78rem',
+            color: 'var(--text-tertiary)',
+            margin: '0.75rem 0 0'
+          }}>
+            Pinch or scroll to zoom, drag to move the map.
+          </p>
+        </Card>
+      )}
     </div>
   );
 };

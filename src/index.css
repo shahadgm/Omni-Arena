@@ -389,3 +389,18 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--disc-puzzle);
   border: 1px solid rgba(244, 63, 94, 0.25);
 }
+
+/* Map Arena Name-The-Place Side-by-Side Layout */
+.map-arena-split-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 1fr);
+  gap: 1.5rem;
+  align-items: stretch;
+}
+
+@media (max-width: 860px) {
+  .map-arena-split-layout {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+}
