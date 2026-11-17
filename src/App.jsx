@@ -1,7 +1,8 @@
 import React, { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import RouteSEO from './components/RouteSEO';
+import Footer from './components/Footer';
 import LandingPage from './pages/LandingPage';
 
 // Self-healing dynamic import: if a new release changed chunk hashes, auto-refresh to fetch fresh assets
@@ -39,6 +40,45 @@ const PageLoader = () => (
   </div>
 );
 
+const AppContent = ({ theme, toggleTheme }) => {
+  const location = useLocation();
+  const isLiveMatch = location.pathname.startsWith('/arena/');
+
+  return (
+    <>
+      <RouteSEO />
+      <Navbar theme={theme} toggleTheme={toggleTheme} />
+      <div className="page-wrapper" style={{ display: 'flex', flexDirection: 'column', minHeight: 'calc(100vh - 64px)' }}>
+        <div style={{ flex: 1 }}>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/geography" element={<GeographyLanding />} />
+              <Route path="/typing" element={<TypingLanding />} />
+              <Route path="/puzzles" element={<PuzzlesLanding />} />
+              <Route path="/dashboard" element={<StudentDashboard />} />
+              <Route path="/arena/:id" element={<ArenaRouter />} />
+              <Route path="/leaderboard/:id" element={<LeaderboardPage />} />
+              <Route path="/history" element={<StudentHistory />} />
+              <Route path="/feedback" element={<FeedbackPage />} />
+              
+              <Route path="/tournament/create" element={<CreateTournament />} />
+              <Route path="/tournament/edit/:id" element={<CreateTournament />} />
+              <Route path="/admin/login" element={<Navigate to="/" replace />} />
+              <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/tournament/create" element={<CreateTournament />} />
+              <Route path="/admin/tournament/edit/:id" element={<CreateTournament />} />
+              
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </div>
+        {!isLiveMatch && <Footer />}
+      </div>
+    </>
+  );
+};
+
 const App = () => {
   const [theme, setTheme] = React.useState(() => {
     return localStorage.getItem('omni-theme') || 'dark';
@@ -55,32 +95,7 @@ const App = () => {
 
   return (
     <Router>
-      <RouteSEO />
-      <Navbar theme={theme} toggleTheme={toggleTheme} />
-      <div className="page-wrapper">
-        <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/geography" element={<GeographyLanding />} />
-            <Route path="/typing" element={<TypingLanding />} />
-            <Route path="/puzzles" element={<PuzzlesLanding />} />
-            <Route path="/dashboard" element={<StudentDashboard />} />
-            <Route path="/arena/:id" element={<ArenaRouter />} />
-            <Route path="/leaderboard/:id" element={<LeaderboardPage />} />
-            <Route path="/history" element={<StudentHistory />} />
-            <Route path="/feedback" element={<FeedbackPage />} />
-            
-            <Route path="/tournament/create" element={<CreateTournament />} />
-            <Route path="/tournament/edit/:id" element={<CreateTournament />} />
-            <Route path="/admin/login" element={<Navigate to="/" replace />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            <Route path="/admin/tournament/create" element={<CreateTournament />} />
-            <Route path="/admin/tournament/edit/:id" element={<CreateTournament />} />
-            
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </div>
+      <AppContent theme={theme} toggleTheme={toggleTheme} />
     </Router>
   );
 };

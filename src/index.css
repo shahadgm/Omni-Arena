@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&display=swap');
+/* Fonts preconnected and loaded via index.html <link> to optimize Core Web Vitals (FCP/LCP) */
 
 :root {
   /* Design System Core Tokens - Dark (Default) */

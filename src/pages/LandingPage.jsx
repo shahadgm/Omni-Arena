@@ -1,14 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import Card from '../components/ui/Card';
 import Input from '../components/ui/Input';
 import Button from '../components/ui/Button';
-import { Trophy, Zap, Gamepad2, Shield, Lock, User, AlertCircle, UserPlus, Keyboard, HelpCircle, MapPin, Sparkles, Grid } from 'lucide-react';
+import { Trophy, Zap, Gamepad2, Shield, Lock, User, AlertCircle, UserPlus, Keyboard, HelpCircle, MapPin, Sparkles, Grid, ChevronDown, CheckCircle2, Globe, Compass } from 'lucide-react';
 import { authService } from '../services/db';
+
+const FAQS = [
+  {
+    q: 'What is Omni Arena?',
+    a: 'Omni Arena is a free online multi-format educational and esports competition platform. It combines live speed typing sprints, interactive geography map quizzes, daily crosswords, trivia quizzes, and spatial logic puzzles in a unified arena with real-time leaderboards and anti-cheat telemetry.'
+  },
+  {
+    q: 'Where can I find the official Omni Arena website?',
+    a: 'The official Omni Arena website and online application is hosted at https://omni-arena.vercel.app/. You can access all practice arenas, daily challenges, and live tournaments directly in your web browser with no download or installation required.'
+  },
+  {
+    q: 'What can I do on the Omni Arena platform?',
+    a: 'On Omni Arena, contestants can compete in 60-second speed typing sprints across English, Arabic, and Nastaliq Urdu; master geography on interactive vector maps of India and the world; solve daily crossword grids and Sudoku number puzzles; and join or host private tournaments with live Olympic podiums.'
+  },
+  {
+    q: 'Is Omni Arena free to play online?',
+    a: 'Yes, Omni Arena is 100% free to access and play online. Contestants can jump straight into practice arenas as a guest or create a free profile to track personal best WPM records, accuracy scores, and tournament history.'
+  },
+  {
+    q: 'How do I host a private competition or tournament on Omni Arena?',
+    a: 'Educators, classroom teachers, and event organizers can create custom tournaments on Omni Arena through the Organizer Portal. You can select custom challenge disciplines, configure time limits, and generate an instant PIN code for contestants to join with automated anti-cheat monitoring.'
+  }
+];
 
 const LandingPage = () => {
   const [tab, setTab] = useState('contestant'); // 'contestant' | 'account'
   const [accountMode, setAccountMode] = useState('login'); // 'login' | 'register'
+  const [openFaq, setOpenFaq] = useState(null);
+  const toggleFaq = (idx) => setOpenFaq(prev => prev === idx ? null : idx);
   
   // Contestant entry state
   const [contestantId, setContestantId] = useState('');
@@ -165,14 +190,14 @@ const LandingPage = () => {
           fontWeight: '600'
         }}>
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--success)', boxShadow: '0 0 8px var(--success)' }}></span>
-          Multi-Format Esports & Competition Arena
+          Omni Arena Official Platform • Multi-Format Competitions
         </div>
         <h1 className="hero-title" style={{ fontFamily: 'var(--font-display)' }}>
-          Compete, Solve & Win in <br />
-          <span className="text-gradient">OmniArena</span>
+          Compete, Solve &amp; Win in <br />
+          <span className="text-gradient">Omni Arena</span>
         </h1>
-        <p style={{ fontSize: '1.15rem', color: 'var(--text-secondary)', maxWidth: '620px', margin: '0 auto', lineHeight: 1.6 }}>
-          Live tournaments, speed typing sprints, real-time quizzes, geography map trivia, and logic puzzles in one seamless arena.
+        <p style={{ fontSize: '1.15rem', color: 'var(--text-secondary)', maxWidth: '640px', margin: '0 auto', lineHeight: 1.6 }}>
+          Welcome to the official <strong>Omni Arena</strong> online platform. Join live multiplayer speed typing sprints, interactive India and world geography map challenges, crosswords, and logic puzzles.
         </p>
       </div>
 
@@ -609,6 +634,151 @@ const LandingPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Brand Authority: What is Omni Arena? */}
+      <section style={{ marginTop: '3.5rem', width: '100%' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div style={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: '0.5rem', 
+            padding: '0.3rem 0.8rem', 
+            borderRadius: '999px', 
+            background: 'rgba(99, 102, 241, 0.1)', 
+            border: '1px solid rgba(99, 102, 241, 0.25)', 
+            fontSize: '0.8rem', 
+            color: 'var(--primary-text)', 
+            fontWeight: '700',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            marginBottom: '0.75rem'
+          }}>
+            Official Platform Overview
+          </div>
+          <h2 style={{ fontSize: '2rem', fontWeight: '800', fontFamily: 'var(--font-display)', marginBottom: '0.75rem' }}>
+            What is Omni Arena?
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', maxWidth: '750px', margin: '0 auto', lineHeight: 1.6 }}>
+            <strong>Omni Arena</strong> is an educational and esports competition platform engineered to test speed, knowledge, and problem-solving. Whether you are practicing 60-second multilingual typing drills, exploring interactive vector maps of India and the world, or solving daily crossword grids and Sudoku puzzles, Omni Arena provides a unified browser arena with instant feedback and live rankings.
+          </p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem' }}>
+          <Card style={{ padding: '1.5rem', background: 'var(--surface-2)' }}>
+            <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>⚡</div>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: '700', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Zero-Install Web App</h3>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+              Access Omni Arena instantly on any desktop, laptop, tablet, or smartphone without downloading apps or plugins. Built with lightweight vector SVGs and ultra-responsive layouts.
+            </p>
+          </Card>
+
+          <Card style={{ padding: '1.5rem', background: 'var(--surface-2)' }}>
+            <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🎯</div>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: '700', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Multi-Discipline Competitions</h3>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+              Move seamlessly between speed typing in English, Arabic, and Urdu; state-by-state geography identification; crossword word puzzles; and 9x9 Sudoku and Nonogram logic games.
+            </p>
+          </Card>
+
+          <Card style={{ padding: '1.5rem', background: 'var(--surface-2)' }}>
+            <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🏫</div>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: '700', marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Classroom &amp; Esports Ready</h3>
+            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+              Teachers and organizers can spin up custom tournaments with instant 4-digit PINs. Automated anti-cheat telemetry safeguards fairness for official school competitions.
+            </p>
+          </Card>
+        </div>
+      </section>
+
+      {/* Brand FAQ Section */}
+      <section style={{ marginTop: '4rem', marginBottom: '2.5rem', width: '100%' }}>
+        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div style={{ 
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: '0.5rem', 
+            padding: '0.3rem 0.8rem', 
+            borderRadius: '999px', 
+            background: 'rgba(16, 185, 129, 0.1)', 
+            border: '1px solid rgba(16, 185, 129, 0.25)', 
+            fontSize: '0.8rem', 
+            color: 'var(--success)', 
+            fontWeight: '700',
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            marginBottom: '0.75rem'
+          }}>
+            Got Questions?
+          </div>
+          <h2 style={{ fontSize: '2rem', fontWeight: '800', fontFamily: 'var(--font-display)', marginBottom: '0.5rem' }}>
+            Frequently Asked Questions About Omni Arena
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+            Everything you need to know about the official Omni Arena platform, features, and online tournaments.
+          </p>
+        </div>
+
+        <div style={{ maxWidth: '800px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+          {FAQS.map((faq, idx) => {
+            const isOpen = openFaq === idx;
+            return (
+              <div 
+                key={idx}
+                style={{
+                  background: 'var(--surface-2)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  transition: 'border-color 0.15s ease'
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleFaq(idx)}
+                  style={{
+                    width: '100%',
+                    padding: '1.1rem 1.25rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '1rem',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-primary)',
+                    fontSize: '1rem',
+                    fontWeight: '700',
+                    textAlign: 'left',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <span>{faq.q}</span>
+                  <span style={{ 
+                    color: 'var(--primary-text)', 
+                    transform: isOpen ? 'rotate(180deg)' : 'none', 
+                    transition: 'transform 0.2s ease', 
+                    display: 'flex',
+                    fontSize: '0.8rem' 
+                  }}>
+                    ▼
+                  </span>
+                </button>
+                {isOpen && (
+                  <div style={{ 
+                    padding: '0 1.25rem 1.25rem', 
+                    color: 'var(--text-secondary)', 
+                    fontSize: '0.92rem', 
+                    lineHeight: 1.6, 
+                    borderTop: '1px solid rgba(255,255,255,0.05)', 
+                    paddingTop: '0.85rem' 
+                  }}>
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
     </div>
   );
 };

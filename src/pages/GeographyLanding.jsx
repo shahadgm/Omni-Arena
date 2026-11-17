@@ -39,7 +39,7 @@ const GeographyLanding = () => {
       
       {/* Breadcrumb Navigation */}
       <nav aria-label="Breadcrumb" style={{ marginBottom: '1.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-        <Link to="/" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Home</Link>
+        <Link to="/" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Omni Arena Home</Link>
         <span style={{ margin: '0 0.5rem' }}>/</span>
         <span style={{ color: 'var(--disc-map)', fontWeight: '600' }}>Geography Map Arena</span>
       </nav>
@@ -61,7 +61,7 @@ const GeographyLanding = () => {
           letterSpacing: '0.04em',
           textTransform: 'uppercase'
         }}>
-          <MapPin size={16} /> Interactive Vector Map Challenges
+          <MapPin size={16} /> Omni Arena Interactive Vector Map Challenges
         </div>
 
         <h1 style={{ 
@@ -72,7 +72,7 @@ const GeographyLanding = () => {
           marginBottom: '1rem',
           letterSpacing: '-0.02em'
         }}>
-          India &amp; World Map <span style={{ color: 'var(--disc-map)' }}>Geography Quiz</span>
+          India &amp; World Map <span style={{ color: 'var(--disc-map)' }}>Geography Quiz</span> — Omni Arena
         </h1>
 
         <p style={{ 
@@ -82,7 +82,7 @@ const GeographyLanding = () => {
           margin: '0 auto 2rem auto', 
           lineHeight: 1.6 
         }}>
-          Test your geography skills with real-time vector maps. Spot all 28 Indian States &amp; 8 UTs, 60+ major Indian cities, famous heritage monuments, world capitals, and physical landforms with zero spoilers.
+          Test your geography skills on the official Omni Arena platform with real-time vector maps. Spot all 28 Indian States &amp; 8 UTs, 60+ major Indian cities, famous heritage monuments, world capitals, and physical landforms with zero spoilers.
         </p>
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>

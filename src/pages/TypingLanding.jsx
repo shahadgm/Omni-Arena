@@ -39,7 +39,7 @@ const TypingLanding = () => {
       
       {/* Breadcrumb Navigation */}
       <nav aria-label="Breadcrumb" style={{ marginBottom: '1.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-        <Link to="/" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Home</Link>
+        <Link to="/" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Omni Arena Home</Link>
         <span style={{ margin: '0 0.5rem' }}>/</span>
         <span style={{ color: 'var(--disc-typing)', fontWeight: '600' }}>Speed Typing Arena</span>
       </nav>
@@ -61,7 +61,7 @@ const TypingLanding = () => {
           letterSpacing: '0.04em',
           textTransform: 'uppercase'
         }}>
-          <Keyboard size={16} /> Live Multiplayer Typing Sprints
+          <Keyboard size={16} /> Omni Arena Live Multiplayer Typing Sprints
         </div>
 
         <h1 style={{ 
@@ -72,7 +72,7 @@ const TypingLanding = () => {
           marginBottom: '1rem',
           letterSpacing: '-0.02em'
         }}>
-          Free Online <span style={{ color: 'var(--disc-typing)' }}>Speed Typing Competition</span>
+          Free Online <span style={{ color: 'var(--disc-typing)' }}>Speed Typing Competition</span> — Omni Arena
         </h1>
 
         <p style={{ 
@@ -82,7 +82,7 @@ const TypingLanding = () => {
           margin: '0 auto 2rem auto', 
           lineHeight: 1.6 
         }}>
-          Race against live opponents or beat your personal best in real-time speed typing sprints. Support for English, Arabic, and Nastaliq Urdu with millisecond WPM accuracy, live anti-cheat, and Olympic podium rankings.
+          Race against live opponents or beat your personal best on the official Omni Arena platform. Support for English, Arabic, and Nastaliq Urdu with millisecond WPM accuracy, live anti-cheat, and Olympic podium rankings.
         </p>
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>

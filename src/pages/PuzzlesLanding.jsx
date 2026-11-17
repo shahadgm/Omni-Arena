@@ -39,7 +39,7 @@ const PuzzlesLanding = () => {
       
       {/* Breadcrumb Navigation */}
       <nav aria-label="Breadcrumb" style={{ marginBottom: '1.5rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-        <Link to="/" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Home</Link>
+        <Link to="/" style={{ color: 'var(--text-secondary)', textDecoration: 'none' }}>Omni Arena Home</Link>
         <span style={{ margin: '0 0.5rem' }}>/</span>
         <span style={{ color: 'var(--disc-puzzle)', fontWeight: '600' }}>Logic &amp; Word Puzzles</span>
       </nav>
@@ -61,7 +61,7 @@ const PuzzlesLanding = () => {
           letterSpacing: '0.04em',
           textTransform: 'uppercase'
         }}>
-          <Grid size={16} /> Daily Word &amp; Spatial Deduction Arenas
+          <Grid size={16} /> Omni Arena Word &amp; Spatial Deduction Arenas
         </div>
 
         <h1 style={{ 
@@ -72,7 +72,7 @@ const PuzzlesLanding = () => {
           marginBottom: '1rem',
           letterSpacing: '-0.02em'
         }}>
-          Daily Online <span style={{ color: 'var(--disc-puzzle)' }}>Crosswords, Sudoku &amp; Nonograms</span>
+          Daily Online <span style={{ color: 'var(--disc-puzzle)' }}>Crosswords, Sudoku &amp; Nonograms</span> — Omni Arena
         </h1>
 
         <p style={{ 
@@ -82,7 +82,7 @@ const PuzzlesLanding = () => {
           margin: '0 auto 2rem auto', 
           lineHeight: 1.6 
         }}>
-          Challenge your vocabulary, spatial reasoning, and deduction skills with free interactive crossword grids, daily Sudoku, Nonograms (Picross), and Shikaku logic puzzles.
+          Challenge your vocabulary, spatial reasoning, and deduction skills on the official Omni Arena platform with free interactive crossword grids, daily Sudoku, Nonograms (Picross), and Shikaku logic puzzles.
         </p>
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>

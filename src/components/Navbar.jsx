@@ -90,11 +90,11 @@ const Navbar = ({ theme, toggleTheme }) => {
   return (
     <>
       <nav style={navStyle}>
-        <Link to={logoLink} style={logoStyle}>
+        <Link to={logoLink} style={logoStyle} title="Omni Arena — Official Website" aria-label="Omni Arena Homepage">
           <div style={{ padding: '0.45rem', background: 'var(--accent-primary)', borderRadius: '8px', display: 'flex' }}>
             <Keyboard size={20} color="white" />
           </div>
-          <span className="text-gradient">OmniArena</span>
+          <span className="text-gradient">Omni Arena</span>
         </Link>
         
         {/* Desktop Links */}
