@@ -205,7 +205,7 @@ const StudentDashboard = () => {
           border: '1px solid var(--border)', 
           borderRadius: '12px', 
           padding: '1.25rem', 
-          minWidth: '320px',
+          minWidth: 0,
           maxWidth: '420px',
           width: '100%',
           boxShadow: '0 4px 12px rgba(0,0,0,0.1)'

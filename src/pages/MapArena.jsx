@@ -808,15 +808,18 @@ const MapArena = () => {
             
             {/* Left Column: Interactive Map */}
             <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-              <div style={{
-                flex: 1,
-                minHeight: '450px',
-                position: 'relative',
-                borderRadius: '12px',
-                overflow: 'hidden',
-                background: 'var(--surface-2)',
-                border: '1px solid var(--border)'
-              }}>
+              <div
+                className="map-arena-map-frame"
+                style={{
+                  flex: 1,
+                  minHeight: '450px',
+                  position: 'relative',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  background: 'var(--surface-2)',
+                  border: '1px solid var(--border)'
+                }}
+              >
                 <SvgInteractiveMap
                   mapData={mapData}
                   targetFeature={currentFeature}
@@ -887,7 +890,7 @@ const MapArena = () => {
                 </div>
 
                 {/* Multiple Choice Options List */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                <div className="map-arena-options-grid" style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                   <div style={{ fontSize: '0.75rem', fontWeight: '800', color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Select one option:
                   </div>
@@ -916,6 +919,7 @@ const MapArena = () => {
                     return (
                       <button
                         key={option.id}
+                        className="map-arena-option-btn"
                         onClick={() => handleOptionSelect(option)}
                         disabled={optionAnswered}
                         style={{
@@ -1128,7 +1132,7 @@ const MapArena = () => {
           </div>
 
           {/* 100% Vector Self-Contained SVG Map */}
-          <div style={{ flex: 1, minHeight: '380px', position: 'relative' }}>
+          <div className="find-on-map-frame" style={{ flex: 1, minHeight: '380px', position: 'relative' }}>
             <SvgInteractiveMap
               mapData={mapData}
               targetFeature={currentFeature}

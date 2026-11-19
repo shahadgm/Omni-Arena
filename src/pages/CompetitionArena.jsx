@@ -921,7 +921,7 @@ const CompetitionArena = () => {
           setIsFocused(true);
         }}
       >
-        {/* Hidden Auto-Capturing Textarea */}
+        {/* Auto-Capturing Textarea (Accessible on both Desktop & Mobile keyboards) */}
         <textarea 
           ref={inputRef}
           value={currentInput}
@@ -930,24 +930,47 @@ const CompetitionArena = () => {
           onBlur={() => setIsFocused(false)}
           dir={isRtl ? 'rtl' : 'ltr'}
           autoFocus
+          autoCapitalize="none"
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck="false"
+          inputMode="text"
           style={{
             position: 'absolute',
-            opacity: 0,
+            opacity: 0.001,
             top: 0,
             left: 0,
             width: '100%',
             height: '100%',
-            cursor: 'default',
-            zIndex: 1,
+            cursor: 'text',
+            zIndex: 10,
             resize: 'none',
             border: 'none',
             outline: 'none',
-            pointerEvents: 'none'
+            pointerEvents: 'auto'
           }}
           onPaste={(e) => e.preventDefault()}
           onCopy={(e) => e.preventDefault()}
           onCut={(e) => e.preventDefault()}
         />
+
+        {!isFocused && (
+          <div style={{
+            position: 'absolute',
+            bottom: '0.4rem',
+            right: '0.75rem',
+            zIndex: 11,
+            fontSize: '0.75rem',
+            color: 'var(--primary-text)',
+            background: 'var(--surface)',
+            padding: '0.2rem 0.5rem',
+            borderRadius: '4px',
+            border: '1px solid var(--border)',
+            pointerEvents: 'none'
+          }}>
+            Tap card to type
+          </div>
+        )}
 
         {/* Scrollable Text Viewport (Auto-centered on active word) */}
         <div 

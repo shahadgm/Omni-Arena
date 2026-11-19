@@ -163,12 +163,21 @@ export const useAntiCheat = (onViolation, isPractice) => {
       });
     };
 
+    const isMobile = typeof navigator !== 'undefined' && (
+      /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+      (navigator.maxTouchPoints && navigator.maxTouchPoints > 2)
+    );
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleBlur);
+    if (!isMobile) {
+      window.addEventListener('blur', handleBlur);
+    }
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleBlur);
+      if (!isMobile) {
+        window.removeEventListener('blur', handleBlur);
+      }
       const existing = document.getElementById('omni-anticheat-modal');
       if (existing) existing.remove();
     };

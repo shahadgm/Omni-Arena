@@ -26,6 +26,15 @@ export const SvgInteractiveMap = ({
       .scaleExtent([1, 14])
       .translateExtent([[-width * 0.5, -height * 0.5], [width * 1.5, height * 1.5]])
       .clickDistance(8)
+      .filter((event) => {
+        // On mobile touchscreens, allow single-finger vertical swipes to scroll the page naturally.
+        // Reserve two fingers for pinch-to-zoom and map panning.
+        // On desktop/mouse: standard left-click drag and scroll-wheel zoom.
+        if (event.type === 'touchstart' || event.type === 'touchmove') {
+          return event.touches && event.touches.length > 1;
+        }
+        return !event.ctrlKey && !event.button;
+      })
       .on('zoom', (event) => {
         select(gRef.current).attr('transform', event.transform);
       });
@@ -184,7 +193,7 @@ export const SvgInteractiveMap = ({
         position: 'relative',
         width: '100%',
         height: '100%',
-        minHeight: '400px',
+        minHeight: '260px',
         maxHeight: '620px',
         background: '#c5e2f6', // Natural maritime sea blue
         borderRadius: '12px',
@@ -201,7 +210,7 @@ export const SvgInteractiveMap = ({
           height: '100%',
           display: 'block',
           cursor: questionMode === 'find-on-map' && !disabled ? 'crosshair' : 'grab',
-          touchAction: 'none'
+          touchAction: 'manipulation'
         }}
         role="img"
         aria-label="Interactive Geography Map"
@@ -455,8 +464,8 @@ export const SvgInteractiveMap = ({
           type="button"
           onClick={handleZoomIn}
           style={{
-            width: '32px',
-            height: '32px',
+            width: '36px',
+            height: '36px',
             background: 'transparent',
             border: 'none',
             display: 'flex',
@@ -464,19 +473,19 @@ export const SvgInteractiveMap = ({
             justifyContent: 'center',
             color: '#1f2937',
             cursor: 'pointer',
-            borderRadius: '4px'
+            borderRadius: '6px'
           }}
           title="Zoom in (+)"
         >
-          <Plus size={18} />
+          <Plus size={20} />
         </button>
 
         <button
           type="button"
           onClick={handleZoomOut}
           style={{
-            width: '32px',
-            height: '32px',
+            width: '36px',
+            height: '36px',
             background: 'transparent',
             border: 'none',
             display: 'flex',
@@ -484,19 +493,19 @@ export const SvgInteractiveMap = ({
             justifyContent: 'center',
             color: '#1f2937',
             cursor: 'pointer',
-            borderRadius: '4px'
+            borderRadius: '6px'
           }}
           title="Zoom out (−)"
         >
-          <Minus size={18} />
+          <Minus size={20} />
         </button>
 
         <button
           type="button"
           onClick={handleResetZoom}
           style={{
-            width: '32px',
-            height: '32px',
+            width: '36px',
+            height: '36px',
             background: 'transparent',
             border: 'none',
             display: 'flex',
@@ -504,11 +513,11 @@ export const SvgInteractiveMap = ({
             justifyContent: 'center',
             color: '#1f2937',
             cursor: 'pointer',
-            borderRadius: '4px'
+            borderRadius: '6px'
           }}
           title="Reset View"
         >
-          <RotateCcw size={15} />
+          <RotateCcw size={17} />
         </button>
       </div>
     </div>

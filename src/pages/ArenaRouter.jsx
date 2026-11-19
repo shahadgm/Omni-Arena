@@ -39,6 +39,10 @@ const ArenaRouter = () => {
   const studentId = localStorage.getItem('studentId');
   const antiCheatKey = `started_${id}_${studentId}`;
   const isPractice = id?.startsWith('practice-');
+  const isMobileDevice = typeof navigator !== 'undefined' && (
+    /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+    (navigator.maxTouchPoints && navigator.maxTouchPoints > 2)
+  );
 
   const togglePracticeFullscreen = async () => {
     try {
@@ -374,8 +378,8 @@ const ArenaRouter = () => {
 
   return (
     <>
-      {/* Full screen enforcement ONLY for tournaments */}
-      {!isPractice && !isFullscreen && hasStarted && (
+      {/* Full screen enforcement ONLY for tournaments on desktop browsers with Fullscreen API support */}
+      {!isPractice && !isMobileDevice && !isFullscreen && hasStarted && (
         <div style={{
           position: 'fixed',
           top: 0, left: 0, right: 0, bottom: 0,
@@ -407,15 +411,15 @@ const ArenaRouter = () => {
         </div>
       )}
       
-      {/* Render the arena - hide only if non-practice tournament exits fullscreen */}
-      <div style={{ display: !isPractice && !isFullscreen && hasStarted ? 'none' : 'flex', width: '100%', flex: 1, flexDirection: 'column' }}>
+      {/* Render the arena - hide only if non-practice tournament exits fullscreen on desktop */}
+      <div style={{ display: !isPractice && !isMobileDevice && !isFullscreen && hasStarted ? 'none' : 'flex', width: '100%', flex: 1, flexDirection: 'column' }}>
         <Suspense fallback={<div className="page-wrapper" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>Loading arena components...</div>}>
           {renderArena()}
         </Suspense>
       </div>
 
-      {/* Optional Full Screen Toggle for Practice Mode */}
-      {isPractice && hasStarted && (
+      {/* Optional Full Screen Toggle for Practice Mode on desktop */}
+      {isPractice && hasStarted && !isMobileDevice && (
         <button
           onClick={togglePracticeFullscreen}
           style={{

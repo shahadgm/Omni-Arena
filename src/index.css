@@ -398,9 +398,58 @@ h1, h2, h3, h4, h5, h6 {
   align-items: stretch;
 }
 
+.map-arena-options-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
 @media (max-width: 860px) {
   .map-arena-split-layout {
     grid-template-columns: 1fr;
-    gap: 1.25rem;
+    gap: 1rem;
+  }
+
+  .map-arena-map-frame {
+    min-height: 250px !important;
+    height: 260px !important;
+  }
+
+  .find-on-map-frame {
+    min-height: 280px !important;
+    height: 320px !important;
+  }
+
+  .map-arena-options-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem !important;
+  }
+
+  .map-arena-option-btn {
+    padding: 0.65rem 0.75rem !important;
+    font-size: 0.85rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .map-arena-map-frame {
+    min-height: 220px !important;
+    height: 230px !important;
+  }
+
+  .find-on-map-frame {
+    min-height: 250px !important;
+    height: 280px !important;
+  }
+
+  .map-arena-options-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0.4rem !important;
+  }
+
+  .map-arena-option-btn {
+    padding: 0.55rem 0.6rem !important;
+    font-size: 0.8rem !important;
   }
 }
