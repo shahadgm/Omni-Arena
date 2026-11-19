@@ -58,13 +58,15 @@ const AppContent = ({ theme, toggleTheme }) => {
               <Route path="/puzzles" element={<PuzzlesLanding />} />
               <Route path="/dashboard" element={<StudentDashboard />} />
               <Route path="/arena/:id" element={<ArenaRouter />} />
+              <Route path="/leaderboard" element={<LeaderboardPage />} />
               <Route path="/leaderboard/:id" element={<LeaderboardPage />} />
               <Route path="/history" element={<StudentHistory />} />
               <Route path="/feedback" element={<FeedbackPage />} />
               
               <Route path="/tournament/create" element={<CreateTournament />} />
               <Route path="/tournament/edit/:id" element={<CreateTournament />} />
-              <Route path="/admin/login" element={<Navigate to="/" replace />} />
+              <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="/admin/login" element={<Navigate to="/admin/dashboard" replace />} />
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/tournament/create" element={<CreateTournament />} />
               <Route path="/admin/tournament/edit/:id" element={<CreateTournament />} />

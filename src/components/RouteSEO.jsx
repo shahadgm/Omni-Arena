@@ -57,7 +57,7 @@ export default function RouteSEO() {
           title: 'Live Arena Match — Omni Arena',
           description: 'Compete in this live challenge arena on the official Omni Arena platform. Test your speed, accuracy, and knowledge now!'
         };
-      } else if (pathname.startsWith('/leaderboard/')) {
+      } else if (pathname.startsWith('/leaderboard')) {
         meta = {
           title: 'Tournament Leaderboard & Podium — Omni Arena',
           description: 'Real-time standings, fastest finish times, accuracy rankings, and medal winners on Omni Arena.'

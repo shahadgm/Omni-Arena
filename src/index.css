@@ -453,3 +453,88 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 0.8rem !important;
   }
 }
+
+/* ========================================================
+   Leaderboard Responsive Styles
+   ======================================================== */
+.leaderboard-podium-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 2rem;
+  align-items: flex-end;
+}
+
+@media (max-width: 640px) {
+  .leaderboard-podium-grid {
+    gap: 0.45rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .leaderboard-desktop-table {
+    display: none !important;
+  }
+
+  .leaderboard-mobile-list {
+    display: flex !important;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+}
+
+@media (min-width: 641px) {
+  .leaderboard-desktop-table {
+    display: block !important;
+  }
+
+  .leaderboard-mobile-list {
+    display: none !important;
+  }
+}
+
+/* ========================================================
+   Admin Dashboard Responsive Styles
+   ======================================================== */
+.admin-executive-hud {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+  .admin-executive-hud {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  .admin-desktop-table {
+    display: none !important;
+  }
+
+  .admin-mobile-cards {
+    display: flex !important;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .admin-desktop-users {
+    display: none !important;
+  }
+
+  .admin-mobile-users {
+    display: flex !important;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}
+
+@media (min-width: 769px) {
+  .admin-mobile-cards {
+    display: none !important;
+  }
+
+  .admin-mobile-users {
+    display: none !important;
+  }
+}

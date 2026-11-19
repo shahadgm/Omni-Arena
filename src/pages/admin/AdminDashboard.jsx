@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -9,10 +9,14 @@ import {
   Plus, Users, Calendar, Keyboard, Edit, Trash2, 
   RotateCcw, Square, MapPin, Hash, Lock, Search, Copy, Check, Eye, EyeOff, Filter,
   MessageSquare, Star, Bug, Lightbulb, Ban, UserCheck, Clock, Shield, Settings,
-  Trophy, Globe, HelpCircle, Sparkles, ExternalLink, Link2
+  Trophy, Globe, HelpCircle, Sparkles, ExternalLink, Link2, ArrowLeft
 } from 'lucide-react';
 
 const AdminDashboard = () => {
+  const [passkeyInput, setPasskeyInput] = useState('');
+  const [passkeyError, setPasskeyError] = useState('');
+  const [adminUnlocked, setAdminUnlocked] = useState(() => authService.isAdmin());
+
   const [tournaments, setTournaments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -80,14 +84,26 @@ const AdminDashboard = () => {
   };
 
   useEffect(() => {
-    if (!authService.isAdmin()) {
-      navigate(authService.isAuthenticated() ? '/dashboard' : '/');
-      return;
+    if (authService.isAdmin()) {
+      setAdminUnlocked(true);
+      fetchTournaments();
+      fetchFeedback();
+      fetchUsers();
     }
-    fetchTournaments();
-    fetchFeedback();
-    fetchUsers();
-  }, [navigate]);
+  }, []);
+
+  const handleUnlockAdmin = (e) => {
+    e?.preventDefault();
+    if (authService.verifyAdminPasskey(passkeyInput)) {
+      setAdminUnlocked(true);
+      setPasskeyError('');
+      fetchTournaments();
+      fetchFeedback();
+      fetchUsers();
+    } else {
+      setPasskeyError('Incorrect admin passkey. Please check the master key and try again.');
+    }
+  };
 
   const handleDelete = (id, name) => {
     setGenericConfirm({
@@ -344,6 +360,80 @@ const AdminDashboard = () => {
     { id: 'practice', label: 'Practice Arenas', icon: <Keyboard size={18} />, badge: practiceModes.length }
   ];
 
+  if (!adminUnlocked) {
+    const user = authService.getCurrentUser();
+    const isOwner = user && (user.username?.toLowerCase()?.includes('shahad') || user.username?.toLowerCase() === 'admin');
+
+    return (
+      <div className="container" style={{ maxWidth: '480px', margin: '0 auto', paddingTop: '4rem', paddingBottom: '4rem' }}>
+        <Card padding="2.25rem" style={{ textAlign: 'center', boxShadow: 'var(--glass-shadow)', border: '1.5px solid var(--border)' }}>
+          <div style={{
+            width: '56px', height: '56px', borderRadius: '50%',
+            background: 'rgba(99, 102, 241, 0.12)', border: '1.5px solid var(--primary)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 1.25rem', color: 'var(--primary)'
+          }}>
+            <Shield size={28} />
+          </div>
+
+          <h2 style={{ fontSize: '1.65rem', fontWeight: '800', marginBottom: '0.4rem', color: 'var(--text-primary)' }}>
+            Admin Console Access
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.75rem', lineHeight: '1.5' }}>
+            Administrator authentication required to manage competitions, moderate users, and configure platform settings.
+          </p>
+
+          {isOwner && (
+            <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '10px', padding: '1rem', marginBottom: '1.25rem', textAlign: 'center' }}>
+              <div style={{ fontSize: '0.85rem', color: '#10b981', fontWeight: '700', marginBottom: '0.5rem' }}>
+                Verified Creator Account Detected (@{user.username})
+              </div>
+              <Button 
+                onClick={() => {
+                  authService.verifyAdminPasskey('omniadmin2026');
+                  setAdminUnlocked(true);
+                  fetchTournaments();
+                  fetchFeedback();
+                  fetchUsers();
+                }}
+                style={{ width: '100%', padding: '0.65rem', fontSize: '0.9rem', fontWeight: '700' }}
+              >
+                Unlock Master Admin Hub
+              </Button>
+            </div>
+          )}
+
+          <form onSubmit={handleUnlockAdmin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', textAlign: 'left' }}>
+            <div>
+              <label style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '0.35rem', display: 'block' }}>
+                Admin Master Passkey
+              </label>
+              <Input 
+                type="password"
+                placeholder="Enter master passkey..."
+                value={passkeyInput}
+                onChange={(e) => { setPasskeyInput(e.target.value); setPasskeyError(''); }}
+                error={passkeyError}
+                autoFocus={!isOwner}
+                style={{ padding: '0.75rem 0.85rem' }}
+              />
+            </div>
+
+            <Button type="submit" style={{ padding: '0.75rem', fontSize: '0.92rem', fontWeight: '700', width: '100%' }}>
+              Authenticate &amp; Open Console
+            </Button>
+          </form>
+
+          <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+            <Link to="/dashboard" style={{ color: 'var(--text-secondary)', textDecoration: 'none', fontSize: '0.85rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+              <ArrowLeft size={14} /> Return to Tournaments
+            </Link>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="container" style={{ maxWidth: '1120px', margin: '0 auto', padding: '1rem', paddingBottom: '4rem' }}>
       
@@ -371,7 +461,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Top Executive Metric HUD */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
+      <div className="admin-executive-hud" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
         {/* Live Tournaments */}
         <Card padding="1.25rem" hoverEffect={true} style={{ borderLeft: '4px solid var(--success)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -589,7 +679,8 @@ const AdminDashboard = () => {
 
           {/* Tournaments List Card */}
           <Card padding="0" style={{ overflow: 'hidden' }}>
-            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            {/* Desktop Table View */}
+            <div className="admin-desktop-table" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
               <div style={{ minWidth: '780px' }}>
                 {/* Table Header */}
                 <div style={{ 
@@ -811,6 +902,189 @@ const AdminDashboard = () => {
                 )}
               </div>
             </div>
+
+            {/* Mobile Tournaments Cards View */}
+            <div className="admin-mobile-cards" style={{ padding: '0.75rem' }}>
+              {loading ? (
+                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  Loading tournaments...
+                </div>
+              ) : filteredTournaments.length === 0 ? (
+                <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  <Calendar size={32} style={{ color: 'var(--text-tertiary)', margin: '0 auto 0.5rem', opacity: 0.6 }} />
+                  <p style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+                    No matching tournaments
+                  </p>
+                  <p style={{ fontSize: '0.8rem', margin: 0, color: 'var(--text-secondary)' }}>
+                    {searchQuery || statusFilter !== 'all' || disciplineFilter !== 'all' ? 'Try adjusting filters.' : 'No tournaments created.'}
+                  </p>
+                </div>
+              ) : (
+                filteredTournaments.map(t => {
+                  const status = getStatus(t.startTime, t.endTime);
+                  const start = new Date(t.startTime);
+                  const isRevealed = revealedCodes[t.id];
+                  const isCopied = copiedId === t.id;
+                  const isLinkCopied = copiedLinkId === t.id;
+                  const gType = t.gameType || 'typing';
+
+                  return (
+                    <div 
+                      key={t.id}
+                      style={{
+                        background: 'var(--surface-2)',
+                        border: '1px solid var(--border)',
+                        borderRadius: '10px',
+                        padding: '0.85rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.65rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.2rem' }}>
+                            <span className={getBadgeClass(gType)}>
+                              {gType.toUpperCase()}
+                            </span>
+                            <span style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                              {t.name}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                            Host: <strong style={{ color: 'var(--text-secondary)' }}>{t.creatorName || t.createdBy || 'Organizer'}</strong>
+                          </div>
+                        </div>
+                        <span style={{ 
+                          fontSize: '0.7rem', 
+                          fontWeight: '700', 
+                          padding: '0.2rem 0.5rem', 
+                          background: status.bg, 
+                          color: status.color, 
+                          borderRadius: '6px', 
+                          display: 'inline-flex', 
+                          alignItems: 'center', 
+                          gap: '0.3rem',
+                          whiteSpace: 'nowrap'
+                        }}>
+                          <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: status.color }}></span>
+                          {status.label}
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: 'var(--text-secondary)', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', padding: '0.4rem 0' }}>
+                        <div>
+                          📅 {start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} at {start.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                        {t.isPrivate ? (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '6px', padding: '0.1rem 0.35rem' }}>
+                            <Lock size={10} color="var(--primary-text)" />
+                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: '700', fontSize: '0.75rem' }}>
+                              {isRevealed ? t.accessCode : '••••••'}
+                            </span>
+                            <button 
+                              type="button"
+                              onClick={() => toggleRevealCode(t.id)} 
+                              style={{ background: 'none', border: 'none', padding: '0 2px', cursor: 'pointer', color: 'var(--text-tertiary)' }}
+                            >
+                              {isRevealed ? <EyeOff size={11} /> : <Eye size={11} />}
+                            </button>
+                            <button 
+                              type="button"
+                              onClick={(e) => handleCopyCode(t.id, t.accessCode, e)} 
+                              style={{ background: 'none', border: 'none', padding: '0 2px', cursor: 'pointer', color: isCopied ? 'var(--success)' : 'var(--text-secondary)' }}
+                            >
+                              {isCopied ? <Check size={11} color="var(--success)" /> : <Copy size={11} />}
+                            </button>
+                          </div>
+                        ) : (
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>Public Room</span>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+                        <Button 
+                          variant="secondary" 
+                          onClick={() => navigate(`/leaderboard/${t.id}`)} 
+                          style={{ padding: '0.4rem 0.5rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
+                        >
+                          <Users size={13} /> Standings
+                        </Button>
+                        <Button 
+                          variant="secondary" 
+                          onClick={() => navigate(`/admin/tournament/edit/${t.id}`)} 
+                          style={{ padding: '0.4rem 0.5rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}
+                        >
+                          <Edit size={13} /> Edit
+                        </Button>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end', alignItems: 'center', paddingTop: '0.2rem' }}>
+                        <button 
+                          type="button"
+                          onClick={(e) => handleCopyLink(t.id, e)} 
+                          title="Copy direct contestant link"
+                          style={{ 
+                            flex: 1,
+                            padding: '0.4rem', 
+                            background: 'var(--surface)', 
+                            border: '1px solid var(--border)', 
+                            borderRadius: '6px', 
+                            color: isLinkCopied ? 'var(--success)' : 'var(--text-secondary)', 
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.3rem'
+                          }}
+                        >
+                          {isLinkCopied ? <Check size={13} /> : <Link2 size={13} />} Copy Link
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => handleResetLeaderboard(t.id, t.name)} 
+                          title="Reset leaderboard scores"
+                          style={{ 
+                            padding: '0.4rem 0.6rem', 
+                            background: 'var(--surface)', 
+                            border: '1px solid var(--border)', 
+                            borderRadius: '6px', 
+                            color: 'var(--warning)', 
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem'
+                          }}
+                        >
+                          <RotateCcw size={13} /> Reset
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={() => handleDelete(t.id, t.name)} 
+                          title="Permanently delete tournament"
+                          style={{ 
+                            padding: '0.4rem 0.6rem', 
+                            background: 'var(--surface)', 
+                            border: '1px solid var(--border)', 
+                            borderRadius: '6px', 
+                            color: 'var(--danger)', 
+                            cursor: 'pointer',
+                            fontSize: '0.75rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem'
+                          }}
+                        >
+                          <Trash2 size={13} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </Card>
         </div>
       )}
@@ -924,7 +1198,8 @@ const AdminDashboard = () => {
 
             {/* Users Table */}
             <Card padding="0" style={{ overflow: 'hidden' }}>
-              <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              {/* Desktop Users Table */}
+              <div className="admin-desktop-users" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                 <div style={{ minWidth: '740px' }}>
                   <div style={{ 
                     padding: '0.85rem 1.25rem', 
@@ -1197,6 +1472,146 @@ const AdminDashboard = () => {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Mobile Users Cards View */}
+              <div className="admin-mobile-users" style={{ padding: '0.75rem' }}>
+                {userLoading ? (
+                  <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                    Loading registered users...
+                  </div>
+                ) : filteredUsers.length === 0 ? (
+                  <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                    <Users size={32} style={{ color: 'var(--text-tertiary)', margin: '0 auto 0.5rem', opacity: 0.6 }} />
+                    <p style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+                      No matching users
+                    </p>
+                    <p style={{ fontSize: '0.8rem', margin: 0, color: 'var(--text-secondary)' }}>
+                      {userSearch || userStatusFilter !== 'all' ? 'Try adjusting your search query or filter.' : 'No registered users found.'}
+                    </p>
+                  </div>
+                ) : (
+                  filteredUsers.map(u => {
+                    const isAdminUser = u.username.toLowerCase() === 'admin' || u.role === 'admin';
+                    const isSuspendedNow = u.status === 'suspended' && u.suspendedUntil && new Date(u.suspendedUntil) > new Date();
+                    const isBannedNow = u.status === 'banned';
+
+                    let remainingHours = 0;
+                    if (isSuspendedNow) {
+                      remainingHours = Math.max(1, Math.ceil((new Date(u.suspendedUntil) - Date.now()) / (3600 * 1000)));
+                    }
+
+                    return (
+                      <div
+                        key={u.username}
+                        style={{
+                          background: 'var(--surface-2)',
+                          border: '1px solid var(--border)',
+                          borderRadius: '10px',
+                          padding: '0.85rem',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.65rem'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem' }}>
+                          <div>
+                            <div style={{ fontWeight: '700', fontSize: '0.95rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              {u.displayName || u.username}
+                              {isAdminUser && (
+                                <span style={{ fontSize: '0.65rem', padding: '0.1rem 0.35rem', background: 'var(--primary)', color: 'white', borderRadius: '4px', fontWeight: 'bold' }}>
+                                  ADMIN
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)', marginTop: '0.15rem' }}>
+                              @{u.username} {u.createdAt ? `• Joined ${new Date(u.createdAt).toLocaleDateString()}` : ''}
+                            </div>
+                          </div>
+                          <div>
+                            {isBannedNow ? (
+                              <span style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '6px', fontWeight: '700', background: 'rgba(244, 63, 94, 0.15)', color: 'var(--danger)', border: '1px solid rgba(244, 63, 94, 0.3)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                                <Ban size={11} /> BANNED
+                              </span>
+                            ) : isSuspendedNow ? (
+                              <span style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '6px', fontWeight: '700', background: 'rgba(245, 158, 11, 0.15)', color: 'var(--warning)', border: '1px solid rgba(245, 158, 11, 0.3)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                                <Clock size={11} /> {remainingHours}h LEFT
+                              </span>
+                            ) : (
+                              <span style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '6px', fontWeight: '700', background: 'rgba(16, 185, 129, 0.15)', color: 'var(--success)', border: '1px solid rgba(16, 185, 129, 0.3)', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                                <Check size={11} /> ACTIVE
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {(u.banReason && (isBannedNow || isSuspendedNow)) && (
+                          <div style={{ fontSize: '0.75rem', color: isBannedNow ? 'var(--danger)' : 'var(--warning)', fontStyle: 'italic', background: 'var(--surface)', padding: '0.35rem 0.6rem', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                            Note: "{u.banReason}"
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end', alignItems: 'center', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
+                          {isAdminUser ? (
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>
+                              <Shield size={13} color="var(--primary-text)" /> Protected
+                            </div>
+                          ) : (
+                            <>
+                              {isSuspendedNow && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleReactivateUser(u.username)}
+                                  style={{ padding: '0.35rem 0.65rem', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '6px', color: 'var(--success)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                                >
+                                  <UserCheck size={12} /> Reactivate
+                                </button>
+                              )}
+
+                              {isBannedNow && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleReactivateUser(u.username)}
+                                  style={{ padding: '0.35rem 0.65rem', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '6px', color: 'var(--success)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                                >
+                                  <UserCheck size={12} /> Unban
+                                </button>
+                              )}
+
+                              {!isSuspendedNow && !isBannedNow && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenSuspendModal(u)}
+                                    style={{ padding: '0.35rem 0.65rem', background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '6px', color: 'var(--warning)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                                  >
+                                    <Clock size={12} /> Suspend
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenBanModal(u)}
+                                    style={{ padding: '0.35rem 0.65rem', background: 'rgba(244, 63, 94, 0.12)', border: '1px solid rgba(244, 63, 94, 0.3)', borderRadius: '6px', color: 'var(--danger)', cursor: 'pointer', fontSize: '0.75rem', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                                  >
+                                    <Ban size={12} /> Ban
+                                  </button>
+                                </>
+                              )}
+
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteUser(u.username)}
+                                title="Permanently delete user account"
+                                style={{ padding: '0.35rem 0.5rem', background: 'transparent', border: '1px solid var(--border)', borderRadius: '6px', color: 'var(--danger)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center' }}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </Card>
           </div>

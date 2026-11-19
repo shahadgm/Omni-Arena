@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { authService } from '../services/db';
 import soundEngine from '../utils/soundEffects';
-import { Keyboard, LogOut, Shield, Sun, Moon, PlusCircle, Trophy, User, Menu, X, Clock, MessageSquare, Volume2, VolumeX, MapPin, Grid } from 'lucide-react';
+import { Keyboard, LogOut, Shield, Sun, Moon, PlusCircle, Trophy, User, Menu, X, Clock, MessageSquare, Volume2, VolumeX, MapPin, Grid, Award } from 'lucide-react';
 
 const Navbar = ({ theme, toggleTheme }) => {
   const navigate = useNavigate();
@@ -143,6 +143,10 @@ const Navbar = ({ theme, toggleTheme }) => {
               <Link to="/dashboard" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
                 <Trophy size={16} /> Tournaments
               </Link>
+
+              <Link to="/leaderboard" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--gold)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
+                <Award size={16} /> Standings
+              </Link>
               
               <Link to="/tournament/create" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
                 <PlusCircle size={16} /> Host
@@ -156,7 +160,7 @@ const Navbar = ({ theme, toggleTheme }) => {
                 <MessageSquare size={16} /> Feedback
               </Link>
 
-              {isAdmin && (
+              {(isAdmin || !isGuest) && (
                 <Link to="/admin/dashboard" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
                   <Shield size={16} /> Admin
                 </Link>
@@ -204,6 +208,9 @@ const Navbar = ({ theme, toggleTheme }) => {
             </>
           ) : (
             <>
+              <Link to="/leaderboard" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--gold)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
+                <Award size={16} /> Standings
+              </Link>
               <Link to="/feedback" style={linkItemStyle} onMouseOver={e => e.currentTarget.style.color = 'var(--accent-primary)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary)'}>
                 <MessageSquare size={16} /> Feedback
               </Link>
@@ -280,6 +287,9 @@ const Navbar = ({ theme, toggleTheme }) => {
               <Link to="/dashboard" style={mobileLinkItemStyle} onClick={() => setMobileMenuOpen(false)}>
                 <Trophy size={18} color="var(--accent-primary)" /> Tournaments
               </Link>
+              <Link to="/leaderboard" style={mobileLinkItemStyle} onClick={() => setMobileMenuOpen(false)}>
+                <Award size={18} color="var(--gold)" /> Standings & Leaderboards
+              </Link>
               <Link to="/tournament/create" style={mobileLinkItemStyle} onClick={() => setMobileMenuOpen(false)}>
                 <PlusCircle size={18} color="var(--accent-primary)" /> Host Tournament
               </Link>
@@ -289,7 +299,7 @@ const Navbar = ({ theme, toggleTheme }) => {
               <Link to="/feedback" style={mobileLinkItemStyle} onClick={() => setMobileMenuOpen(false)}>
                 <MessageSquare size={18} color="var(--accent-primary)" /> Feedback & Reports
               </Link>
-              {isAdmin && (
+              {(isAdmin || !isGuest) && (
                 <Link to="/admin/dashboard" style={mobileLinkItemStyle} onClick={() => setMobileMenuOpen(false)}>
                   <Shield size={18} color="var(--accent-primary)" /> Admin Console
                 </Link>
